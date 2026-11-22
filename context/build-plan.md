@@ -156,13 +156,15 @@ An item can **start** before its dependencies are finished by building against a
 
 **Plan:** `ClaimSettlement` runs the documented checks in order and updates state before paying. A single insurer wallet, fixed at deployment, controls the four admin calls (D-040). `npm run seed --workspace @rado/contracts` rebuilds a fresh node using newly generated wallets kept in the git-ignored `contracts/.env.demo-wallets`. It does not register keys, policies, or hospitals, because those need MetaMask unlock keys (D-027).
 
-**Status:** 2026-11-23. On Linux with Node 26.13.1, 33 contract tests passed, including the ABI match, every expected rejection, replay, the cap, payout, and audit events. A real Groth16 proof settled through the **placeholder** verifier. The seed refused to run without `RADO_ALLOW_PLACEHOLDER=1` and rebuilt identical addresses after a node restart. W05 stays unticked until the same suite passes against the real verifier.
+**Status:** 2026-11-23. On Linux with Node 26.13.1, 33 contract tests passed, including the ABI match, every expected rejection, replay, the cap, payout, and audit events. A real Groth16 proof settled through the **placeholder** verifier. The seed refused to run without `RADO_ALLOW_PLACEHOLDER=1` and rebuilt identical addresses after a node restart.
 
-**Left to verify for W05 (blocks the tick):**
+**Verification for the W05 tick:**
 
-- [ ] After W04 merges, merge `main` and confirm `npm test --workspace @rado/contracts` names the REAL verifier and passes.
-- [ ] Run the seed on a fresh node without `RADO_ALLOW_PLACEHOLDER` and confirm `placeholder` is `false` in `contracts/deployments/localhost.json`.
-- [ ] Add the dated `**Result:**`, tick W05 in Progress, and update Current Status.
+- [x] After W04 merges, merge `main` and confirm `npm test --workspace @rado/contracts` names the REAL verifier and passes.
+- [x] Run the seed on a fresh node without `RADO_ALLOW_PLACEHOLDER` and confirm `placeholder` is `false` in `contracts/deployments/localhost.json`.
+- [x] Add the dated `**Result:**`, tick W05 in Progress, and update Current Status.
+
+**Result:** 2026-11-23. On the latest `main`, on Linux with Node 26.13.1, all 33 contract tests passed, including the ABI match, every expected rejection, and a Groth16 settlement through the REAL verifier. A fresh seed without `RADO_ALLOW_PLACEHOLDER` deployed with `placeholder: false`. All 28 circuit and 56 shared tests, typecheck, format check, app build, lint with no errors, and byte-identical vector regeneration also passed. Windows and macOS were not run. Decision: D-040.
 
 **Build notes:** third-party calls were checked against locked package source because Context7 was not signed in on the build laptop.
 

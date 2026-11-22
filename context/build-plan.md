@@ -148,6 +148,10 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — Slice 1 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. A browser run at 390, 768, and 1440px, plus reduced motion, passed the full story, blocked out-of-order actions, replay rejection, restart, proof continuation while switching roles, no horizontal scroll, no page errors, and no story network requests. Insurer and Public Chain showed no medical terms at any tested stage. The simulation stores nothing; wagmi's default `wagmi.store` connection entry remains in `localStorage`. Cross-laptop sync and real proofs are not part of this slice.
 
+**Interactive pass, Slice 2 (D-039):** Patient and Hospital gain a privacy lens that omits hidden values from the page. Hospital gains a simulator for the seven invalid-claim cases. Patient gains a simulated revoke and rotate flow that reports revocation only after rotation finishes and adds both events to the Public Chain View in one block. Slice 3 remains: Patient access controls, Hospital claim builder, Insurer details, and live chain explorer.
+
+**Result:** 2026-11-23 — Slice 2 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser runs at 390, 768, and 1440px, plus reduced motion, passed the Slice 1 story and all Slice 2 checks: lens visibility for each viewer, seven blocked attacks with no funds or chain changes, old-key failure after rotation, restart during rotation, no horizontal scroll, no page errors, no network requests, and no new browser storage. Attack outcomes are simulated and do not replace the circuit and contract rejection tests in W03 and W05.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.

@@ -14,7 +14,7 @@ export function PublicChainScreen() {
   const [filter, setFilter] = useState("");
   const claim = usePublicClaim();
   const newestFirst = [...sample.events].reverse();
-  const events = claim.settled ? [{ id: claim.eventId, name: "ClaimSettled", block: claim.block }, ...newestFirst] : newestFirst;
+  const events = [...claim.events, ...newestFirst];
   const visibleEvents = events.filter((event) => `${event.name} ${event.id}`.toLowerCase().includes(filter.toLowerCase()));
 
   return (
@@ -23,7 +23,7 @@ export function PublicChainScreen() {
       <SampleNotice>Public values below are synthetic and do not come from a live chain.</SampleNotice>
       <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard label="Network" value="Rado Local" detail="Chain ID 31337" icon="chain" />
-        <MetricCard label="Latest block" value={claim.settled ? claim.block : "#18,421"} detail="Sample block height" icon="blocks" />
+        <MetricCard label="Latest block" value={claim.latestBlock} detail="Sample block height" icon="blocks" />
         <MetricCard label="Policy cap" value={policyCap} detail="Public sample value" icon="coin" />
       </div>
       <div className="grid items-start gap-10 xl:grid-cols-[1.2fr_1fr] xl:gap-16">
@@ -37,7 +37,7 @@ export function PublicChainScreen() {
           <label className="sr-only" htmlFor="chain-search">Filter chain events</label>
           <input className="field mb-4" id="chain-search" onChange={(event) => setFilter(event.target.value)} placeholder="Filter by event or ID" value={filter} />
           <div>
-            {visibleEvents.length ? visibleEvents.map((event) => <div className={`flex items-center gap-3 border-b border-rado-line py-3 last:border-0 ${event.id === claim.eventId ? "motion-reveal" : ""}`} key={event.id}><span className="text-rado-blue"><Icon name="arrow" className="size-4" /></span><div className="min-w-0 flex-1"><p className="text-sm text-rado-ink">{event.name}</p><p className="mt-0.5 truncate font-mono text-xs text-rado-muted">{event.id}</p></div><span className="whitespace-nowrap font-mono text-xs text-rado-slate">{event.block}</span></div>) : <p className="border-y border-rado-line px-4 py-6 text-center text-sm text-rado-slate">No events match that search.</p>}
+            {visibleEvents.length ? visibleEvents.map((event) => <div className={`flex items-center gap-3 border-b border-rado-line py-3 last:border-0 ${event.id.startsWith("sim:") ? "motion-reveal" : ""}`} key={event.id}><span className="text-rado-blue"><Icon name="arrow" className="size-4" /></span><div className="min-w-0 flex-1"><p className="text-sm text-rado-ink">{event.name}</p><p className="mt-0.5 truncate font-mono text-xs text-rado-muted">{event.id}</p></div><span className="whitespace-nowrap font-mono text-xs text-rado-slate">{event.block}</span></div>) : <p className="border-y border-rado-line px-4 py-6 text-center text-sm text-rado-slate">No events match that search.</p>}
           </div>
           <button className="button-secondary mt-4" onClick={() => setFilter("")} type="button">Reset view</button>
         </Panel>

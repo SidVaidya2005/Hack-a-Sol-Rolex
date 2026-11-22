@@ -4,8 +4,10 @@ import { useState } from "react";
 
 import { hasReached, type ClaimStage } from "../data/claim-simulation";
 import { getHospitalSampleData } from "../data/hospital-sample-data";
+import { AttackSimulator } from "./AttackSimulator";
 import { useClaimActions, useClaimState } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
+import { PrivacyLens } from "./PrivacyLens";
 import { ProofConsole } from "./ProofConsole";
 import { Badge, Band, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
 
@@ -84,6 +86,8 @@ export function HospitalScreen() {
           <p className="mt-2 text-xs leading-5 text-rado-slate">The real proof step is reserved for the hospital browser flow.</p>
         </Band>
       </div>
+      <PrivacyLens procedure={sample.procedure} visit={sample.encounter} amount={sample.amount} />
+      <AttackSimulator />
     </>
   );
 }

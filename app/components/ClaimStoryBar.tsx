@@ -26,7 +26,7 @@ function nextMove(stage: ClaimStage, activeRole: RoleId): { role: RoleId; text: 
 }
 
 export function ClaimStoryBar({ activeRole, onGo }: { activeRole: RoleId; onGo: (role: RoleId) => void }) {
-  const { stage } = useClaimState();
+  const { stage, access } = useClaimState();
   const { restart } = useClaimActions();
   const done = DONE_STEPS[stage];
   const move = nextMove(stage, activeRole);
@@ -59,7 +59,7 @@ export function ClaimStoryBar({ activeRole, onGo }: { activeRole: RoleId; onGo: 
               <Icon name="arrow" className="ml-1 size-4" />
             </button>
           ) : <span />}
-          <button className="button-secondary" disabled={stage === "draft"} onClick={restart} type="button">Restart</button>
+          <button className="button-secondary" disabled={stage === "draft" && access.status === "active"} onClick={restart} type="button">Restart</button>
         </div>
       </div>
     </section>

@@ -14,6 +14,7 @@ type ClaimActions = {
   approveClaim: () => void;
   startProof: () => void;
   submitClaim: () => void;
+  revokeAndRotate: () => void;
   restart: () => void;
 };
 
@@ -23,8 +24,9 @@ const ClaimActionsContext = createContext<ClaimActions | null>(null);
 export function ClaimSimulationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(claimSimulationReducer, INITIAL_CLAIM_SIMULATION);
   const proving = state.stage === "proving";
+  const rotating = state.access.status === "rotating";
 
-  // The timer lives here so the simulated proof keeps running while the user switches roles.
+  // These timers live here so simulated work keeps running while the user switches roles.
   useEffect(() => {
     if (!proving) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -32,11 +34,19 @@ export function ClaimSimulationProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(intervalId);
   }, [proving]);
 
+  useEffect(() => {
+    if (!rotating) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const intervalId = setInterval(() => dispatch({ type: "rotationTick" }), reducedMotion ? 120 : 600);
+    return () => clearInterval(intervalId);
+  }, [rotating]);
+
   const actions = useMemo<ClaimActions>(() => ({
     requestApproval: () => dispatch({ type: "request" }),
     approveClaim: () => dispatch({ type: "approve" }),
     startProof: () => dispatch({ type: "startProof" }),
     submitClaim: () => dispatch({ type: "submit" }),
+    revokeAndRotate: () => dispatch({ type: "startRotation" }),
     restart: () => dispatch({ type: "restart" }),
   }), []);
 

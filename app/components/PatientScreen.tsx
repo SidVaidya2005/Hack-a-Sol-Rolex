@@ -6,6 +6,8 @@ import { hasReached, type ClaimStage } from "../data/claim-simulation";
 import { getPatientSampleData } from "../data/patient-sample-data";
 import { useClaimActions, useClaimState } from "./ClaimSimulationProvider";
 import { Icon, type IconName } from "./icons";
+import { KeyRotationPanel } from "./KeyRotationPanel";
+import { PrivacyLens } from "./PrivacyLens";
 import { Badge, Band, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
 
 const sample = getPatientSampleData();
@@ -21,8 +23,9 @@ export function PatientScreen() {
   const [accessGranted, setAccessGranted] = useState(false);
   const [recordAdded, setRecordAdded] = useState(false);
   const [note, setNote] = useState<{ text: string; stage: ClaimStage } | null>(null);
-  const { stage } = useClaimState();
+  const { stage, access } = useClaimState();
   const { approveClaim } = useClaimActions();
+  const clinicRevoked = access.status === "revoked";
   const claimRequested = hasReached(stage, "requested");
   const claimApproved = hasReached(stage, "approved");
   const message = note?.stage === stage ? note.text : "";
@@ -31,6 +34,7 @@ export function PatientScreen() {
     ? [...sample.records, { id: "sample-preview-record", kind: "Document", description: "Sample health record" }]
     : sample.records;
   const activity = [
+    ...(clinicRevoked ? [{ title: "Record key rotated", when: "Just now", detail: "Simulated event" }, { title: "Doctor access revoked", when: "Just now", detail: "Simulated event" }] : []),
     ...(stage === "settled" ? [{ title: "Claim settled", when: "Just now", detail: "Simulated event" }] : []),
     ...(claimApproved ? [{ title: "Claim approved", when: "Just now", detail: "Simulated event" }] : []),
     ...(claimRequested ? [{ title: "Claim request received", when: "Just now", detail: "Simulated event" }] : []),
@@ -53,7 +57,7 @@ export function PatientScreen() {
       <SampleNotice>Everything here is synthetic. Access changes are preview-only; nothing is stored or sent.</SampleNotice>
       <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard label="Your records" value={String(records.length)} detail="Available in this sample" icon="file" />
-        <MetricCard label="People with access" value={String(sample.access.filter((item) => item.status === "Active").length + Number(accessGranted))} detail="You control every connection" icon="users" />
+        <MetricCard label="People with access" value={String(sample.access.filter((item) => item.status === "Active" && !(clinicRevoked && item.id === "clinic-one")).length + Number(accessGranted))} detail="You control every connection" icon="users" />
         <MetricCard label="Recent activity" value={`${activity.length} events`} detail="A private audit trail" icon="clock" />
       </div>
       {message ? <p aria-live="polite" className="status-success mb-8 rounded-lg border px-4 py-3 text-sm">{message}</p> : null}
@@ -79,7 +83,7 @@ export function PatientScreen() {
                 <div className="flex items-center gap-4 py-4 first:pt-0 last:pb-0" key={person.id}>
                   <div className="grid size-10 shrink-0 place-items-center rounded-full bg-rado-stone text-xs text-rado-ink">{person.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</div>
                   <div className="min-w-0 flex-1"><p className="truncate text-base text-rado-ink">{person.name}</p><p className="text-xs text-rado-slate">Sample care team</p></div>
-                  <Badge tone={person.status === "Active" || accessGranted ? "success" : "neutral"}>{accessGranted && person.id === "clinic-one" ? "Active · sample" : person.status}</Badge>
+                  {clinicRevoked && person.id === "clinic-one" ? <Badge tone="warning">Revoked</Badge> : <Badge tone={person.status === "Active" ? "success" : "neutral"}>{person.status}</Badge>}
                 </div>
               ))}
               {accessGranted ? (
@@ -91,6 +95,7 @@ export function PatientScreen() {
               ) : null}
             </div>
           </Panel>
+          <KeyRotationPanel />
         </div>
         <div className="order-1 grid gap-10 xl:order-2">
           <Band eyebrow="Your approval" title="Claim request" description={claimRequested ? "Review the details before approving this sample request." : "A hospital's request will appear here for your approval."} action={<Badge tone={claimApproved ? "success" : claimRequested ? "warning" : "neutral"}>{claimApproved ? "Approved · sample" : claimRequested ? "Needs your review" : "No request yet"}</Badge>}>
@@ -122,6 +127,7 @@ export function PatientScreen() {
           </Panel>
         </div>
       </div>
+      <PrivacyLens procedure={sample.claim.procedure} visit={sample.claim.encounter} amount={sample.claim.amount} />
     </>
   );
 }

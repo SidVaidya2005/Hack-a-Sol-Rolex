@@ -23,7 +23,7 @@
 ## Current Status
 
 **Last completed:** W02 Monorepo and tool setup
-**Next:** W03 and W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W08 (Siddarth), in parallel. W09 to W11 can start on stand-ins when an owner is free.
+**Next:** W03 and W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W09 to W11 as their listed start dependencies become available. W08 passed its sample-data checks on `w08/role-screens` and is awaiting review.
 
 ## Progress
 
@@ -34,7 +34,7 @@
 - [ ] W05 Smart contracts and tests
 - [ ] W06 Encryption and key library
 - [ ] W07 Server routes
-- [ ] W08 Role screens with sample data
+- [x] W08 Role screens with sample data
 - [ ] W09 Patient records and permissions
 - [ ] W10 Hospital claim and browser proving
 - [ ] W11 Settlement, insurer view, and end-to-end flow
@@ -44,6 +44,7 @@
 
 ## Key Decisions
 
+- **D-038 — Apply `context/DESIGN.md` to role screens with a top nav, one dark focal band per screen, a fully dark Public Chain View, repo-owned SVG icons, and self-hosted Space Grotesk, Inter, and IBM Plex Mono.** Reason: this follows the agreed design while giving each screen one clear focus and making the outsider's view visibly distinct, with no new dependency or browser font requests. Accepted tradeoff: the first build needs internet to download fonts. Source: W08 design plan, user-approved 2026-11-23.
 - **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
 - **D-036 — Use Node 26 on all four laptops.** Reason: the team needs one major version, and the app build, Hardhat compile, lint, clean install, and claim vector all passed on it. `engine-strict` makes another version fail at install. Source: W02 plan, user-approved.
 - **D-035 — Use ESLint `^9.39.5` instead of `^10.15.0`.** Reason: `eslint-config-next` installs React, import, and accessibility plugins that declare support only up to ESLint 9. Version 9 installs without peer conflicts and caught the same planted problems. Source: W02 plan, user-approved.
@@ -53,8 +54,8 @@
 - **D-031 — Update the bundle hash and CID inside `grantAccess` and `revokeAndRotate`.** Reason: a grant changes the bundle, and a single revoke transaction avoids a state where access is revoked but the old key still opens the current record. Source: W01 plan, user-approved.
 - **D-030 — Reject payout values above 160 bits in `submitClaim`.** Reason: casting a larger field value to an address would silently change it. Source: W01 plan, user-approved.
 - **D-029 — Declare the six public inputs first in `Claim`, with no outputs.** Reason: snarkjs orders public signals by declaration and outputs are also public, so the `public` list alone does not guarantee the required order. W03 must confirm this in a test. Source: W01 plan, Context7 snarkjs and Circom docs.
-- **D-028 — Commit one computed valid claim using test keys derived from public labels.** Reason: tracks can detect hash and encoding mismatches at hour 1 instead of during integration, and no private key is stored. Source: W01 decision round.
 
 ## Open Questions
 
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.
+- Should W08 stay ticked before a real MetaMask connection is tested? Its Result records that the connection has not been exercised.

@@ -195,7 +195,7 @@ import { claimSettlementAbi } from "@rado/shared";
 const abi = parseAbi(claimSettlementAbi);
 ```
 
-TODO: verify that the relative `/api/rpc` URL works in viem's HTTP transport during W08. If it does not, build the absolute URL from `window.location.origin`.
+**W08 result (2026-11-23):** A browser check through viem 2.58.4's `http("/api/rpc")` transport sent the request to the app origin at `/api/rpc`, so the relative URL works and needs no absolute fallback. The request returned 404 because W07 has not added the route yet; URL resolution itself passed.
 
 ## Pinata
 
@@ -236,4 +236,10 @@ export default { plugins: { "@tailwindcss/postcss": {} } };
 
 ```css
 @import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+}
 ```
+
+Fonts use `next/font/google` with its `variable` option on `<html>`, then `@theme inline`. Next.js downloads them at build time and self-hosts them, so build L4 with internet before the venue. Source: Context7 Next.js and Tailwind docs, Next.js 16.4.6 bundled docs.

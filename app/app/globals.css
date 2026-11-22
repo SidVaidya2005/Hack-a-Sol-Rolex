@@ -1,1 +1,240 @@
 @import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+@theme static {
+  --color-rado-ink: #17171c;
+  --color-rado-on-ink: #ffffff;
+  --color-rado-green: #003c33;
+  --color-rado-green-light: #c6e3d5;
+  --color-rado-navy: #071829;
+  --color-rado-canvas: #ffffff;
+  --color-rado-stone: #eeece7;
+  --color-rado-stone-wash: #f8f7f4;
+  --color-rado-pale-green: #edfce9;
+  --color-rado-pale-blue: #f1f5ff;
+  --color-rado-blue: #1863dc;
+  --color-rado-focus: #4c6ee6;
+  --color-rado-coral: #ff7759;
+  --color-rado-coral-soft: #ffad9b;
+  --color-rado-coral-wash: #fff2ed;
+  --color-rado-coral-ink: #80392c;
+  --color-rado-error: #b30000;
+  --color-rado-error-wash: #fff1f1;
+  --color-rado-error-border: #ebc4c4;
+  --color-rado-text: #212121;
+  --color-rado-slate: #616161;
+  --color-rado-muted: #70707a;
+  --color-rado-line: #d9d9dd;
+  --color-rado-border: #e5e7eb;
+  --color-rado-card-border: #f2f2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-rado-canvas);
+  color: var(--color-rado-text);
+  font-family: var(--font-sans);
+}
+
+/* Tailwind color utilities read these variables, so content inside a dark surface recolors itself. */
+.surface-dark {
+  --color-rado-ink: #ffffff;
+  --color-rado-on-ink: #17171c;
+  --color-rado-text: #ffffff;
+  --color-rado-slate: rgb(255 255 255 / 0.76);
+  --color-rado-muted: rgb(255 255 255 / 0.64);
+  --color-rado-line: rgb(255 255 255 / 0.2);
+  --color-rado-border: rgb(255 255 255 / 0.2);
+  --color-rado-card-border: rgb(255 255 255 / 0.12);
+  --color-rado-green: #c6e3d5;
+  --color-rado-pale-green: rgb(198 227 213 / 0.14);
+  --color-rado-green-light: rgb(198 227 213 / 0.35);
+  --color-rado-blue: #b5ceff;
+  --color-rado-pale-blue: rgb(181 206 255 / 0.14);
+  --color-rado-stone-wash: rgb(255 255 255 / 0.09);
+  --color-rado-coral-wash: rgb(255 119 89 / 0.16);
+  --color-rado-coral-ink: #ffd0c5;
+  --color-rado-error: #ffc2c2;
+  --color-rado-error-wash: rgb(255 120 120 / 0.14);
+  --color-rado-error-border: rgb(255 160 160 / 0.4);
+  --color-rado-focus: #b5c6ff;
+  color: var(--color-rado-text);
+}
+
+.band-green {
+  --color-rado-canvas: #003c33;
+  background: #003c33;
+}
+
+.band-navy {
+  --color-rado-canvas: #071829;
+  background: #071829;
+}
+
+.band-ink {
+  --color-rado-canvas: #17171c;
+  background: #17171c;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 32px;
+  background: var(--color-rado-ink);
+  padding: 0.75rem 1.5rem;
+  color: var(--color-rado-on-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.71;
+  transition: opacity 150ms ease;
+}
+
+.button-primary:hover:not(:disabled) {
+  opacity: 0.84;
+}
+
+.button-primary:disabled {
+  opacity: 0.55;
+}
+
+.button-primary:focus-visible,
+.button-secondary:focus-visible,
+.button-pill-outline:focus-visible,
+.nav-link:focus-visible {
+  outline: 3px solid var(--color-rado-focus);
+  outline-offset: 3px;
+}
+
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-rado-line);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0;
+  color: var(--color-rado-text);
+  font-size: 0.875rem;
+  font-weight: 400;
+  transition: border-color 150ms ease;
+}
+
+.button-secondary:hover {
+  border-color: var(--color-rado-ink);
+}
+
+.button-pill-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-rado-ink);
+  border-radius: 30px;
+  background: transparent;
+  padding: 0.375rem 0.75rem;
+  color: var(--color-rado-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.button-pill-outline:hover {
+  background: var(--color-rado-ink);
+  color: var(--color-rado-on-ink);
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 30px;
+  padding: 0.4rem 0.8rem;
+  color: var(--color-rado-slate);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.nav-link:hover {
+  color: var(--color-rado-ink);
+}
+
+.nav-link[aria-current="page"] {
+  background: var(--color-rado-ink);
+  color: var(--color-rado-on-ink);
+}
+
+.field {
+  width: 100%;
+  border: 1px solid var(--color-rado-line);
+  border-radius: 4px;
+  background: transparent;
+  padding: 0.75rem;
+  color: var(--color-rado-text);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.field::placeholder {
+  color: var(--color-rado-muted);
+}
+
+.field:focus {
+  border-color: var(--color-rado-focus);
+  box-shadow: 0 0 0 2px var(--color-rado-focus);
+}
+
+.panel-surface {
+  border: 0;
+  border-top: 1px solid var(--color-rado-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.status-success {
+  border-color: var(--color-rado-green-light);
+  background: var(--color-rado-pale-green);
+  color: var(--color-rado-green);
+}
+
+.status-warning {
+  border-color: var(--color-rado-coral-soft);
+  background: var(--color-rado-coral-wash);
+  color: var(--color-rado-coral-ink);
+}
+
+.status-error {
+  border-color: var(--color-rado-error-border);
+  background: var(--color-rado-error-wash);
+  color: var(--color-rado-error);
+}

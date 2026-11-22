@@ -84,6 +84,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Plan:** `packages/shared` holds constants, types, human-readable ABIs, hash input orders, and synthetic sample data. `scripts/generate-claim-vector.mjs` writes one computed valid claim to `packages/shared/vectors/claim-valid.json`. Its keys come from public labels and must never be used for a demo wallet (D-028). This work also settled D-026 to D-034.
 
+- **D-028 — Commit one computed valid claim using test keys derived from public labels.** Reason: tracks can detect hash and encoding mismatches at hour 1 instead of during integration, and no private key is stored. Source: W01 decision round.
+
 **Verify:** all four owners review the shared types. Expected: each track can build against them without further changes.
 
 **Result:** 2026-11-22. All four owners reviewed the shared types, confirmed by the team during W02 planning. Checks passed: strict TypeScript, ABI parsing with viem, 35 claim-vector checks, identical regeneration, and a clean secret scan. The vector still needs its real circuit and contract checks in W03 and W05. Decisions: D-026 to D-034.
@@ -135,6 +137,12 @@ An item can **start** before its dependencies are finished by building against a
 **Owner:** T3. Build Patient, Hospital, Responder, Insurer, and Public Chain View with wallet connection and sample data.
 
 **Verify:** each role completes its screen flow using sample data. Expected: the Insurer and Public Chain View have no field for medical data.
+
+**Result:** 2026-11-23 — Patient record/access/claim-approval actions, Hospital sample claim and duplicate rejection, Responder summary request, Insurer policy view, and Public Chain View filtering all passed in a browser using sample data. Insurer/Public Chain View source search found no medical data fields; app source has no localStorage or sessionStorage references. Typecheck and production build passed; lint had no errors and one existing PostCSS config warning. The injected-wallet button and wagmi configuration are present, but a successful account connection was not exercised because the test browser had no injected wallet. The relative viem RPC URL resolved to the app origin; `/api/rpc` returned 404 because W07 has not added the route yet.
+
+**Design pass (D-038):** the three-zone top nav replaces the sidebar. Patient, Hospital, Responder, and Insurer each use one dark focal band, and Public Chain View is fully dark. Sample data and actions are unchanged. Alternatives not chosen: a restyled sidebar, a role-locked header, color by role, a landing page, and the Lucide package.
+
+**Result:** 2026-11-23 — Design pass passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser checks at 390, 768, and 1440px found no horizontal scroll, page errors, or external requests. All sample actions, duplicate rejection, filtering, visible keyboard focus, and font loading passed. Insurer and Public Chain View showed no medical terms. A real MetaMask connection is still untested.
 
 ### W09 Patient records and permissions
 

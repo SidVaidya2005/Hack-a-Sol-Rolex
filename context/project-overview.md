@@ -1,16 +1,33 @@
 # Project Overview
 
-> **Role:** The agreed product description for Rado: what it does, who uses it, how the demo runs, and what this build includes. **Read first among the context files every session.**
+> **Purpose:** This page explains what Rado is, who uses it, how the demo works, and what the team plans to build. Read it first in every session.
+
+## How an AI Agent Should Use This Page
+
+- Read this page before changing product behavior or user-facing screens.
+- Treat the scope, success criteria, limitations, and decisions below as agreed requirements.
+- If a requested change conflicts with them, point out the conflict and ask which requirement should take priority.
+- Keep the technical names and exact values intact when implementing a requirement.
+
+## Plain-Language Terms
+
+- **Zero-knowledge (ZK) proof:** evidence that a rule is satisfied without revealing the private facts used to prove it. For example, Rado can prove that a procedure is covered without showing the procedure code to the insurer.
+- **On-chain:** stored on the blockchain, where participants can inspect it. **Off-chain:** stored elsewhere, such as in an encrypted file.
+- **FHIR-shaped:** sample records use the structure of the healthcare FHIR format; this does not mean Rado connects to a real hospital system.
+- **Break-glass:** an emergency path that lets a registered responder access only a limited emergency summary.
+- **Policy commitment:** a public fingerprint of private policy terms. It lets the contract recognize the policy without publishing its details.
+- **Nullifier:** a one-time marker that prevents a claim from being paid twice. It does not reveal the visit identifier.
+- **Mock stablecoin:** demo-only tokens that look like money in the app but have no real-world value.
 
 ## About the Project
 
-Rado lets a hospital prove to an insurer that a claim is valid without revealing the patient's diagnosis, procedure, prescriptions, or records. A smart contract verifies the zero-knowledge proof and pays the hospital automatically. Patients keep their records encrypted off-chain and decide which doctors can read them.
+Rado lets a hospital prove that an insurance claim meets the policy rules without showing the insurer the patient's diagnosis, procedure, prescriptions, or records. A smart contract checks the proof and pays the hospital automatically. Patient records stay encrypted outside the blockchain, and the patient chooses which doctors can read them.
 
 This is a working prototype for the Hack-a-Sol hackathon, built by a four-person team in about 24 hours. The original brief is in `problemstatement.md`.
 
 ## The Problem It Solves
 
-Insurance claims usually force hospitals to expose diagnoses, prescriptions, and treatment history to insurers. Records also sit in central silos that patients do not control, and manual settlement is slow and open to fraud.
+Today, hospitals often have to show insurers diagnoses, prescriptions, and treatment history to support a claim. Patient records are also held in central systems patients may not control. Manual claim review takes time and can be abused.
 
 ## Screens
 
@@ -24,29 +41,29 @@ Insurance claims usually force hospitals to expose diagnoses, prescriptions, and
 
 ### 1. Patient sets up
 
-The patient unlocks Rado with one MetaMask signature, adds an encrypted FHIR-shaped record, and grants a doctor time-limited access. Only the record's hash and content ID go on-chain. The insurer sends the patient's policy terms as an encrypted message.
+The patient unlocks Rado by signing once in MetaMask, adds a FHIR-shaped record that is encrypted in the browser, and gives a doctor access until a chosen expiry time. The blockchain stores only a fingerprint (hash) and file identifier (CID), not the readable record. The insurer sends the policy terms to the patient in an encrypted message.
 
 ### 2. Hospital prepares a claim
 
-The doctor reads the record. The hospital creates a claim for a covered procedure and amount, signs the request, and sends it to the patient as an encrypted message.
+The doctor reads the record. The hospital prepares a claim for a covered procedure and amount, signs the request, and sends it to the patient in an encrypted message.
 
 ### 3. Patient approves
 
-The patient sees the claim details on their own laptop, signs that exact claim, and returns the approval and policy terms to the hospital as an encrypted message.
+The patient reviews the claim on their own laptop and signs those exact details. The patient sends the approval and policy terms back to the hospital in an encrypted message.
 
 ### 4. Hospital proves
 
-The hospital verifies the approval, signs the final claim, and generates a zero-knowledge proof in its browser. The proof inputs stay on that laptop.
+The hospital checks the patient's approval, signs the final claim, and creates a zero-knowledge proof in its browser. The private proof inputs stay on that laptop and are not sent to a server.
 
 ### 5. Contract settles
 
-The contract verifies the proof, rejects any replay, checks the policy's total cap, and pays mock stablecoin to the hospital.
+The contract checks the proof, rejects a claim that was already submitted, checks that the policy has enough of its total spending cap left, and pays demo-only tokens to the hospital.
 
 ### 6. Insurer and public verify
 
-The insurer sees a paid, verified claim. The public view shows only the amount, policy commitment, nullifier, hospital root, claim day, and payout address.
+The insurer sees that the claim was verified and paid. The public view shows only the amount, policy fingerprint, one-time claim marker, approved-hospital-list fingerprint, claim day, and payout address.
 
-### 7. Failure moments worth showing
+### 7. Failure cases worth showing
 
 Replaying the same claim is rejected. A revoked doctor can no longer open the current record. A break-glass access appears permanently in the patient's audit timeline.
 
@@ -59,11 +76,11 @@ Replaying the same claim is rejected. A revoked doctor can no longer open the cu
 | L3 | Insurer | Own browser profile and MetaMask account |
 | L4 | Host and Public Chain View | Runs the chain and app, holds server secrets and the encrypted cache |
 
-On arrival, test laptop-to-laptop access on venue Wi-Fi. If it is blocked, switch all laptops to the phone hotspot.
+When setting up, test whether the laptops can reach one another over venue Wi-Fi. If they cannot, connect them to the phone hotspot.
 
 ## Features In Scope
 
-**Must-have**
+**Must-have features**
 
 - ZK proof of: approved hospital, active policy, covered procedure, amount within the per-claim limit.
 - Contract verification, replay rejection by nullifier, automatic payout.
@@ -71,7 +88,7 @@ On arrival, test laptop-to-laptop access on venue Wi-Fi. If it is blocked, switc
 - Patient → Hospital → Insurer interface.
 - Architecture and privacy threat-model diagram showing on-chain and off-chain data.
 
-**Bonus, all selected**
+**Bonus features (all selected)**
 
 - On-chain audit trail for grants, revokes, views, key rotations, break-glass, and claims.
 - Time-bound doctor access.
@@ -101,7 +118,7 @@ Hackathon judges evaluating a credible prototype. The product roles are patients
 
 ## Known Limitations
 
-State these openly in the pitch and threat model.
+Mention these clearly in both the pitch and the threat model.
 
 - A claim amount can hint at the type of treatment.
 - The insurer can see which hospital was paid and can link claims made under one policy commitment.

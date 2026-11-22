@@ -1,15 +1,24 @@
 # Progress Tracker
 
-> **Role:** Current work, progress, recent decisions, and open questions for Rado. **Read every session**, after `context/architecture.md` and before opening the active work item in `context/build-plan.md`.
+> **Purpose:** This page says what is done, what comes next, which recent choices were made, and what is still unresolved. Read it every session after `context/architecture.md`; then open the current work item in `context/build-plan.md`.
+
+## How an AI Agent Should Use This Page
+
+- Start with **Current Status** and work only on the listed **Next** item unless the user asks otherwise.
+- Use the unchecked progress list as status, not as proof that a task has passed its checks.
+- Before marking work complete, pass the item's checks and add its dated result to `context/build-plan.md`.
+- Do not guess at the reason for a decision. Ask the user or leave it unresolved.
+
+**Terms used here:** a **decision** is a choice the team has confirmed; an **open question** is a choice still waiting for an answer; a `TODO:` is a check that still needs to be done.
 
 ## How this file is maintained
 
-- **Current Status:** replace it whenever work changes, keeping only the latest state.
-- **Progress:** tick an item in place only after its Verify checks pass and its `**Result:**` line is added in `context/build-plan.md`.
-- **Key Decisions:** record each consequential implementation decision when confirmed, newest first, using the next unused ID as `- **D-NNN — Choice.** Reason: ... Source: ...`. Setup decisions D-001 to D-023 stay in their governing sections.
-- **Recent limit:** keep ten entries. When exceeded, classify the oldest. Move an ongoing rule to Standing Constraints in `context/architecture.md`. Move a historical choice to its work item in `context/build-plan.md`. Keep superseded choices there with their replacement ID and reason, and retired choices with their reason. Remove the source record after moving it.
-- **Open Questions:** keep unresolved choices here until answered, with no decision ID. When answered, record the decision and remove the question and its related `TODO:`.
-- Ask about a missing reason instead of inventing one.
+- **Current Status:** update it whenever work changes. Keep only the latest status.
+- **Progress:** check an item only after its Verify checks pass and a `**Result:**` entry is added under that item in `context/build-plan.md`.
+- **Key Decisions:** when an important implementation choice is confirmed, add it here, newest first, using the next unused ID: `- **D-NNN — Choice.** Reason: ... Source: ...`. Keep setup decisions D-001 to D-023 in their existing sections.
+- **Keep at most ten recent decisions:** when there are more, move each oldest item to the right home. Put an ongoing rule in Standing Constraints in `context/architecture.md`. Put a one-time choice under its work item in `context/build-plan.md`. Keep replaced choices with the replacement ID and reason; keep retired choices with their reason. Remove the old copy from this page.
+- **Open Questions:** list decisions that still need an answer, without a decision ID. Once answered, record the decision and remove the question and its related `TODO:`.
+- If a decision's reason is missing, ask rather than making one up.
 
 ## Current Status
 

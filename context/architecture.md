@@ -1,10 +1,26 @@
 # Architecture
 
-> **Role:** How Rado is organized, the privacy and ZK rules every change must follow, standing constraints, and code standards. **Read every session**, after `context/project-overview.md`.
+> **Purpose:** This page explains how Rado is organized and lists the privacy, proof, and coding rules every change must follow. Read it every session after `context/project-overview.md`.
+
+## How an AI Agent Should Use This Page
+
+- Before changing code, find the relevant system boundary and follow its rules.
+- Treat **Invariants** as must-follow safety rules. Do not weaken or bypass one to make a feature work.
+- Keep exact names, values, field order, and cryptographic inputs unchanged unless an agreed decision changes them.
+- If an implementation choice changes the architecture, update this page in the same change and record the decision in the right decision section.
+
+## Plain-Language Terms
+
+- **CID:** the content identifier used to find a file on IPFS.
+- **Merkle root and path:** a compact way to check that an item belongs to an approved list without publishing the whole list.
+- **Nullifier:** a one-time claim marker. It lets the contract reject the same claim twice without exposing the visit identifier.
+- **Witness:** the private values a person or program supplies to create a proof.
+- **Key rotation:** replacing a record's encryption key and encrypting the record again so people with the old key cannot read the new copy.
+- **AES-GCM, X25519, HKDF, EdDSA, Poseidon:** named cryptographic methods used by this project. Keep their exact algorithms and input formats; the names are requirements, not interchangeable examples.
 
 ## How this file is maintained
 
-- Update Stack, boundaries, data rules, and Invariants in the same change that alters them.
+- If a change affects the tools, folder responsibilities, data handling, or a must-follow rule, update the matching section in the same change.
 - Architecture Decisions holds setup-era records. Each ID has one authoritative record. A changed choice gets a new ID, and the old record is marked `Superseded by` the new ID with its reason.
 - Standing Constraints receives only ongoing rules moved from Key Decisions in `context/progress-tracker.md`. Keep each rule's ID, reason, and source when moving it, and remove the source record.
 - Exact library versions and API examples belong in `context/library-docs.md`.
@@ -49,7 +65,11 @@ Rado reuses this pipeline: encrypt in the client, upload ciphertext to IPFS, anc
 
 Rado changes the key handling. The decryption key is never stored with the file or on-chain in readable form. Each approved reader gets a separate encrypted copy of the record key.
 
+**Example:** if a patient shares one record with two doctors, the file stays encrypted once, while each doctor receives a separate wrapped copy of the file key. Removing one doctor means creating a new file key and a new encrypted file for future access.
+
 ## On-Chain and Off-Chain Data
+
+Use this table as a placement rule: before adding data, identify where it will live and confirm it is allowed in that location. “Encrypted” means the server may hold the bytes but cannot read the medical content.
 
 | Location | Holds | Must never hold |
 | -------- | ----- | --------------- |
@@ -76,6 +96,8 @@ Rado changes the key handling. The decryption key is never stored with the file 
 **Private inputs:** `procedureCode`, `encounterId`, `policySalt`, `expiryDay`, `perClaimLimit`, `coveredRoot`, covered-procedure Merkle path, patient public key and signature, hospital public key and signature, hospital Merkle path.
 
 **The circuit enforces:**
+
+In plain language, the proof checks that the hospital and procedure are approved, the policy is active, the amount is within the private per-claim limit, and both patient and hospital approved the same claim. It reveals only the six public signals above. Keep the equations below as the exact implementation specification.
 
 ```text
 hospitalLeaf     = Poseidon(hospitalAx, hospitalAy)
@@ -132,11 +154,11 @@ All routes run on L4 and share the app's HTTPS origin.
 | `POST /api/inbox/list` | Return the caller's pending messages | Fresh recipient request signature |
 | `POST /api/inbox/ack` | Delete messages after successful decryption | Fresh recipient request signature |
 
-The RPC proxy exists because an HTTPS page cannot call a plain-HTTP chain, and it keeps Hardhat's admin methods and unlocked accounts off the shared Wi-Fi.
+The RPC proxy lets the HTTPS app talk to the local HTTP blockchain. It also prevents other devices on the shared Wi-Fi from calling Hardhat's administrative methods or using its unlocked accounts.
 
 ## Private Message Inbox
 
-The inbox carries private policy and claim messages between laptops. L4 handles only opaque ciphertext and routing metadata.
+The inbox carries policy and claim messages between laptops. L4 stores and forwards encrypted bytes plus delivery details; it should not be able to read the message contents.
 
 **Message flow:**
 

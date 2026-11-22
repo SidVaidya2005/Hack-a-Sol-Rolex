@@ -170,6 +170,10 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** tests show that an approved reader decrypts, a non-reader fails, a rotated key blocks the old reader, and two encryptions use different IVs. Expected inbox failures: changed message ID, sender, or recipient fails decryption, and each forged message type fails its sender check.
 
+**Plan:** `packages/shared/src/crypto` holds key derivation, record encryption and rotation, inbox encryption, request authentication, and sender checks. Wrapped-key AAD follows D-041, and the request digest keeps its documented fields (D-042). Sender checks also require the signing hospital or patient key to match the envelope sender's registered key, because anyone can encrypt to a public key and claim any sender address. The policy check also confirms the coverage list rebuilds `coveredRoot`.
+
+**Result:** 2026-11-23. On Node 26.13.1, all 56 `@rado/shared` tests passed, covering every Verify check, all inbox failures, and forgeries of each message type against the committed claim vector. Typecheck, lint with no errors, format check, app build, a Next.js client-bundle probe, and byte-identical vector regeneration also passed. The library has not yet run in a real browser, so W09 and W10 exercise it there. Decisions: D-041, D-042.
+
 ### W07 Server routes
 
 **Owner:** T4. Build the `/api/rpc`, `/api/pin`, `/api/records/[cid]`, and `/api/inbox` routes. Add the encrypted file cache and configure HTTPS so other laptops can safely reach the demo over the local network.

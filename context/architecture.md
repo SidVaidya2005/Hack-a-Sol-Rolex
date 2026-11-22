@@ -30,7 +30,7 @@
 | Layer | Tool | Version / Range | Purpose |
 | ----- | ---- | --------------- | ------- |
 | Language | TypeScript, Solidity, Circom | `~5.9.3`, `0.8.34`, `2.2.3` | App, contracts, circuit |
-| Runtime | Node.js | `>=22.13.0`, even major only | Same major version on all four laptops |
+| Runtime | Node.js | `>=26.0.0 <27.0.0` | Same major version on all four laptops (D-036) |
 | Package manager | npm workspaces | Bundled with Node | One monorepo install |
 | Framework | Next.js App Router, React | `^16.4.6`, `^19.3.1` | Role screens and server routes |
 | Backend | Next.js route handlers on L4 | Same as Next.js | Pinata, cache, RPC proxy, encrypted inbox, escrow |
@@ -44,7 +44,7 @@
 | Browser crypto | WebCrypto, `@noble/curves`, `@noble/hashes` | `^2.4.0`, `^2.4.0` | AES-GCM, X25519, HKDF |
 | Styling | Tailwind CSS | `^4.3.5` | Interface styling |
 | Tests | Hardhat node test runner, circom_tester | Hardhat range, `^0.0.24` | Contract and circuit rejection tests |
-| Formatter and linter | Prettier, ESLint, eslint-config-next | `^3.10.1`, `^10.15.0`, `^16.4.6` | Formatting and code checks |
+| Formatter and linter | Prettier, ESLint, eslint-config-next | `^3.10.1`, `^9.39.5`, `^16.4.6` | Formatting and code checks (D-035) |
 | Deployment | L4 laptop on local network over HTTPS | n/a | Demo host |
 | AI models, analytics | Not needed | n/a | Not part of this product |
 

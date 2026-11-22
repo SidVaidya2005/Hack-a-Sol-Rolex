@@ -64,7 +64,7 @@ An item can **start** before its dependencies are finished by building against a
 | W11 | W02, W05 interfaces | Draft E2E script on placeholder files | W05, W08, W10 |
 | W12 to W14 | As listed in `prompt.md` | None | As listed in `prompt.md` |
 
-**Branches:** each item uses its own short-lived branch, named in `prompt.md`, such as `w04/trusted-setup`. W02 stays on `track/storage` because it is already in progress.
+**Branches:** each item uses its own short-lived branch, named in `prompt.md`, such as `w04/trusted-setup`. W02 was completed on `track/storage`.
 
 **Placeholder rules:**
 
@@ -86,11 +86,17 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** all four owners review the shared types. Expected: each track can build against them without further changes.
 
+**Result:** 2026-11-22. All four owners reviewed the shared types, confirmed by the team during W02 planning. Checks passed: strict TypeScript, ABI parsing with viem, 35 claim-vector checks, identical regeneration, and a clean secret scan. The vector still needs its real circuit and contract checks in W03 and W05. Decisions: D-026 to D-034.
+
 ### W02 Monorepo and tool setup
 
 **Owner:** T4. Create the npm workspaces, install the selected ranges, configure TypeScript, ESLint, and Prettier, and record lockfile versions.
 
+**Plan:** the root workspace holds `app`, `circuits`, `contracts`, and `packages/shared`, with no feature code. Node 26 is enforced at install (D-036), and ESLint stays on 9 because the plugins from `eslint-config-next` do not yet declare support for 10 (D-035). `.gitattributes` forces LF and Prettier skips the vector so it stays byte-identical across operating systems. `.env.example` lives in `app/` because Next.js loads environment files from its project folder.
+
 **Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, `circom --version` on Shikhar's Windows laptop reports 2.2.3, and `node scripts/generate-claim-vector.mjs` leaves the committed vector unchanged.
+
+**Result:** 2026-11-23. All four laptops passed on Node 26, as confirmed by the team and ticked in PR #5: `npm ci`, `npm run lint`, and byte-identical claim-vector regeneration, with `circom --version` reporting 2.2.3 on Shikhar's Windows laptop. One macOS laptop also passed these checks on 2026-11-22 with Node 26.13.0, from a clean copy of the tracked files: no peer conflicts, a planted lint failure, typecheck, format check, app build importing `@rado/shared`, Hardhat compile with OpenZeppelin, Node 24 refused at install, and Windows native packages present in the lockfile. Decisions: D-035, D-036.
 
 ### W03 Claim circuit and rejection tests
 

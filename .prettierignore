@@ -1,0 +1,16 @@
+# Must stay byte-identical to the generator's output
+packages/shared/vectors/
+
+# Generated
+package-lock.json
+next-env.d.ts
+.next/
+contracts/artifacts/
+contracts/cache/
+contracts/coverage/
+contracts/ignition/deployments/
+circuits/build/
+.cache/
+
+# Documentation is edited by hand
+*.md

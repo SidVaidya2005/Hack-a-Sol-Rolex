@@ -9,6 +9,14 @@
     "snarkjs": "^0.7.6"
   },
   "devDependencies": {
-    "circom_tester": "^0.0.24"
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
+    "circom_tester": "^0.0.24",
+    "hardhat": "^3.22.0"
+  },
+  "scripts": {
+    "setup": "node scripts/trusted-setup.mjs",
+    "setup:placeholder": "node scripts/trusted-setup.mjs --placeholder",
+    "verify:setup": "node scripts/verify-setup.mjs",
+    "verify:placeholder": "node scripts/verify-setup.mjs --placeholder"
   }
 }

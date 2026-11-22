@@ -110,6 +110,26 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** a proof generated from sample inputs verifies with snarkjs and with the generated Solidity verifier. Expected: changing any public signal makes verification fail.
 
+**Status:** 2026-11-23. The setup script and placeholder files are built on `w04/trusted-setup`, and the placeholder passes every proof check on Linux with Node 26.13.1 and Circom 2.2.3. A rehearsal on the unmerged W03 circuit also passed: 27,352 constraints at power 15, `claim.wasm` 4.50 MB, `claim_final.zkey` 12.64 MB, and the sample proof accepted by snarkjs and Solidity with all six changed signals rejected. The rehearsal's real files were discarded and are not committed. W04 stays unticked.
+
+**Left to verify for W04 (blocks the tick):**
+
+- [ ] Merge W03 (PR #7) after its Windows checks pass.
+- [ ] Merge the latest `main` into this branch, then on Shikhar's Windows laptop run `npm ci`, `npm run setup --workspace @rado/circuits`, and `npm run verify:setup --workspace @rado/circuits`. The setup takes about 4 minutes on the Linux build laptop.
+- [ ] Confirm 27,352 constraints, power 15, and `all checks passed`. Commit `app/public/zk/` and `contracts/contracts/Groth16Verifier.sol` together from that one run.
+- [ ] Confirm that run reports the sample proof accepted by snarkjs and Solidity, and each of the six changed public signals rejected by both. Stop and ask if a proving file reaches 100 MB or the circuit must change.
+- [ ] Before committing, confirm `git status` shows no `*.ptau` or `circuits/build/` files, and that `app/public/zk/manifest.json` has `"placeholder": false` and `"demoOnly": true`.
+- [ ] Add the dated `**Result:**`, tick W04 in Progress, and update Current Status.
+
+**Not covered by W04 (later items must prove these):**
+
+- **Windows, setup scripts:** neither `trusted-setup.mjs` nor `verify-setup.mjs` has run on Windows yet, including for the placeholder.
+- **W05, deployment guard:** deployment must refuse the placeholder verifier unless `RADO_ALLOW_PLACEHOLDER=1` is set. W05 must also deploy the real `contracts/contracts/Groth16Verifier.sol` once it exists.
+- **W10, browser proving:** loading `/zk/claim.wasm` and `/zk/claim_final.zkey` in a web worker, snarkjs bundling, and proof time on L2 are untested.
+- **W11, final flow:** the E2E script must refuse placeholders unless run with `--draft`, and a draft run never counts as a pass (Invariant 24).
+
+**Build notes:** the setup is demo-only and each run creates different keys, so rerun it after any `claim.circom` change and commit every output together. Contribution entropy stays in memory and is never saved. The third-party calls were checked against locked source because Context7 was not signed in on the build laptop.
+
 ### W05 Smart contracts and tests
 
 **Owner:** T2. Build `MockUSD`, `RecordAccess`, and `ClaimSettlement` with deployment and seed scripts.

@@ -88,4 +88,13 @@ Read the complete essential set before task-specific references or code changes.
 
 - `claude mcp add --transport http context7 https://mcp.context7.com/mcp` — each teammate runs this once in the repo, then restarts Claude Code, so the Context7 rule works on every laptop.
 
-The app is not scaffolded yet. Add install, dev, test, and lint commands here during W02. Library-specific commands are in `context/library-docs.md`.
+- `npm ci` — install the exact locked dependencies. Requires Node 26.
+- `npm run dev` — start the Next.js app.
+- `npm run build` — build the Next.js app.
+- `npm run lint` — run ESLint.
+- `npm run typecheck` — type-check every workspace.
+- `npm test` — run every workspace's tests.
+- `npm run format` — format code with Prettier. `npm run format:check` checks it without changing files.
+- `node scripts/generate-claim-vector.mjs` — regenerate the claim vector. `git diff --exit-code packages/shared/vectors/claim-valid.json` must then pass.
+
+Server configuration goes in `app/.env.local`, using the names in `app/.env.example`. Library-specific commands are in `context/library-docs.md`.

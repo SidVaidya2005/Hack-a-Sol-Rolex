@@ -30,7 +30,7 @@
 | Layer | Tool | Version / Range | Purpose |
 | ----- | ---- | --------------- | ------- |
 | Language | TypeScript, Solidity, Circom | `~5.9.3`, `0.8.34`, `2.2.3` | App, contracts, circuit |
-| Runtime | Node.js | `>=22.13.0`, even major only | Same major version on all four laptops |
+| Runtime | Node.js | `>=26.0.0 <27.0.0` | Same major version on all four laptops (D-036) |
 | Package manager | npm workspaces | Bundled with Node | One monorepo install |
 | Framework | Next.js App Router, React | `^16.4.6`, `^19.3.1` | Role screens and server routes |
 | Backend | Next.js route handlers on L4 | Same as Next.js | Pinata, cache, RPC proxy, encrypted inbox, escrow |
@@ -44,7 +44,7 @@
 | Browser crypto | WebCrypto, `@noble/curves`, `@noble/hashes` | `^2.4.0`, `^2.4.0` | AES-GCM, X25519, HKDF |
 | Styling | Tailwind CSS | `^4.3.5` | Interface styling |
 | Tests | Hardhat node test runner, circom_tester | Hardhat range, `^0.0.24` | Contract and circuit rejection tests |
-| Formatter and linter | Prettier, ESLint, eslint-config-next | `^3.10.1`, `^10.15.0`, `^16.4.6` | Formatting and code checks |
+| Formatter and linter | Prettier, ESLint, eslint-config-next | `^3.10.1`, `^9.39.5`, `^16.4.6` | Formatting and code checks (D-035) |
 | Deployment | L4 laptop on local network over HTTPS | n/a | Demo host |
 | AI models, analytics | Not needed | n/a | Not part of this product |
 
@@ -235,6 +235,8 @@ The inbox carries policy and claim messages between laptops. L4 stores and forwa
 Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.** Reason: ... Source: ...`.
 
 - **D-024 — Exchange private policy and claim messages through an encrypted `/api/inbox` on L4.** Reason: the flow needs insurer-to-patient and hospital-to-patient exchanges across laptops, and this adds no on-chain link between a patient and a visit. Accepted tradeoff: L4 can see who messaged whom and when. Source: documentation review, W07 and W10.
+- **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
+- **D-026 — Reject claims dated before a policy's on-chain registration day.** Reason: "active policy" needs a start as well as an expiry, and a contract check needs no circuit change. Accepted tradeoff: the start day is public. Source: W01 decision round.
 
 ## Code Standards
 

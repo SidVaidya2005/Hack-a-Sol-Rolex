@@ -1,17 +1,29 @@
 # Build Plan
 
-> **Role:** The four work tracks, 24-hour timeline, work items, and completion checks. **Read the section for the current work item** named in `context/progress-tracker.md`.
+> **Purpose:** This page assigns the four work tracks, sets the 24-hour schedule, and lists each task and how to check it. Read the task named as **Next** in `context/progress-tracker.md`.
+
+## How an AI Agent Should Use This Page
+
+- Work from the current item in `context/progress-tracker.md`; do not skip ahead without direction.
+- Check both the task description and its **Verify** section before coding. They define the expected result.
+- Keep shared interfaces and privacy requirements aligned with `context/architecture.md`.
+- After completing a task, record the date, checks performed, outcome, and relevant decision IDs under its **Result** heading. Then update the tracker.
+- If a check cannot be run, say so plainly; do not mark the task complete.
+
+**Example:** if a task says “reject a replay,” submit the same claim twice and confirm the second submission fails. A successful normal claim alone does not prove replay protection works.
+
+**Terms used here:** a **track** is one person's area of responsibility; a **work item** is a numbered task; and **Verify** lists the evidence needed before that task counts as complete.
 
 ## How this file is maintained
 
-- Keep work items in the same order as Progress in `context/progress-tracker.md`.
-- When an item is complete, add a dated `**Result:**` line under it with the checks run and any useful reasoning, referencing decision IDs. This is the project's completion history.
+- Keep work items in the same order as the Progress list in `context/progress-tracker.md`.
+- When an item is complete, add a dated `**Result:**` entry under it. Record the checks run, the outcome, useful reasoning, and relevant decision IDs. This becomes the project history.
 - Do not delete completed work descriptions.
 - Workflow Decisions holds setup-era records. A changed choice gets a new ID and the old record is marked `Superseded by` that ID with its reason.
 
 ## Core Principle
 
-Agree shared interfaces first, build tracks in parallel against sample data, then connect one real claim end to end before adding break-glass. A working Patient → Hospital → Insurer flow always outranks a bonus.
+First agree on how the parts connect. Then let each track build against the same sample data. Next, make one complete claim work from patient to hospital to insurer. Only then add break-glass. A working claim flow matters more than any bonus feature.
 
 ## Tracks
 
@@ -33,13 +45,15 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 | 18-20 | Threat model and architecture diagram | W13 |
 | 20-24 | Feature freeze, four-laptop rehearsals, backup video, pitch | W14 |
 
-**Cut rule:** if W11 is not passing by hour 16, stop W12 and put everyone on the claim flow. After hour 20, only demo-breaking fixes are allowed.
+**When to cut work:** if W11 has not passed by hour 16, stop W12 and move everyone to the claim flow. After hour 20, work only on fixes that would otherwise break the demo.
 
 ## Work Items
 
 ### W01 Shared interfaces and sample data
 
-**Owner:** all. Agree the public signal order, Poseidon inputs, contract function signatures, event names, bundle JSON, and sample FHIR records, policy, hospitals, and procedure codes in `packages/shared`.
+**Owner:** all. Agree on the exact shared data shapes before tracks split up: the proof's public values and their order, Poseidon hash inputs, contract function signatures, event names, bundle JSON, and sample FHIR records, policies, hospitals, and procedure codes. Put these shared definitions in `packages/shared`.
+
+**Plan:** `packages/shared` holds constants, types, human-readable ABIs, hash input orders, and synthetic sample data. `scripts/generate-claim-vector.mjs` writes one computed valid claim to `packages/shared/vectors/claim-valid.json`. Its keys come from public labels and must never be used for a demo wallet (D-028). This work also settled D-026 to D-034.
 
 **Verify:** all four owners review the shared types. Expected: each track can build against them without further changes.
 
@@ -47,17 +61,17 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 **Owner:** T4. Create the npm workspaces, install the selected ranges, configure TypeScript, ESLint, and Prettier, and record lockfile versions.
 
-**Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, and `circom --version` on Shikhar's Windows laptop reports 2.2.3.
+**Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, `circom --version` on Shikhar's Windows laptop reports 2.2.3, and `node scripts/generate-claim-vector.mjs` leaves the committed vector unchanged.
 
 ### W03 Claim circuit and rejection tests
 
-**Owner:** T1. Implement the circuit in `circuits/src/claim.circom`, using ZK Claim Circuit in `context/architecture.md` as the specification.
+**Owner:** T1. Build the proof rules in `circuits/src/claim.circom`. Follow the exact specification in **ZK Claim Circuit** in `context/architecture.md`.
 
-**Verify:** `circuits/src/claim.circom` compiles and a valid witness passes. Expected failures: unapproved hospital, expired policy, uncovered procedure, over limit, wrong commitment, wrong nullifier, tampered amount, day, or payout, and bad hospital or patient signature.
+**Verify:** `circuits/src/claim.circom` compiles, the witness in `packages/shared/vectors/claim-valid.json` passes, and its public signals come out in the required order (D-029). Expected failures: unapproved hospital, expired policy, uncovered procedure, over limit, wrong commitment, wrong nullifier, tampered amount, day, or payout, and bad hospital or patient signature.
 
 ### W04 Trusted setup and verifier
 
-**Owner:** T1. Compile, run the demo setup, export the Solidity verifier, and place the proving files where the app can load them.
+**Owner:** T1. Compile the circuit, create the demo proving keys, export the Solidity contract that checks proofs, and put the proving files where the app can load them. This setup is for the demo, not production use.
 
 **Verify:** a proof generated from sample inputs verifies with snarkjs and with the generated Solidity verifier. Expected: changing any public signal makes verification fail.
 
@@ -65,17 +79,17 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 **Owner:** T2. Build `MockUSD`, `RecordAccess`, and `ClaimSettlement` with deployment and seed scripts.
 
-**Verify:** contract tests pass. Expected rejections: replayed nullifier, wrong root, unknown policy, future claim day, claim day older than 30 days, over total cap, invalid proof, unauthorized record actions, and expired access.
+**Verify:** contract tests pass and compiled ABIs match `packages/shared/src/abi.ts`. Expected rejections: replayed nullifier, wrong root, unknown policy, payout value above 160 bits, claim day before policy registration, future claim day, claim day older than 30 days, over total cap, invalid proof, unauthorized record actions, and expired access.
 
 ### W06 Encryption and key library
 
-**Owner:** T4. Build unlock key derivation, AES-GCM record encryption, X25519 key wrapping, rotation, and inbox message encryption and sender checks in `packages/shared`.
+**Owner:** T4. In `packages/shared`, build the key creation from the user's unlock signature, AES-GCM record encryption, X25519 wrapping of record keys for readers, key rotation, and inbox encryption and sender verification.
 
 **Verify:** tests show that an approved reader decrypts, a non-reader fails, a rotated key blocks the old reader, and two encryptions use different IVs. Expected inbox failures: changed message ID, sender, or recipient fails decryption, and each forged message type fails its sender check.
 
 ### W07 Server routes
 
-**Owner:** T4. Build `/api/rpc`, `/api/pin`, `/api/records/[cid]`, and the `/api/inbox` routes with the encrypted cache, and configure LAN HTTPS.
+**Owner:** T4. Build the `/api/rpc`, `/api/pin`, `/api/records/[cid]`, and `/api/inbox` routes. Add the encrypted file cache and configure HTTPS so other laptops can safely reach the demo over the local network.
 
 **Verify:** a second laptop loads the app over HTTPS with `crypto.subtle` available. Expected: `hardhat_*` and `eth_sendTransaction` are refused, a tampered cached bundle is rejected, and records still load with internet off.
 
@@ -95,19 +109,19 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 ### W10 Hospital claim and browser proving
 
-**Owner:** T1 and T3. Connect insurer policy delivery and resend, the claim request, patient approval, both EdDSA signatures, and proof generation in a web worker, using the inbox message flow.
+**Owner:** T1 and T3. Connect the full private claim exchange: insurer sends or resends policy terms, hospital sends a claim request, patient approves it, both parties provide their EdDSA signatures, and the hospital browser creates the proof in a web worker. Use the inbox for messages.
 
 **Verify:** L3 delivers policy terms to L1, L2 sends a claim request, and L2 generates a valid proof after L1 approves. Expected: a forged claim request is rejected on L1 before it is shown, a retried message creates no duplicate, L2 sends witness data only as inbox ciphertext, and L4's server logs contain no message contents.
 
 ### W11 Settlement, insurer view, and end-to-end flow
 
-**Owner:** T2 and T3. Connect `submitClaim`, payout, Insurer view, Public Chain View, and the scripted E2E flow.
+**Owner:** T2 and T3. Connect the contract's `submitClaim` function, token payout, Insurer screen, Public Chain View, and the scripted end-to-end (E2E) run.
 
 **Verify:** the E2E script passes, and the same flow works across all four laptops. Expected: the hospital balance rises by the claim amount and a replay is rejected.
 
 ### W12 Break-glass
 
-**Owner:** T2 and T4. Build responder registration, the emergency summary, `/api/escrow/release`, and the timeline entry. This is the first item to cut.
+**Owner:** T2 and T4. Add responder registration, the limited emergency summary, `/api/escrow/release`, and the audit timeline entry. This is the first feature to drop if time is short.
 
 **Verify:** a registered responder gets only the summary after the on-chain event. Expected: requests without the event, from an unregistered wallet, for a full record, or repeated are refused.
 

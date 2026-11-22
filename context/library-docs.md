@@ -1,6 +1,16 @@
 # Library Docs
 
-> **Role:** Selected dependency ranges, documentation sources, and verified API patterns for Rado. **Read the relevant library section** before writing code that uses it.
+> **Purpose:** This page records which software libraries Rado plans to use, where their documentation lives, and examples of the APIs. Read the relevant section before using or changing a library.
+
+## How an AI Agent Should Use This Page
+
+- Before using a library, compare the version range here with the project's manifest. If they differ, re-check the official documentation and update this page.
+- Add a library here before installing it. Keep code examples consistent with the selected version.
+- After installing, record the exact version from the lockfile; a version range is only the allowed family, not the version actually installed.
+- Treat every `TODO:` below as an unverified check. Resolve it when its named work item is reached and remove the TODO once the result is recorded.
+- Never send readable patient data to a public storage service. For example, upload only an encrypted record bundle to Pinata.
+
+**Version example:** `^2.7.0` is an allowed version range, not a promise that exactly `2.7.0` was installed. Use the lockfile to find the exact installed version.
 
 ## How this file is maintained
 
@@ -10,7 +20,7 @@
 
 ## Selected Versions
 
-All entries were checked on 2026-11-22 using Context7 and the npm registry. Nothing has been installed yet.
+All entries were checked on 2026-11-22 using Context7 and the npm registry. No packages have been installed yet.
 
 TODO: record the lockfile-resolved version after first install
 
@@ -39,7 +49,7 @@ TODO: record the lockfile-resolved version after first install
 | `prettier` | `^3.10.1` | npm registry |
 | `server-only` | `^0.0.1` | Next.js docs |
 
-TypeScript stays on 5.9 rather than the newer 7.x because compatibility with this toolchain has not been verified.
+TypeScript stays on 5.9 rather than the newer 7.x because this project's tools have not been checked for compatibility with 7.x.
 
 ## Hardhat
 
@@ -98,7 +108,7 @@ const { proof, publicSignals } = await groth16.fullProve(input, wasmUrl, zkeyUrl
 const callData = await groth16.exportSolidityCallData(proof, publicSignals);
 ```
 
-**Rules:** assert the `publicSignals` order in a test. Only the T1 laptop needs the Circom compiler if the final `.wasm`, `.zkey`, and verifier are shared through the repo.
+**Rules:** snarkjs returns public signals in declaration order and Circom outputs are public, so declare the six public inputs first, use no outputs, and assert the `publicSignals` order in a test. Only the T1 laptop needs the Circom compiler if the final `.wasm`, `.zkey`, and verifier are shared through the repo.
 
 TODO: verify snarkjs browser bundling under Next.js Turbopack in W10. If it fails, test `next dev --webpack`.
 
@@ -116,6 +126,8 @@ const publicKey = eddsa.prv2pub(seed);
 const signature = eddsa.signPoseidon(seed, eddsa.babyJub.F.e(claimHash));
 const valid = eddsa.verifyPoseidon(eddsa.babyJub.F.e(claimHash), signature, publicKey);
 ```
+
+Convert results with `poseidon.F.toObject(poseidon(inputs))` and `eddsa.F.toObject(point)`. `scripts/generate-claim-vector.mjs` is a working example.
 
 **Rule:** `LessThan(n)` and `LessEqThan(n)` require inputs already constrained to `n` bits.
 
@@ -171,6 +183,15 @@ export const config = createConfig({
 ```
 
 Wrap the app in `WagmiProvider` and `QueryClientProvider`. Use `useSignTypedData` for unlock and `useWriteContract` with `useWaitForTransactionReceipt` for transactions.
+
+Shared ABIs are human-readable lists. Convert them with viem:
+
+```ts
+import { parseAbi } from "viem";
+import { claimSettlementAbi } from "@rado/shared";
+
+const abi = parseAbi(claimSettlementAbi);
+```
 
 TODO: verify that the relative `/api/rpc` URL works in viem's HTTP transport during W08. If it does not, build the absolute URL from `window.location.origin`.
 

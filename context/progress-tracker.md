@@ -29,7 +29,7 @@
 
 - **LInep, W04:** on a new `w04/real-setup` branch from `main`, run the real setup once on Linux and open a PR with the proving files, the W04 Result, and the W04 tick. The steps are under W04 in `context/build-plan.md`.
 - **W06 owner:** merge the latest `main` into PR #9, resolve its conflict in this file, and merge it after its Verify checks pass.
-- **Shreya, W05:** make deployment refuse the placeholder verifier unless `RADO_ALLOW_PLACEHOLDER=1` is set, and deploy the real verifier once W04's files are on `main`.
+- **Shreya, W05:** contracts, deployment, seed, and tests are built on `w05/contracts` and pass on the placeholder verifier. After W04 merges, merge `main` and rerun `npm test --workspace @rado/contracts`. Tick W05 only when the suite reports the REAL verifier.
 - **Shreyansh, W07:** finish the server routes against the real W05 and W06 work.
 - **Siddarth, W08:** merge the latest `main` into `w08/role-screens`, test a real MetaMask connection and the relative `/api/rpc` URL, and open the PR. W08's D-038 makes eleven Key Decisions, so move D-029 under W03 in that merge.
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
@@ -54,6 +54,7 @@
 
 ## Key Decisions
 
+- **D-040 — Restrict `mint`, `setResponder`, `registerPolicy`, and `updateHospitalRoot` to one insurer wallet set at deployment, using `NotInsurer(address caller)`.** Reason: `abi.ts` had no authorization rule, and open calls would let anyone approve a fake hospital and drain the pool. Source: W05 plan, user-approved 2026-11-23.
 - **D-039 — Accept the GitHub Actions Windows run as the W03 and W04 Windows check, and generate the committed proving files on LInep's Linux laptop.** Reason: the run passed the required checks on a clean Windows machine, and each setup creates different keys, so the team must commit the output of only one run. Accepted tradeoff: this does not prove the checks pass on a specific team laptop. Source: Windows run 45069101245, user-approved 2026-11-23.
 - **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
 - **D-036 — Use Node 26 on all four laptops.** Reason: the team needs one major version, and the app build, Hardhat compile, lint, clean install, and claim vector all passed on it. `engine-strict` makes another version fail at install. Source: W02 plan, user-approved.
@@ -63,7 +64,6 @@
 - **D-032 — Send the hospital one covered-procedure path, not the full coverage list.** Reason: the hospital needs only this claim's proof inputs, so the patient's wider coverage stays private. Source: W01 plan, user-approved.
 - **D-031 — Update the bundle hash and CID inside `grantAccess` and `revokeAndRotate`.** Reason: a grant changes the bundle, and a single revoke transaction avoids a state where access is revoked but the old key still opens the current record. Source: W01 plan, user-approved.
 - **D-030 — Reject payout values above 160 bits in `submitClaim`.** Reason: casting a larger field value to an address would silently change it. Source: W01 plan, user-approved.
-- **D-029 — Declare the six public inputs first in `Claim`, with no outputs.** Reason: snarkjs orders public signals by declaration and outputs are also public, so the `public` list alone does not guarantee the required order. W03 must confirm this in a test. Source: W01 plan, Context7 snarkjs and Circom docs.
 
 ## Open Questions
 

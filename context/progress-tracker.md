@@ -22,12 +22,11 @@
 
 ## Current Status
 
-**Last completed:** W04 Trusted setup and verifier
-**Next:** Finish the W05 tick on the real verifier. W07 and W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
+**Last completed:** W05 Smart contracts and tests
+**Next:** W07 and W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
 
 **Left to do now:**
 
-- **Shreya, W05:** contracts, deployment, seed, and tests are built on `w05/contracts` and pass on the placeholder verifier. After W04 merges, merge `main` and rerun `npm test --workspace @rado/contracts`. Tick W05 only when the suite reports the REAL verifier.
 - **Shreyansh, W07:** finish the server routes against the real W05 and W06 work.
 - **Siddarth, W08:** merge the latest `main` into `w08/role-screens`, test a real MetaMask connection and the relative `/api/rpc` URL, and open the PR. W08's D-038 makes eleven Key Decisions, so move D-032 to its right home in that merge.
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
@@ -39,7 +38,7 @@
 - [x] W02 Monorepo and tool setup
 - [x] W03 Claim circuit and rejection tests
 - [x] W04 Trusted setup and verifier
-- [ ] W05 Smart contracts and tests
+- [x] W05 Smart contracts and tests
 - [x] W06 Encryption and key library
 - [ ] W07 Server routes
 - [ ] W08 Role screens with sample data

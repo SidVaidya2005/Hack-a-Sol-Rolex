@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useReducer, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 
+import { INITIAL_CLAIM_DRAFT, type ClaimDraft } from "../data/claim-draft";
 import {
   claimSimulationReducer,
   INITIAL_CLAIM_SIMULATION,
@@ -10,19 +11,25 @@ import {
 } from "../data/claim-simulation";
 
 type ClaimActions = {
-  requestApproval: () => void;
+  requestApproval: (amount: bigint) => void;
   approveClaim: () => void;
+  declineClaim: () => void;
   startProof: () => void;
   submitClaim: () => void;
-  revokeAndRotate: () => void;
+  grantAccess: (id: string, days: number) => void;
+  revokeAndRotate: (target: string) => void;
   restart: () => void;
 };
 
+type PrivateDraft = { draft: ClaimDraft; setDraft: Dispatch<SetStateAction<ClaimDraft>> };
+
 const ClaimStateContext = createContext<ClaimSimulationState | null>(null);
 const ClaimActionsContext = createContext<ClaimActions | null>(null);
+const PrivateDraftContext = createContext<PrivateDraft | null>(null);
 
 export function ClaimSimulationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(claimSimulationReducer, INITIAL_CLAIM_SIMULATION);
+  const [draft, setDraft] = useState(INITIAL_CLAIM_DRAFT);
   const proving = state.stage === "proving";
   const rotating = state.access.status === "rotating";
 
@@ -42,17 +49,25 @@ export function ClaimSimulationProvider({ children }: { children: ReactNode }) {
   }, [rotating]);
 
   const actions = useMemo<ClaimActions>(() => ({
-    requestApproval: () => dispatch({ type: "request" }),
+    requestApproval: (amount) => dispatch({ type: "request", amount }),
     approveClaim: () => dispatch({ type: "approve" }),
+    declineClaim: () => dispatch({ type: "decline" }),
     startProof: () => dispatch({ type: "startProof" }),
     submitClaim: () => dispatch({ type: "submit" }),
-    revokeAndRotate: () => dispatch({ type: "startRotation" }),
-    restart: () => dispatch({ type: "restart" }),
+    grantAccess: (id, days) => dispatch({ type: "grant", id, days }),
+    revokeAndRotate: (target) => dispatch({ type: "startRotation", target }),
+    restart: () => {
+      dispatch({ type: "restart" });
+      setDraft(INITIAL_CLAIM_DRAFT);
+    },
   }), []);
+  const privateDraft = useMemo(() => ({ draft, setDraft }), [draft]);
 
   return (
     <ClaimStateContext value={state}>
-      <ClaimActionsContext value={actions}>{children}</ClaimActionsContext>
+      <ClaimActionsContext value={actions}>
+        <PrivateDraftContext value={privateDraft}>{children}</PrivateDraftContext>
+      </ClaimActionsContext>
     </ClaimStateContext>
   );
 }
@@ -71,4 +86,11 @@ export function useClaimActions() {
 
 export function usePublicClaim() {
   return publicClaimView(useClaimState());
+}
+
+/** Holds private claim details. Only the Patient and Hospital screens may call this. */
+export function usePrivateClaimDraft() {
+  const value = useContext(PrivateDraftContext);
+  if (!value) throw new Error("usePrivateClaimDraft must be used inside ClaimSimulationProvider");
+  return value;
 }

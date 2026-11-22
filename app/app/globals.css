@@ -252,6 +252,37 @@ button:disabled {
   font-size: 0.75rem;
 }
 
+.drawer {
+  width: min(440px, 100vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0 0 0 auto;
+  border: 0;
+  background: var(--color-rado-canvas);
+  padding: 0;
+  color: var(--color-rado-text);
+}
+
+.drawer[open] {
+  animation: rado-drawer 240ms ease-out both;
+}
+
+.drawer::backdrop {
+  background: rgb(7 24 41 / 0.45);
+}
+
+@keyframes rado-drawer {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .story-segment {
   display: block;
   height: 3px;

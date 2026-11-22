@@ -152,6 +152,10 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — Slice 2 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser runs at 390, 768, and 1440px, plus reduced motion, passed the Slice 1 story and all Slice 2 checks: lens visibility for each viewer, seven blocked attacks with no funds or chain changes, old-key failure after rotation, restart during rotation, no horizontal scroll, no page errors, no network requests, and no new browser storage. Attack outcomes are simulated and do not replace the circuit and contract rejection tests in W03 and W05.
 
+**Interactive pass, Slice 3 (D-039, D-040):** Patient gains doctor grants with expiry, per-doctor revoke with rotation, decline, and audit filters. Hospital gains a claim builder that checks only the amount and public cap. Insurer gains claim filtering, sorting, and a details drawer with no medical fields. Public Chain View gains event filters, expandable rows, and copyable IDs. Private claim details stay in a separate draft context used only by Patient and Hospital.
+
+**Result:** 2026-11-23 — Slice 3 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser runs at 390, 768, and 1440px, plus reduced motion, passed the Slice 1 and Slice 2 suites and all Slice 3 checks, including invalid amounts, patient decline of uncovered and over-limit claims, the Hospital not seeing the limit before approval, custom amounts reaching Insurer and Public Chain, drawer keyboard close, re-grant after rotation, copy, restart, no horizontal scroll, no page errors, no network requests, and no new browser storage. Real wallet, proof, chain, and cross-laptop behavior remain untested.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.

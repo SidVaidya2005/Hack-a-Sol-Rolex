@@ -44,6 +44,7 @@
 
 ## Key Decisions
 
+- **D-040 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
 - **D-039 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
 - **D-038 — Apply `context/DESIGN.md` to role screens with a top nav, one dark focal band per screen, a fully dark Public Chain View, repo-owned SVG icons, and self-hosted Space Grotesk, Inter, and IBM Plex Mono.** Reason: this follows the agreed design while giving each screen one clear focus and making the outsider's view visibly distinct, with no new dependency or browser font requests. Accepted tradeoff: the first build needs internet to download fonts. Source: W08 design plan, user-approved 2026-11-23.
 - **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
@@ -53,7 +54,6 @@
 - **D-033 — Take `claimDay` from the latest block's UTC day.** Reason: a laptop clock ahead of UTC could otherwise produce a claim the contract rejects as future-dated. Source: W01 plan, user-approved.
 - **D-032 — Send the hospital one covered-procedure path, not the full coverage list.** Reason: the hospital needs only this claim's proof inputs, so the patient's wider coverage stays private. Source: W01 plan, user-approved.
 - **D-031 — Update the bundle hash and CID inside `grantAccess` and `revokeAndRotate`.** Reason: a grant changes the bundle, and a single revoke transaction avoids a state where access is revoked but the old key still opens the current record. Source: W01 plan, user-approved.
-- **D-030 — Reject payout values above 160 bits in `submitClaim`.** Reason: casting a larger field value to an address would silently change it. Source: W01 plan, user-approved.
 
 ## Open Questions
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { SAMPLE_POLICY, SAMPLE_UNCOVERED_PROCEDURE } from "@rado/shared";
+import { SAMPLE_POLICY } from "@rado/shared";
 import { useEffect, useState } from "react";
 
 import { formatAmount } from "../data/insurer-sample-data";
@@ -9,8 +9,8 @@ import { Badge, Panel } from "./ui";
 const ATTACKS = [
   { id: "hospital", name: "Unapproved hospital", tamper: "Uses a hospital key outside the approved list", layer: "Proof", reason: "This hospital is not on the approved list." },
   { id: "expired", name: "Expired policy", tamper: "Dates the claim after the policy ended", layer: "Proof", reason: "This policy has expired." },
-  { id: "uncovered", name: "Uncovered procedure", tamper: `Claims ${SAMPLE_UNCOVERED_PROCEDURE.label}`, layer: "Proof", reason: "This procedure is not covered." },
-  { id: "limit", name: "Over per-claim limit", tamper: `Claims more than ${formatAmount(SAMPLE_POLICY.perClaimLimit)}`, layer: "Proof", reason: "This amount is above the per-claim limit." },
+  { id: "uncovered", name: "Uncovered procedure", tamper: "Claims a procedure outside the policy", layer: "Proof", reason: "This procedure is not covered." },
+  { id: "limit", name: "Over per-claim limit", tamper: "Claims more than the policy's private limit", layer: "Proof", reason: "This amount is above the per-claim limit." },
   { id: "cap", name: "Over total cap", tamper: `Pushes total payouts past ${formatAmount(SAMPLE_POLICY.totalCap)}`, layer: "Contract", reason: "This claim would exceed the policy's total cap." },
   { id: "signature", name: "Forged signature", tamper: "Changes the claim after the patient signed", layer: "Proof", reason: "A signature does not match this claim." },
   { id: "replay", name: "Replay", tamper: "Resubmits a nullifier that was already used", layer: "Contract", reason: "This claim was already submitted." },

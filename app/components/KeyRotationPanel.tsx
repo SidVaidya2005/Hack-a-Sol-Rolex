@@ -2,30 +2,31 @@
 
 import { useState } from "react";
 
-import { useClaimActions, useClaimState } from "./ClaimSimulationProvider";
+import { ROTATION_STEP_COUNT } from "../data/claim-simulation";
+import { useClaimState } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
 import { Badge, Panel } from "./ui";
 
 const STEPS = ["New record key created", "Record encrypted again", "New encrypted copy pinned", "Access removed and hash updated"];
 
 export function KeyRotationPanel() {
-  const { access } = useClaimState();
-  const { revokeAndRotate } = useClaimActions();
-  const [attemptedFor, setAttemptedFor] = useState<typeof access.status | null>(null);
-  const revoked = access.status === "revoked";
+  const { access, grants } = useClaimState();
+  const [attempt, setAttempt] = useState<string | null>(null);
   const rotating = access.status === "rotating";
-  const attempted = attemptedFor === access.status;
+  const subject = grants.find(({ id }) => id === access.target) ?? grants.find(({ status }) => status === "Active");
+  const revoked = subject?.status === "Revoked";
+  const attemptKey = `${subject?.id}-${subject?.status}-${access.keyVersion}`;
 
   return (
     <div aria-label="Revoke and rotate" role="group">
       <Panel
         title="Revoke and rotate"
         description="Removing a doctor replaces the record key, so their old key stops working."
-        action={<Badge tone={revoked ? "success" : rotating ? "info" : "neutral"}>{revoked ? "Key v2 · simulated" : "Key v1 · simulated"}</Badge>}
+        action={<Badge tone={rotating ? "info" : access.keyVersion > 1 ? "success" : "neutral"}>{`Key v${access.keyVersion} · simulated`}</Badge>}
       >
         <ol className="space-y-2">
           {STEPS.map((step, index) => {
-            const done = revoked || (rotating && index < access.step);
+            const done = rotating ? index < access.step : access.step >= ROTATION_STEP_COUNT;
             const running = rotating && index === access.step;
             return (
               <li className={`flex items-center gap-2.5 font-mono text-xs ${done || running ? "text-rado-ink" : "text-rado-muted"}`} key={step}>
@@ -37,15 +38,14 @@ export function KeyRotationPanel() {
             );
           })}
         </ol>
-        <div className="mt-5 flex flex-wrap items-center gap-5">
-          <button className="button-pill-outline whitespace-nowrap disabled:opacity-50" disabled={access.status !== "active"} onClick={revokeAndRotate} type="button">
-            {revoked ? "Sample City Clinic revoked" : rotating ? "Rotating key…" : "Revoke Sample City Clinic"}
+        <div className="mt-5">
+          <button className="button-secondary" disabled={rotating || !subject} onClick={() => setAttempt(attemptKey)} type="button">
+            {subject ? `Try ${subject.name}'s key` : "No doctor key to try"}
           </button>
-          <button className="button-secondary" disabled={rotating} onClick={() => setAttemptedFor(access.status)} type="button">Try doctor&apos;s key v1</button>
         </div>
-        {attempted && !rotating ? (
+        {attempt === attemptKey && subject && !rotating ? (
           <p aria-live="polite" className={`${revoked ? "status-error" : "status-success"} motion-reveal mt-4 rounded-lg border px-4 py-3 text-sm`} role="status">
-            {revoked ? "Key v1 cannot open the current record." : "Key v1 opens the current record."} Simulated, no record was decrypted.
+            {revoked ? `Key v${access.keyVersion - 1} cannot open the current record.` : `Key v${access.keyVersion} opens the current record.`} Simulated, no record was decrypted.
           </p>
         ) : null}
       </Panel>

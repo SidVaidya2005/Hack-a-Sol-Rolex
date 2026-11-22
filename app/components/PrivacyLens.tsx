@@ -15,7 +15,7 @@ type Viewer = (typeof VIEWERS)[number];
 const signals = Object.fromEntries(getPublicChainSampleData().signals.map(({ name, value }) => [name, value]));
 
 /** Only rendered on the Patient and Hospital screens, which may already hold the private values passed in. */
-export function PrivacyLens({ procedure, visit, amount }: { procedure: string; visit: string; amount: bigint }) {
+export function PrivacyLens({ procedure, visit, amount, limitKnown = true }: { procedure: string; visit: string; amount: bigint; limitKnown?: boolean }) {
   const [viewer, setViewer] = useState<Viewer>("Insurer");
   const { settled } = usePublicClaim();
   const outsider = viewer === "Insurer" || viewer === "Public";
@@ -23,7 +23,7 @@ export function PrivacyLens({ procedure, visit, amount }: { procedure: string; v
   const fields: { label: string; value: string; visibleTo: readonly Viewer[]; afterSettlement?: boolean }[] = [
     { label: "Procedure", value: procedure, visibleTo: ["Patient", "Hospital"] },
     { label: "Visit reference", value: visit, visibleTo: ["Patient", "Hospital"] },
-    { label: "Per-claim limit", value: formatAmount(SAMPLE_POLICY.perClaimLimit), visibleTo: ["Patient", "Hospital", "Insurer"] },
+    { label: "Per-claim limit", value: limitKnown ? formatAmount(SAMPLE_POLICY.perClaimLimit) : "Private until approval", visibleTo: ["Patient", "Hospital", "Insurer"] },
     { label: "Claim amount", value: formatAmount(amount), visibleTo: VIEWERS, afterSettlement: true },
     { label: "Claim day", value: String(signals.claimDay), visibleTo: VIEWERS, afterSettlement: true },
     { label: "Payout address", value: String(signals.payoutAddress), visibleTo: VIEWERS, afterSettlement: true },

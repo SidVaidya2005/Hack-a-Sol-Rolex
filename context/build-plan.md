@@ -67,7 +67,7 @@ First agree on how the parts connect. Then let each track build against the same
 
 **Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, `circom --version` on Shikhar's Windows laptop reports 2.2.3, and `node scripts/generate-claim-vector.mjs` leaves the committed vector unchanged.
 
-**Checks so far:** 2026-11-22, one macOS laptop on Node 26.13.0, from a clean copy of the tracked files. Passed: `npm ci` with no peer conflicts, lint, a planted lint failure, typecheck, format check, app build importing `@rado/shared`, Hardhat compile with OpenZeppelin, byte-identical vector, Node 24 refused at install, and Windows native packages present in the lockfile. **Not yet run:** the other three laptops and `circom --version` on Windows. Add the dated Result and tick W02 after they pass.
+**Result:** 2026-11-23. All four laptops passed on Node 26, as confirmed by the team and ticked in PR #5: `npm ci`, `npm run lint`, and byte-identical claim-vector regeneration, with `circom --version` reporting 2.2.3 on Shikhar's Windows laptop. One macOS laptop also passed these checks on 2026-11-22 with Node 26.13.0, from a clean copy of the tracked files: no peer conflicts, a planted lint failure, typecheck, format check, app build importing `@rado/shared`, Hardhat compile with OpenZeppelin, Node 24 refused at install, and Windows native packages present in the lockfile. Decisions: D-035, D-036.
 
 ### W03 Claim circuit and rejection tests
 

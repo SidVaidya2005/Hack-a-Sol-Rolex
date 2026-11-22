@@ -22,13 +22,13 @@
 
 ## Current Status
 
-**Last completed:** W01 Shared interfaces and sample data
-**Next:** W02 Monorepo and tool setup. Built on `track/storage` and passing on one macOS laptop. Waiting for the other three laptops to pass `npm ci` and `npm run lint` on Node 26, and for `circom --version` on Shikhar's Windows laptop.
+**Last completed:** W02 Monorepo and tool setup
+**Next:** W03 (Shikhar), W05 (Shreya), W06 (Shreyansh), and W08 (Siddarth), in parallel. W04 follows W03, and W07 follows W06.
 
 ## Progress
 
 - [x] W01 Shared interfaces and sample data
-- [ ] W02 Monorepo and tool setup
+- [x] W02 Monorepo and tool setup
 - [ ] W03 Claim circuit and rejection tests
 - [ ] W04 Trusted setup and verifier
 - [ ] W05 Smart contracts and tests

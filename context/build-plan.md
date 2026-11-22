@@ -192,6 +192,26 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** each role completes its screen flow using sample data. Expected: the Insurer and Public Chain View have no field for medical data.
 
+**Result:** 2026-11-23 — Patient record/access/claim-approval actions, Hospital sample claim and duplicate rejection, Responder summary request, Insurer policy view, and Public Chain View filtering all passed in a browser using sample data. Insurer/Public Chain View source search found no medical data fields; app source has no localStorage or sessionStorage references. Typecheck and production build passed; lint had no errors and one existing PostCSS config warning. The injected-wallet button and wagmi configuration are present, but a successful account connection was not exercised because the test browser had no injected wallet. The relative viem RPC URL resolved to the app origin; `/api/rpc` returned 404 because W07 has not added the route yet.
+
+**Design pass (D-038):** the three-zone top nav replaces the sidebar. Patient, Hospital, Responder, and Insurer each use one dark focal band, and Public Chain View is fully dark. Sample data and actions are unchanged. Alternatives not chosen: a restyled sidebar, a role-locked header, color by role, a landing page, and the Lucide package.
+
+**Result:** 2026-11-23 — Design pass passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser checks at 390, 768, and 1440px found no horizontal scroll, page errors, or external requests. All sample actions, duplicate rejection, filtering, visible keyboard focus, and font loading passed. Insurer and Public Chain View showed no medical terms. A real MetaMask connection is still untested.
+
+**Interactive pass, Slice 1 (D-044):** one simulated claim moves through Hospital request, Patient approval, simulated proof, submission, Insurer payout, and a Public Chain event. Remaining approved slices: (2) privacy lens, attack simulator, revoke and rotate; (3) Patient access controls, Hospital claim builder, Insurer details, live chain explorer.
+
+**Result:** 2026-11-23 — Slice 1 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. A browser run at 390, 768, and 1440px, plus reduced motion, passed the full story, blocked out-of-order actions, replay rejection, restart, proof continuation while switching roles, no horizontal scroll, no page errors, and no story network requests. Insurer and Public Chain showed no medical terms at any tested stage. The simulation stores nothing; wagmi's default `wagmi.store` connection entry remains in `localStorage`. Cross-laptop sync and real proofs are not part of this slice.
+
+**Interactive pass, Slice 2 (D-044):** Patient and Hospital gain a privacy lens that omits hidden values from the page. Hospital gains a simulator for the seven invalid-claim cases. Patient gains a simulated revoke and rotate flow that reports revocation only after rotation finishes and adds both events to the Public Chain View in one block. Slice 3 remains: Patient access controls, Hospital claim builder, Insurer details, and live chain explorer.
+
+**Result:** 2026-11-23 — Slice 2 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser runs at 390, 768, and 1440px, plus reduced motion, passed the Slice 1 story and all Slice 2 checks: lens visibility for each viewer, seven blocked attacks with no funds or chain changes, old-key failure after rotation, restart during rotation, no horizontal scroll, no page errors, no network requests, and no new browser storage. Attack outcomes are simulated and do not replace the circuit and contract rejection tests in W03 and W05.
+
+**Interactive pass, Slice 3 (D-044, D-045):** Patient gains doctor grants with expiry, per-doctor revoke with rotation, decline, and audit filters. Hospital gains a claim builder that checks only the amount and public cap. Insurer gains claim filtering, sorting, and a details drawer with no medical fields. Public Chain View gains event filters, expandable rows, and copyable IDs. Private claim details stay in a separate draft context used only by Patient and Hospital.
+
+**Result:** 2026-11-23 — Slice 3 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser runs at 390, 768, and 1440px, plus reduced motion, passed the Slice 1 and Slice 2 suites and all Slice 3 checks, including invalid amounts, patient decline of uncovered and over-limit claims, the Hospital not seeing the limit before approval, custom amounts reaching Insurer and Public Chain, drawer keyboard close, re-grant after rotation, copy, restart, no horizontal scroll, no page errors, no network requests, and no new browser storage. Real wallet, proof, chain, and cross-laptop behavior remain untested.
+
+**Result:** 2026-11-23 — INR display (D-046) passed typecheck, production build, lint with the existing PostCSS warning, and all three browser suites at 390, 768, and 1440px plus reduced motion. No role screen shows dollar text. W08 was unticked until one real MetaMask connection is tested.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.

@@ -108,7 +108,6 @@ An item can **start** before its dependencies are finished by building against a
 
 **Left to verify for W03 (blocks the tick):**
 
-- [ ] Open a PR from `w03/claim-circuit` so the branch is available to Shikhar. Until it is pushed, this work exists only on the laptop that built it.
 - [ ] On Shikhar's Windows laptop, on Node 26 with `circom --version` reporting 2.2.3 on `PATH`, check out the branch and run `npm ci`, then `npm test --workspace @rado/circuits`.
 - [ ] Confirm that run reports 28 passed and 0 failed, prints `Claim constraints for W04: 27352`, and exits without hanging. A different constraint count means the compile differs and must be explained before W04 uses it.
 - [ ] On the same laptop, run `node scripts/generate-claim-vector.mjs`, then `git diff --exit-code packages/shared/vectors/claim-valid.json`. If the vector changes, stop and ask. Never edit it to pass.

@@ -48,7 +48,7 @@ export function HospitalScreen() {
   const withinCap = draftAmount !== null && draftAmount <= remainingCap;
   const canRequest = draftAmount !== null && withinCap;
   const shownAmount = editing ? draftAmount : amount;
-  const dollars = shownAmount === null ? "—" : formatAmount(shownAmount);
+  const amountLabel = shownAmount === null ? "—" : formatAmount(shownAmount);
   const notice = note?.stage === stage
     ? note.text
     : settled
@@ -80,7 +80,7 @@ export function HospitalScreen() {
       <SampleNotice>Claim actions are a simulation. No proof, transaction, or payment is created.</SampleNotice>
       <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard label="Ready for review" value={settled ? "0 claims" : "1 claim"} detail="Sample queue" icon="clock" />
-        <MetricCard label="This claim" value={dollars} detail="Sample amount" icon="coin" />
+        <MetricCard label="This claim" value={amountLabel} detail="Sample amount" icon="coin" />
         <MetricCard label="Hospital" value={sample.name} detail="Sample organization" icon="building" />
       </div>
       {message ? <p aria-live="polite" className={`${rejection ? "status-error" : editing && declined ? "status-warning" : "status-success"} motion-reveal mb-8 rounded-lg border px-4 py-3 text-sm`} role="status">{message}</p> : null}
@@ -94,14 +94,14 @@ export function HospitalScreen() {
               <dd className="mt-2 text-base text-rado-ink">{editing ? <select className="field" id="claim-procedure" onChange={(event) => setDraft((current) => ({ ...current, procedureCode: event.target.value }))} value={draft.procedureCode}>{PROCEDURE_OPTIONS.map(({ code, label }) => <option key={code} value={code}>{label}</option>)}</select> : procedureLabel(draft.procedureCode)}</dd>
             </div>
             <div className="border-t border-rado-line py-4">
-              <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">{editing ? <label htmlFor="claim-amount">Claim amount (USD)</label> : "Claim amount"}</dt>
-              <dd className="mt-2 text-base text-rado-ink">{editing ? <input aria-invalid={!canRequest} className="field" id="claim-amount" inputMode="decimal" onChange={(event) => setDraft((current) => ({ ...current, amountText: event.target.value }))} value={draft.amountText} /> : dollars}</dd>
+              <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">{editing ? <label htmlFor="claim-amount">Claim amount (INR)</label> : "Claim amount"}</dt>
+              <dd className="mt-2 text-base text-rado-ink">{editing ? <input aria-invalid={!canRequest} className="field" id="claim-amount" inputMode="decimal" onChange={(event) => setDraft((current) => ({ ...current, amountText: event.target.value }))} value={draft.amountText} /> : amountLabel}</dd>
             </div>
           </dl>
           {editing ? (
             <div className="border-t border-rado-line pt-4">
               <ul aria-label="Claim checks" className="space-y-2">
-                <BuilderCheck ok={draftAmount !== null} label="Amount is a positive dollar value" />
+                <BuilderCheck ok={draftAmount !== null} label="Amount is a positive rupee value" />
                 <BuilderCheck ok={withinCap} label={`Within the public remaining cap of ${formatAmount(remainingCap)}`} />
               </ul>
               <p className="mt-3 text-xs leading-5 text-rado-muted">Coverage and the per-claim limit stay private. The patient checks them before approving.</p>

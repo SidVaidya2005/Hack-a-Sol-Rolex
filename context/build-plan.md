@@ -156,6 +156,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — Slice 3 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser runs at 390, 768, and 1440px, plus reduced motion, passed the Slice 1 and Slice 2 suites and all Slice 3 checks, including invalid amounts, patient decline of uncovered and over-limit claims, the Hospital not seeing the limit before approval, custom amounts reaching Insurer and Public Chain, drawer keyboard close, re-grant after rotation, copy, restart, no horizontal scroll, no page errors, no network requests, and no new browser storage. Real wallet, proof, chain, and cross-laptop behavior remain untested.
 
+**Result:** 2026-11-23 — INR display (D-041) passed typecheck, production build, lint with the existing PostCSS warning, and all three browser suites at 390, 768, and 1440px plus reduced motion. No role screen shows dollar text. W08 was unticked until one real MetaMask connection is tested.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.

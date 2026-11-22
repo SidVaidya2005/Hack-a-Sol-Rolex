@@ -22,7 +22,7 @@ export function procedureLabel(code: string) {
   return PROCEDURE_OPTIONS.find((option) => option.code === code)?.label ?? "Sample procedure";
 }
 
-/** Converts a dollar string to 6-decimal mUSD base units, or null if it is not a positive amount. */
+/** Converts a displayed rupee string to 6-decimal token base units, or null if it is not a positive amount. */
 export function parseClaimAmount(text: string) {
   const match = /^(\d{1,12})(?:\.(\d{1,2}))?$/.exec(text.trim());
   if (!match) return null;

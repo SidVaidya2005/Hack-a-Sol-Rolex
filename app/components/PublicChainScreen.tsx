@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+import { formatAmount } from "../data/insurer-sample-data";
 import { getPublicChainSampleData } from "../data/public-chain-sample-data";
 import { usePublicClaim } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
 import { Badge, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
 
 const sample = getPublicChainSampleData();
-const policyCap = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(sample.policyCap) / 1_000_000);
+const policyCap = formatAmount(BigInt(sample.policyCap));
 const EVENT_FILTERS = ["All", "Claims", "Access", "Policy"] as const;
 const EVENT_INFO: Record<string, { group: (typeof EVENT_FILTERS)[number]; shows: string }> = {
   ClaimSettled: { group: "Claims", shows: "Amount, policy commitment, nullifier, hospital root, claim day, and payout address." },

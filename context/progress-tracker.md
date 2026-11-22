@@ -23,7 +23,7 @@
 ## Current Status
 
 **Last completed:** W02 Monorepo and tool setup
-**Next:** W03 and W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W09 to W11 as their listed start dependencies become available. W08 passed its sample-data checks on `w08/role-screens` and is awaiting review.
+**Next:** W03 and W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W09 to W11 as their listed start dependencies become available. W08 passed its sample-data and interactive checks on `w08/role-screens`, and needs one real MetaMask connection test before it is ticked.
 
 ## Progress
 
@@ -34,7 +34,7 @@
 - [ ] W05 Smart contracts and tests
 - [ ] W06 Encryption and key library
 - [ ] W07 Server routes
-- [x] W08 Role screens with sample data
+- [ ] W08 Role screens with sample data
 - [ ] W09 Patient records and permissions
 - [ ] W10 Hospital claim and browser proving
 - [ ] W11 Settlement, insurer view, and end-to-end flow
@@ -44,6 +44,7 @@
 
 ## Key Decisions
 
+- **D-041 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
 - **D-040 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
 - **D-039 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
 - **D-038 — Apply `context/DESIGN.md` to role screens with a top nav, one dark focal band per screen, a fully dark Public Chain View, repo-owned SVG icons, and self-hosted Space Grotesk, Inter, and IBM Plex Mono.** Reason: this follows the agreed design while giving each screen one clear focus and making the outsider's view visibly distinct, with no new dependency or browser font requests. Accepted tradeoff: the first build needs internet to download fonts. Source: W08 design plan, user-approved 2026-11-23.
@@ -53,10 +54,8 @@
 - **D-034 — Omit the contract address from the unlock signing domain.** Reason: including it would change every user's derived keys whenever contracts are redeployed. Source: W01 plan, user-approved.
 - **D-033 — Take `claimDay` from the latest block's UTC day.** Reason: a laptop clock ahead of UTC could otherwise produce a claim the contract rejects as future-dated. Source: W01 plan, user-approved.
 - **D-032 — Send the hospital one covered-procedure path, not the full coverage list.** Reason: the hospital needs only this claim's proof inputs, so the patient's wider coverage stays private. Source: W01 plan, user-approved.
-- **D-031 — Update the bundle hash and CID inside `grantAccess` and `revokeAndRotate`.** Reason: a grant changes the bundle, and a single revoke transaction avoids a state where access is revoked but the old key still opens the current record. Source: W01 plan, user-approved.
 
 ## Open Questions
 
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.
-- Should W08 stay ticked before a real MetaMask connection is tested? Its Result records that the connection has not been exercised.
 - Should wagmi keep its default `wagmi.store` entry in `localStorage`? It holds wallet connection state and enables reconnects, but contains no claim or medical data.

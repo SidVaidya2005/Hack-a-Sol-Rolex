@@ -41,19 +41,21 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 **Owner:** all. Agree the public signal order, Poseidon inputs, contract function signatures, event names, bundle JSON, and sample FHIR records, policy, hospitals, and procedure codes in `packages/shared`.
 
+**Plan:** `packages/shared` holds constants, types, human-readable ABIs, hash input orders, and synthetic sample data. `scripts/generate-claim-vector.mjs` writes one computed valid claim to `packages/shared/vectors/claim-valid.json`. Its keys come from public labels and must never be used for a demo wallet (D-028). This work also settled D-026 to D-034.
+
 **Verify:** all four owners review the shared types. Expected: each track can build against them without further changes.
 
 ### W02 Monorepo and tool setup
 
 **Owner:** T4. Create the npm workspaces, install the selected ranges, configure TypeScript, ESLint, and Prettier, and record lockfile versions.
 
-**Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, and `circom --version` on Shikhar's Windows laptop reports 2.2.3.
+**Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, `circom --version` on Shikhar's Windows laptop reports 2.2.3, and `node scripts/generate-claim-vector.mjs` leaves the committed vector unchanged.
 
 ### W03 Claim circuit and rejection tests
 
 **Owner:** T1. Implement the circuit in `circuits/src/claim.circom`, using ZK Claim Circuit in `context/architecture.md` as the specification.
 
-**Verify:** `circuits/src/claim.circom` compiles and a valid witness passes. Expected failures: unapproved hospital, expired policy, uncovered procedure, over limit, wrong commitment, wrong nullifier, tampered amount, day, or payout, and bad hospital or patient signature.
+**Verify:** `circuits/src/claim.circom` compiles, the witness in `packages/shared/vectors/claim-valid.json` passes, and its public signals come out in the required order (D-029). Expected failures: unapproved hospital, expired policy, uncovered procedure, over limit, wrong commitment, wrong nullifier, tampered amount, day, or payout, and bad hospital or patient signature.
 
 ### W04 Trusted setup and verifier
 
@@ -65,7 +67,7 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 **Owner:** T2. Build `MockUSD`, `RecordAccess`, and `ClaimSettlement` with deployment and seed scripts.
 
-**Verify:** contract tests pass. Expected rejections: replayed nullifier, wrong root, unknown policy, future claim day, claim day older than 30 days, over total cap, invalid proof, unauthorized record actions, and expired access.
+**Verify:** contract tests pass and compiled ABIs match `packages/shared/src/abi.ts`. Expected rejections: replayed nullifier, wrong root, unknown policy, payout value above 160 bits, claim day before policy registration, future claim day, claim day older than 30 days, over total cap, invalid proof, unauthorized record actions, and expired access.
 
 ### W06 Encryption and key library
 

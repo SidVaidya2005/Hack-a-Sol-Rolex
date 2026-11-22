@@ -53,7 +53,7 @@ Rado changes the key handling. The decryption key is never stored with the file 
 
 | Location | Holds | Must never hold |
 | -------- | ----- | --------------- |
-| Chain | Record hash, CID, grants, expiry, public keys, policy commitment, total cap, roots, nullifiers, six public claim values, audit events | Diagnosis, procedure, prescriptions, treatment history, record contents, resource types, record titles |
+| Chain | Record hash, CID, grants, expiry, public keys, policy commitment, policy start day, total cap, roots, approved hospital leaves, nullifiers, six public claim values, audit events | Diagnosis, procedure, prescriptions, treatment history, record contents, resource types, record titles |
 | Pinata and L4 cache | Encrypted bundle: ciphertext, IV, per-reader encrypted keys | Plaintext or unwrapped keys |
 | L4 inbox | Encrypted messages plus sender, recipient, message ID, and timestamps | Plaintext, message type, or decryption keys |
 | Patient browser memory | Derived keys and decrypted records during use | Anything persisted in readable form |
@@ -62,16 +62,16 @@ Rado changes the key handling. The decryption key is never stored with the file 
 
 ## Key Handling
 
-1. **Unlock:** the user signs a fixed EIP-712 `RadoKeyUnlock` message once. HKDF derives a BabyJubJub EdDSA seed with info `rado/zk-eddsa/v1` and an X25519 secret with info `rado/x25519/v1`.
+1. **Unlock:** the user signs a fixed EIP-712 `RadoKeyUnlock` message once. HKDF derives a BabyJubJub EdDSA seed with info `rado/zk-eddsa/v1` and an X25519 secret with info `rado/x25519/v1`. The signing domain omits the contract address, so a redeploy does not change derived keys (D-034).
 2. **Register:** each user publishes their EdDSA and X25519 public keys on-chain.
-3. **Encrypt:** each record gets a random AES-256-GCM key and a fresh 96-bit IV for every encryption.
-4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM.
-5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, updates the on-chain hash and CID, and re-wraps for remaining readers.
+3. **Encrypt:** each record gets a random AES-256-GCM key and a fresh 96-bit IV for every encryption. The on-chain bundle hash is keccak256 of the exact pinned JSON bytes.
+4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM. A grant adds a wrapped key, so `grantAccess` also updates the bundle hash and CID (D-031).
+5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
 6. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event.
 
 ## ZK Claim Circuit
 
-**Public signals, in this exact order:** `claimAmount`, `policyCommitment`, `nullifier`, `hospitalRoot`, `claimDay`, `payoutAddress`.
+**Public signals, in this exact order:** `claimAmount`, `policyCommitment`, `nullifier`, `hospitalRoot`, `claimDay`, `payoutAddress`. The `Claim` template has no outputs and declares these six inputs first, because snarkjs uses declaration order (D-029).
 
 **Private inputs:** `procedureCode`, `encounterId`, `policySalt`, `expiryDay`, `perClaimLimit`, `coveredRoot`, covered-procedure Merkle path, patient public key and signature, hospital public key and signature, hospital Merkle path.
 
@@ -92,7 +92,11 @@ hospital EdDSA signature over claimHash is valid
 patient EdDSA signature over claimHash is valid
 ```
 
-- `claimDay` and `expiryDay` are whole days since the Unix epoch, range-checked to 32 bits.
+- Exact signal names, hash input orders, domain tags, and a computed valid claim are in `packages/shared`.
+- Merkle nodes are `Poseidon(left, right)`, empty leaves are `0`, and path index `0` means the current node is the left child.
+- `CLAIM_DOMAIN` and `REQUEST_DOMAIN` are keccak256 of `rado/claim/v1` and `rado/request/v1`, reduced to the BN254 field.
+- JSON carries field values and amounts as decimal strings and bytes as base64.
+- `claimDay` and `expiryDay` are whole days since the Unix epoch, range-checked to 32 bits. Clients take `claimDay` from the latest block's UTC day, not the laptop clock (D-033).
 - `claimAmount` and `perClaimLimit` are mUSD base units with 6 decimals, range-checked to 64 bits.
 - circomlib comparators are unsafe without these range checks, so apply `Num2Bits` before every comparison.
 - Use `EdDSAPoseidonVerifier` with `enabled` set to `1`.
@@ -103,12 +107,16 @@ patient EdDSA signature over claimHash is valid
 
 - **`MockUSD`** — 6-decimal test ERC-20 used for the insurer pool.
 - **`RecordAccess`** — key registration, record anchors, time-bound grants, revocation, view logging, responder registry, break-glass.
-- **`ClaimSettlement`** — hospital root, policy commitments and total caps, nullifiers, proof verification, payout.
+- **`ClaimSettlement`** — hospital root, policy commitments, start days and total caps, nullifiers, proof verification, payout.
 - **`Groth16Verifier`** — generated by snarkjs and never edited by hand.
 
-`ClaimSettlement.submitClaim` checks, in order: amount above zero, registered policy, current hospital root, unused nullifier, claim day not in the future and at most `MAX_CLAIM_AGE_DAYS` (30) days old, total cap, valid proof. It then records the nullifier and paid total before transferring tokens.
+Function, event, and error signatures are in `packages/shared/src/abi.ts`.
 
-**Audit events:** `KeysRegistered`, `RecordAnchored`, `AccessGranted`, `AccessRevoked`, `RecordKeyRotated`, `RecordViewed`, `BreakGlassInvoked`, `PolicyRegistered`, `HospitalRootUpdated`, `ClaimSettled`.
+**Hospital approval (D-027):** a hospital registers its key, then the Insurer approves it. `updateHospitalRoot` emits every approved leaf in `HospitalRootUpdated`, so the hospital can rebuild its Merkle path from chain data.
+
+`ClaimSettlement.submitClaim` checks, in order: amount above zero, payout address fits 160 bits (D-030), registered policy, current hospital root, unused nullifier, claim day not before the policy's registration day (D-026), not in the future, and at most `MAX_CLAIM_AGE_DAYS` (30) days old, total cap, valid proof. It then records the nullifier and paid total before transferring tokens.
+
+**Audit events:** `KeysRegistered`, `RecordAnchored`, `AccessGranted`, `AccessRevoked`, `RecordKeyRotated`, `RecordViewed`, `BreakGlassInvoked`, `ResponderUpdated`, `PolicyRegistered`, `HospitalRootUpdated`, `ClaimSettled`.
 
 ## Server Routes
 
@@ -134,7 +142,7 @@ The inbox carries private policy and claim messages between laptops. L4 handles 
 
 1. **Insurer → Patient, `policy-terms`:** the private policy terms.
 2. **Hospital → Patient, `claim-request`:** `encounterId`, `procedureCode`, `claimAmount`, `claimDay`, `payoutAddress`, the hospital public key and Merkle path, and a hospital EdDSA signature over `requestHash = Poseidon(REQUEST_DOMAIN, encounterId, procedureCode, claimAmount, claimDay, payoutAddress)`.
-3. **Patient → Hospital, `claim-approval`:** the policy terms and the patient's EdDSA signature over `claimHash`.
+3. **Patient → Hospital, `claim-approval`:** the policy terms without the coverage list, the Merkle path for this one procedure (D-032), and the patient's EdDSA signature over `claimHash`.
 4. **Hospital:** verifies the approval, signs `claimHash`, and generates the proof. The hospital signs twice because `claimHash` needs the policy commitment, which it learns from the approval.
 
 **Envelope visible to L4:** `messageId`, `sender`, `recipient`, `createdAt`, `ephemeralPublicKey`, `iv`, `ciphertext`. `messageId` is 32 lowercase hex characters.
@@ -202,7 +210,9 @@ The inbox carries private policy and claim messages between laptops. L4 handles 
 
 ## Standing Constraints
 
-_None yet._ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.** Reason: ... Source: ...`.
+Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.** Reason: ... Source: ...`.
+
+- **D-024 — Exchange private policy and claim messages through an encrypted `/api/inbox` on L4.** Reason: the flow needs insurer-to-patient and hospital-to-patient exchanges across laptops, and this adds no on-chain link between a patient and a visit. Accepted tradeoff: L4 can see who messaged whom and when. Source: documentation review, W07 and W10.
 
 ## Code Standards
 

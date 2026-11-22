@@ -98,7 +98,7 @@ const { proof, publicSignals } = await groth16.fullProve(input, wasmUrl, zkeyUrl
 const callData = await groth16.exportSolidityCallData(proof, publicSignals);
 ```
 
-**Rules:** assert the `publicSignals` order in a test. Only the T1 laptop needs the Circom compiler if the final `.wasm`, `.zkey`, and verifier are shared through the repo.
+**Rules:** snarkjs returns public signals in declaration order and Circom outputs are public, so declare the six public inputs first, use no outputs, and assert the `publicSignals` order in a test. Only the T1 laptop needs the Circom compiler if the final `.wasm`, `.zkey`, and verifier are shared through the repo.
 
 TODO: verify snarkjs browser bundling under Next.js Turbopack in W10. If it fails, test `next dev --webpack`.
 
@@ -116,6 +116,8 @@ const publicKey = eddsa.prv2pub(seed);
 const signature = eddsa.signPoseidon(seed, eddsa.babyJub.F.e(claimHash));
 const valid = eddsa.verifyPoseidon(eddsa.babyJub.F.e(claimHash), signature, publicKey);
 ```
+
+Convert results with `poseidon.F.toObject(poseidon(inputs))` and `eddsa.F.toObject(point)`. `scripts/generate-claim-vector.mjs` is a working example.
 
 **Rule:** `LessThan(n)` and `LessEqThan(n)` require inputs already constrained to `n` bits.
 
@@ -171,6 +173,15 @@ export const config = createConfig({
 ```
 
 Wrap the app in `WagmiProvider` and `QueryClientProvider`. Use `useSignTypedData` for unlock and `useWriteContract` with `useWaitForTransactionReceipt` for transactions.
+
+Shared ABIs are human-readable lists. Convert them with viem:
+
+```ts
+import { parseAbi } from "viem";
+import { claimSettlementAbi } from "@rado/shared";
+
+const abi = parseAbi(claimSettlementAbi);
+```
 
 TODO: verify that the relative `/api/rpc` URL works in viem's HTTP transport during W08. If it does not, build the absolute URL from `window.location.origin`.
 

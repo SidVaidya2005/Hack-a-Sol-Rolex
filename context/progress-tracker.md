@@ -44,6 +44,7 @@
 
 ## Key Decisions
 
+- **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
 - **D-034 — Omit the contract address from the unlock signing domain.** Reason: including it would change every user's derived keys whenever contracts are redeployed. Source: W01 plan, user-approved.
 - **D-033 — Take `claimDay` from the latest block's UTC day.** Reason: a laptop clock ahead of UTC could otherwise produce a claim the contract rejects as future-dated. Source: W01 plan, user-approved.
 - **D-032 — Send the hospital one covered-procedure path, not the full coverage list.** Reason: the hospital needs only this claim's proof inputs, so the patient's wider coverage stays private. Source: W01 plan, user-approved.
@@ -51,9 +52,6 @@
 - **D-030 — Reject payout values above 160 bits in `submitClaim`.** Reason: casting a larger field value to an address would silently change it. Source: W01 plan, user-approved.
 - **D-029 — Declare the six public inputs first in `Claim`, with no outputs.** Reason: snarkjs orders public signals by declaration and outputs are also public, so the `public` list alone does not guarantee the required order. W03 must confirm this in a test. Source: W01 plan, Context7 snarkjs and Circom docs.
 - **D-028 — Commit one computed valid claim using test keys derived from public labels.** Reason: tracks can detect hash and encoding mismatches at hour 1 instead of during integration, and no private key is stored. Source: W01 decision round.
-- **D-027 — Have the Insurer approve registered hospitals, with approved leaves emitted on-chain.** Reason: hospital keys come from the MetaMask unlock, so the root cannot be fixed in sample data, and no script needs a hospital private key. Source: W01 decision round.
-- **D-026 — Reject claims dated before a policy's on-chain registration day.** Reason: "active policy" needs a start as well as an expiry, and a contract check needs no circuit change. Accepted tradeoff: the start day is public. Source: W01 decision round.
-- **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
 
 ## Open Questions
 

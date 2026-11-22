@@ -29,11 +29,12 @@ The specs stay in `context/`. These prompts say what to read, what to build, wha
 | Hours | Items | Who |
 | ----- | ----- | --- |
 | 1-10, first | W02 | Shreyansh |
-| 1-10, parallel | W03 then W04 | Shikhar |
+| 1-10, parallel | W03, and W04 on the placeholder circuit | Shikhar |
 | 1-10, parallel | W05 | Shreya |
-| 1-10, parallel | W06 then W07 | Shreyansh |
+| 1-10, parallel | W06 and W07, agreeing W06 signatures first | Shreyansh |
 | 1-10, parallel | W08 | Siddarth |
-| 10-14 | W09 and W10, then W11 | Siddarth, Shikhar, then Shreya |
+| 1-14, when free | Start W09, W10, and W11 on stand-ins | Siddarth, Shikhar, Shreya |
+| 10-14 | Finish W09 and W10, then W11, on real dependencies | Siddarth, Shikhar, then Shreya |
 | 14-18 | W12, only after W11 passes | Shreya with Shreyansh |
 | 18-20 | W13 | Shreyansh with team review |
 | 20-24 | W14, feature freeze | Shreyansh with everyone |
@@ -46,13 +47,13 @@ For a shared item, the first listed owner leads and runs the prompt. The other o
 
 Every prompt follows these steps.
 
-1. **Prepare the branch.** Stop if the working tree has uncommitted changes. Switch to the named branch, creating it from `origin/main` if needed, then merge the latest `origin/main`.
-2. **Check dependencies.** Confirm each item under Needs is merged to `main`. If one is missing, stop and report it unless the prompt says how to start without it.
+1. **Prepare the branch.** Stop if the working tree has uncommitted changes. Switch to the item's named branch, creating it from `origin/main` if needed, then merge the latest `origin/main`. To run two items at once, give the second its own worktree and Claude session, such as `git worktree add ../rado-w04 -b w04/trusted-setup origin/main`.
+2. **Check dependencies.** Confirm everything under Needs or Needs to start is merged to `main`. If one is missing, stop and report it. Anything listed only under Needs to finish may be replaced by a stand-in while building.
 3. **Restore context.** Use the `remember` skill with `restore`. If it is unavailable, read the essential documents in the order listed in `CLAUDE.md`.
 4. **Plan and wait.** Use the `architect` skill for this work item. If it is unavailable, read the item, raise only decisions that change the build, and present a short plan. Write no code until the owner explicitly approves.
 5. **Build only this item.** Follow every invariant. Use Context7 before writing third-party API calls.
 6. **Verify.** Run every check in the item's Verify section in `context/build-plan.md` and the prompt's Prove list. Show the results. Report any check you could not run as not run.
-7. **Update the docs.** If every check passed, add the dated `**Result:**`, tick Progress, and update Current Status. If a check is waiting on another laptop or person, list it and leave the item unticked. Record confirmed decisions, then use the `remember` skill with `save` if available.
+7. **Update the docs.** If every check passed, add the dated `**Result:**`, tick Progress, and update Current Status. If a check is waiting on another laptop, person, or real dependency, list it and leave the item unticked. An unticked item may still merge if `main` stays safe to demo. Record confirmed decisions, then use the `remember` skill with `save` if available.
 8. **Ask before committing.** Stage files by name. Never stage `CS.docx`, `Drawings.docx`, `.env` files, private keys, wallet seeds, or certificates. Use a subject such as `W05 add claim settlement`. Add coauthors only if the owner asks.
 9. **After approval, open a PR to `main`, then stop.** List what changed, the checks run, and anything not run. A person merges it. Never merge the PR or push directly to `main`.
 
@@ -62,6 +63,7 @@ Every prompt follows these steps.
 - **Decision IDs:** take the next unused ID from the latest `origin/main` just before committing. If another PR takes it first, change your unmerged ID before merging.
 - **Tracker conflicts:** keep every tick and every Result. Set Last completed to the newest merged item, and set Next to the unfinished items now in progress.
 - **Shared interface changes:** stop and tell the affected owners. Make an agreed change in a small separate PR.
+- **Stand-ins:** follow Parallel Work in `context/build-plan.md`. An item built on a stand-in is ticked only after its original Verify checks pass against the real dependency.
 
 ---
 
@@ -94,10 +96,10 @@ Stop and ask if: a selected range conflicts, or the vector changes.
 
 ## W03 Claim circuit and rejection tests
 
-**Owner:** Shikhar | **Branch:** `track/circuits` | **Hours:** 1-10 | **Needs:** W02
+**Owner:** Shikhar | **Branch:** `w03/claim-circuit` | **Hours:** 1-10 | **Needs:** W02
 
 ```text
-Work on W03 Claim circuit and rejection tests as Shikhar on track/circuits. Follow the Standard Workflow in prompt.md.
+Work on W03 Claim circuit and rejection tests as Shikhar on w03/claim-circuit. Follow the Standard Workflow in prompt.md.
 
 Read: W03 in context/build-plan.md, ZK Claim Circuit and Invariants in context/architecture.md, Circom and circomlib sections in context/library-docs.md, packages/shared/src/constants.ts, packages/shared/src/hash-inputs.ts, and packages/shared/vectors/claim-valid.json.
 
@@ -118,14 +120,16 @@ Stop and ask if: the committed vector fails. Never edit the vector or shared has
 
 ## W04 Trusted setup and verifier
 
-**Owner:** Shikhar | **Branch:** `track/circuits` | **Hours:** 1-10 | **Needs:** W03
+**Owner:** Shikhar | **Branch:** `w04/trusted-setup` | **Hours:** 1-10 | **Needs to start:** W02 | **Needs to finish:** W03
 
 ```text
-Work on W04 Trusted setup and verifier as Shikhar on track/circuits. Follow the Standard Workflow in prompt.md.
+Work on W04 Trusted setup and verifier as Shikhar on w04/trusted-setup. Follow the Standard Workflow in prompt.md.
 
 Read: W04 in context/build-plan.md, ZK Claim Circuit in context/architecture.md, Circom and snarkjs in context/library-docs.md.
 
 Build only: a cross-platform Node setup script, the demo proving files, the verification key, and the generated Groth16Verifier.
+
+If W03 is not merged, first run the script on the placeholder circuit described in Parallel Work in context/build-plan.md and open a small PR with its files so W05, W10, and W11 can start. Do not tick W04 until the script has been rerun on the real claim circuit and every check passes.
 
 Get right:
 - Choose the Powers of Tau size from W03's constraint count and resolve that TODO.
@@ -142,12 +146,12 @@ Stop and ask if: a proving file is too large to commit, or the circuit must chan
 
 ## W05 Smart contracts and tests
 
-**Owner:** Shreya | **Branch:** `track/contracts` | **Hours:** 1-10 | **Needs:** W02. W04 for the final proof checks.
+**Owner:** Shreya | **Branch:** `w05/contracts` | **Hours:** 1-10 | **Needs to start:** W02 | **Needs to finish:** W04
 
 ```text
-Work on W05 Smart contracts and tests as Shreya on track/contracts. Follow the Standard Workflow in prompt.md.
+Work on W05 Smart contracts and tests as Shreya on w05/contracts. Follow the Standard Workflow in prompt.md.
 
-If W04 is not merged, start with a test-only mock verifier. Do not tick W05 until the real Groth16Verifier passes the proof tests.
+If W04 is not merged, start with the placeholder verifier from Parallel Work in context/build-plan.md, or a test-only mock until it exists. Do not tick W05 until the real Groth16Verifier passes the proof tests.
 
 Read: W05 in context/build-plan.md, Smart Contracts, On-Chain and Off-Chain Data, Invariants, and Code Standards in context/architecture.md, Hardhat in context/library-docs.md, and packages/shared/src/abi.ts.
 
@@ -157,7 +161,7 @@ Get right:
 - Implement submitClaim's checks in the documented order, and update state before transferring tokens.
 - Follow D-026, D-027, D-030, and D-031.
 - Add a test proving compiled ABIs match packages/shared/src/abi.ts.
-- Keep the mock verifier out of deployment and seed paths.
+- Keep any mock verifier out of deployment and seed paths. Deploy the placeholder verifier only when RADO_ALLOW_PLACEHOLDER=1 is set.
 - Seed newly generated wallets and fund the pool. Never use Hardhat's default accounts or commit a wallet key.
 - Hospital approval and policy registration need keys from MetaMask unlock, so do not fake them in the seed.
 - Hardhat state is lost on restart, so the seed must rebuild the demo from zero.
@@ -169,10 +173,10 @@ Stop and ask if: abi.ts or a documented check must change.
 
 ## W06 Encryption and key library
 
-**Owner:** Shreyansh | **Branch:** `track/storage` | **Hours:** 1-10 | **Needs:** W02
+**Owner:** Shreyansh | **Branch:** `w06/crypto` | **Hours:** 1-10 | **Needs:** W02
 
 ```text
-Work on W06 Encryption and key library as Shreyansh on track/storage. Follow the Standard Workflow in prompt.md.
+Work on W06 Encryption and key library as Shreyansh on w06/crypto. Follow the Standard Workflow in prompt.md.
 
 Read: W06 in context/build-plan.md, Key Handling, Private Message Inbox, Invariants, and Code Standards in context/architecture.md, Browser Crypto and circomlibjs in context/library-docs.md, and packages/shared/src.
 
@@ -194,12 +198,12 @@ Stop and ask if: a shared type or documented crypto rule must change.
 
 ## W07 Server routes
 
-**Owner:** Shreyansh | **Branch:** `track/storage` | **Hours:** 1-10 | **Needs:** W02, W06. W05 for the on-chain guard checks.
+**Owner:** Shreyansh | **Branch:** `w07/server-routes` | **Hours:** 1-10 | **Needs to start:** W02 | **Needs to finish:** W05, W06
 
 ```text
-Work on W07 Server routes as Shreyansh on track/storage. Follow the Standard Workflow in prompt.md.
+Work on W07 Server routes as Shreyansh on w07/server-routes. Follow the Standard Workflow in prompt.md.
 
-If W05 is not merged, build the routes first. Do not tick W07 until the on-chain guards pass against deployed contracts.
+If W05 or W06 is not merged, build the routes against abi.ts and the agreed W06 signatures. Do not tick W07 until the real signature checks and on-chain guards pass against deployed contracts.
 
 Read: W07 in context/build-plan.md, Server Routes, Private Message Inbox, Invariants, and Code Standards in context/architecture.md, Next.js and Pinata in context/library-docs.md.
 
@@ -221,10 +225,10 @@ Stop and ask if: a route needs readable medical data, or an invariant blocks the
 
 ## W08 Role screens with sample data
 
-**Owner:** Siddarth | **Branch:** `track/app` | **Hours:** 1-10 | **Needs:** W02
+**Owner:** Siddarth | **Branch:** `w08/role-screens` | **Hours:** 1-10 | **Needs:** W02
 
 ```text
-Work on W08 Role screens with sample data as Siddarth on track/app. Follow the Standard Workflow in prompt.md.
+Work on W08 Role screens with sample data as Siddarth on w08/role-screens. Follow the Standard Workflow in prompt.md.
 
 Read: W08 in context/build-plan.md, Screens and Core User Flow in context/project-overview.md, System Boundaries, Invariants, and Code Standards in context/architecture.md, Next.js, wagmi and viem, and Tailwind CSS in context/library-docs.md.
 
@@ -245,14 +249,16 @@ Stop and ask if: a screen needs a shared interface change.
 
 ## W09 Patient records and permissions
 
-**Owner:** Siddarth, with Shreyansh | **Branch:** `track/app` | **Hours:** 10-14 | **Needs:** W05, W06, W07, W08
+**Owner:** Siddarth, with Shreyansh | **Branch:** `w09/patient-records` | **Hours:** 10-14 | **Needs to start:** W02, W06 signatures, W08 data layer | **Needs to finish:** W05, W06, W07, W08
 
 ```text
-Work on W09 Patient records and permissions as Siddarth on track/app, with Shreyansh reviewing storage and crypto. Follow the Standard Workflow in prompt.md.
+Work on W09 Patient records and permissions as Siddarth on w09/patient-records, with Shreyansh reviewing storage and crypto. Follow the Standard Workflow in prompt.md.
 
 Read: W09 in context/build-plan.md, Core User Flow in context/project-overview.md, Key Handling, Smart Contracts, Server Routes, and Invariants in context/architecture.md.
 
 Build only: the real add-record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline flows.
+
+If W05, W06, or W07 is not merged, build behind the W08 data layer with clearly labelled fakes. Do not tick W09 until every check passes with the real parts.
 
 Get right:
 - Encrypt in the browser before any upload.
@@ -269,14 +275,16 @@ Stop and ask if: a flow would put readable medical data on-chain, on a server, o
 
 ## W10 Hospital claim and browser proving
 
-**Owner:** Shikhar, with Siddarth | **Branch:** `track/circuits` | **Hours:** 10-14 | **Needs:** W04, W05, W06, W07, W08
+**Owner:** Shikhar, with Siddarth | **Branch:** `w10/hospital-proving` | **Hours:** 10-14 | **Needs to start:** W02, W04 placeholder files | **Needs to finish:** W04, W05, W06, W07, W08
 
 ```text
-Work on W10 Hospital claim and browser proving as Shikhar on track/circuits, with Siddarth reviewing the app flow. Follow the Standard Workflow in prompt.md.
+Work on W10 Hospital claim and browser proving as Shikhar on w10/hospital-proving, with Siddarth reviewing the app flow. Follow the Standard Workflow in prompt.md.
 
 Read: W10 in context/build-plan.md, ZK Claim Circuit, Private Message Inbox, and Invariants in context/architecture.md, Circom and snarkjs and wagmi and viem in context/library-docs.md.
 
 Build only: insurer policy delivery and resend, claim request, patient approval, both EdDSA signatures, and proof generation in a web worker.
+
+If W04 is not merged, build the worker with the placeholder proving files and the committed claim vector. If W05, W06, or W07 is not merged, use clearly labelled fakes. Do not tick W10 until every check passes with the real circuit and parts.
 
 Get right:
 - Run each sender check before showing or acting on a message.
@@ -295,17 +303,19 @@ Stop and ask if: proving is too slow for the demo, or the circuit or shared hash
 
 ## W11 Settlement, insurer view, and end-to-end flow
 
-**Owner:** Shreya, with Siddarth | **Branch:** `track/contracts` | **Hours:** 10-14 | **Needs:** W05, W08, W10
+**Owner:** Shreya, with Siddarth | **Branch:** `w11/settlement-e2e` | **Hours:** 10-14 | **Needs to start:** W02, W05 interfaces | **Needs to finish:** W05, W08, W10
 
 ```text
-Work on W11 Settlement, insurer view, and end-to-end flow as Shreya on track/contracts, with Siddarth reviewing the app flow. Follow the Standard Workflow in prompt.md.
+Work on W11 Settlement, insurer view, and end-to-end flow as Shreya on w11/settlement-e2e, with Siddarth reviewing the app flow. Follow the Standard Workflow in prompt.md.
 
 Read: W11 in context/build-plan.md, Core User Flow and Success Criteria in context/project-overview.md, Smart Contracts and Invariants in context/architecture.md, Circom and snarkjs in context/library-docs.md.
 
 Build only: real submitClaim from the Hospital screen, token payout, Insurer view, Public Chain View data, and the scripted E2E flow in scripts/.
 
+If W10 is not merged, draft the E2E script using the placeholder files and a `--draft` flag. A draft run never counts as a pass.
+
 Get right:
-- The E2E flow must use a real proof and the real verifier, never a mock.
+- Without `--draft`, the E2E flow must use a real proof and the real verifier, and must fail if any mock or placeholder is present.
 - Use newly generated wallets, not Hardhat's default accounts.
 - Show each contract rejection as a plain reason.
 - Insurer and public views may show only allowed chain data.
@@ -320,10 +330,10 @@ Stop and ask if: the fix needs a circuit, ABI, or invariant change.
 
 ## W12 Break-glass
 
-**Owner:** Shreya, with Shreyansh | **Branch:** `track/contracts` | **Hours:** 14-18 | **Needs:** W09, W11
+**Owner:** Shreya, with Shreyansh | **Branch:** `w12/break-glass` | **Hours:** 14-18 | **Needs:** W09, W11
 
 ```text
-Work on W12 Break-glass as Shreya on track/contracts, with Shreyansh reviewing escrow and crypto. Follow the Standard Workflow in prompt.md.
+Work on W12 Break-glass as Shreya on w12/break-glass, with Shreyansh reviewing escrow and crypto. Follow the Standard Workflow in prompt.md.
 
 First confirm W11 has passed. If not, or if it is past hour 16 without W11 passing, stop. This is the first feature to cut.
 
@@ -345,10 +355,10 @@ Stop and ask if: W12 is not passing by hour 18. Do not merge a partial feature.
 
 ## W13 Threat model and architecture diagram
 
-**Owner:** Shreyansh, with team review | **Branch:** `track/storage` | **Hours:** 18-20 | **Needs:** W11, and W12 merged or cut
+**Owner:** Shreyansh, with team review | **Branch:** `w13/threat-model` | **Hours:** 18-20 | **Needs:** W11, and W12 merged or cut
 
 ```text
-Work on W13 Threat model and architecture diagram as Shreyansh on track/storage. Follow the Standard Workflow in prompt.md.
+Work on W13 Threat model and architecture diagram as Shreyansh on w13/threat-model. Follow the Standard Workflow in prompt.md.
 
 Read: W13 in context/build-plan.md, problemstatement.md, Known Limitations in context/project-overview.md, System Boundaries, On-Chain and Off-Chain Data, Key Handling, Server Routes, Private Message Inbox, and Invariants in context/architecture.md. Check the built code where a claim depends on it.
 
@@ -369,10 +379,10 @@ Stop and ask if: the built system differs from the documented architecture.
 
 ## W14 Rehearsal, backup video, and pitch
 
-**Owner:** Shreyansh, with everyone | **Branch:** `track/storage` | **Hours:** 20-24, freeze | **Needs:** W11, W13
+**Owner:** Shreyansh, with everyone | **Branch:** `w14/rehearsal` | **Hours:** 20-24, freeze | **Needs:** W11, W13
 
 ```text
-Work on W14 Rehearsal, backup video, and pitch as Shreyansh on track/storage, with all four owners. Follow the Standard Workflow in prompt.md.
+Work on W14 Rehearsal, backup video, and pitch as Shreyansh on w14/rehearsal, with all four owners. Follow the Standard Workflow in prompt.md.
 
 Feature freeze is active. Make only fixes that would otherwise break the demo, and keep each one in a small PR.
 
@@ -383,7 +393,7 @@ Build only: a four-laptop run checklist, a timed demo script, backup video steps
 Get right:
 - Test laptop-to-laptop access on venue Wi-Fi first, then the phone hotspot fallback.
 - Resolve the MetaMask HTTPS RPC TODO on the venue network.
-- Start each rehearsal from a fresh seed.
+- Start each rehearsal from a fresh seed, with no placeholder verifier or proving files in use.
 - Run one rehearsal with Pinata unreachable.
 - Use only synthetic data. Keep .env files, wallet seeds, and private keys off screen and out of the video.
 - State the known limitations honestly in the pitch.

@@ -22,12 +22,11 @@
 
 ## Current Status
 
-**Last completed:** W06 Encryption and key library
-**Next:** LInep generates and commits the real W04 proving files. W05, W07, and W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
+**Last completed:** W04 Trusted setup and verifier
+**Next:** Finish the W05 tick on the real verifier. W07 and W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
 
 **Left to do now:**
 
-- **LInep, W04:** on a new `w04/real-setup` branch from `main`, run the real setup once on Linux and open a PR with the proving files, the W04 Result, and the W04 tick. The steps are under W04 in `context/build-plan.md`.
 - **Shreya, W05:** contracts, deployment, seed, and tests are built on `w05/contracts` and pass on the placeholder verifier. After W04 merges, merge `main` and rerun `npm test --workspace @rado/contracts`. Tick W05 only when the suite reports the REAL verifier.
 - **Shreyansh, W07:** finish the server routes against the real W05 and W06 work.
 - **Siddarth, W08:** merge the latest `main` into `w08/role-screens`, test a real MetaMask connection and the relative `/api/rpc` URL, and open the PR. W08's D-038 makes eleven Key Decisions, so move D-032 to its right home in that merge.
@@ -39,7 +38,7 @@
 - [x] W01 Shared interfaces and sample data
 - [x] W02 Monorepo and tool setup
 - [x] W03 Claim circuit and rejection tests
-- [ ] W04 Trusted setup and verifier
+- [x] W04 Trusted setup and verifier
 - [ ] W05 Smart contracts and tests
 - [x] W06 Encryption and key library
 - [ ] W07 Server routes

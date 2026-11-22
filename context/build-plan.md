@@ -104,6 +104,25 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** `circuits/src/claim.circom` compiles, the witness in `packages/shared/vectors/claim-valid.json` passes, and its public signals come out in the required order (D-029). Expected failures: unapproved hospital, expired policy, uncovered procedure, over limit, wrong commitment, wrong nullifier, tampered amount, day, or payout, and bad hospital or patient signature.
 
+**Status:** 2026-11-23. Built on `w03/claim-circuit` and passing on Linux with Node 26.13.1 and Circom 2.2.3: all 28 circuit tests, including each expected failure at its intended rule, plus lint, typecheck, format check, and byte-identical vector regeneration. `Claim(8, 6)` has 27,352 constraints. Waiting for `npm test --workspace @rado/circuits` on Shikhar's Windows laptop before adding the Result and ticking W03.
+
+**Left to verify for W03 (blocks the tick):**
+
+- [ ] Open a PR from `w03/claim-circuit` so the branch is available to Shikhar. Until it is pushed, this work exists only on the laptop that built it.
+- [ ] On Shikhar's Windows laptop, on Node 26 with `circom --version` reporting 2.2.3 on `PATH`, check out the branch and run `npm ci`, then `npm test --workspace @rado/circuits`.
+- [ ] Confirm that run reports 28 passed and 0 failed, prints `Claim constraints for W04: 27352`, and exits without hanging. A different constraint count means the compile differs and must be explained before W04 uses it.
+- [ ] On the same laptop, run `node scripts/generate-claim-vector.mjs`, then `git diff --exit-code packages/shared/vectors/claim-valid.json`. If the vector changes, stop and ask. Never edit it to pass.
+- [ ] After these pass, replace the Status above with a dated `**Result:**`, tick W03 in Progress, update Current Status, and remove the `circom_tester` Windows TODO from `context/library-docs.md`.
+
+**Not covered by W03 (later items must prove these):**
+
+- **W04, real proofs:** W03 checks witnesses and constraints but generates no Groth16 proof. W04 must confirm that `groth16.fullProve` returns `publicSignals` in the required order (D-029), that the proof verifies with snarkjs and the Solidity verifier, and that changing each public signal fails verification.
+- **W04, setup size:** 27,352 constraints fits a Powers of Tau file of power 15 (32,768). Confirm this when running setup. Any change to `claim.circom` requires regenerating the wasm, zkey, verification key, and verifier.
+- **W05, contract-only rules:** the circuit does not range-check `payoutAddress`, so `submitClaim` must reject values above 160 bits (D-030). The contract also owns replay rejection, the total cap, the policy start day, and future or too-old claim days.
+- **W10, browser proving:** proof time on L2 and snarkjs bundling are unmeasured.
+
+**Build notes:** the third-party calls in W03 were checked against the locked circomlib and `circom_tester` source because Context7 was not signed in on the build laptop. The tests need `circom` on `PATH`.
+
 ### W04 Trusted setup and verifier
 
 **Owner:** T1. Compile the circuit, create the demo proving keys, export the Solidity contract that checks proofs, and put the proving files where the app can load them. This setup is for the demo, not production use.

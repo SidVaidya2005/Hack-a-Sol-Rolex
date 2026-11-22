@@ -23,7 +23,7 @@
 ## Current Status
 
 **Last completed:** W02 Monorepo and tool setup
-**Next:** W03 and W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W08 (Siddarth), in parallel. W09 to W11 can start on stand-ins when an owner is free.
+**Next:** W03 passes on Linux (27,352 constraints) and is waiting for its test run on Shikhar's Windows laptop. See "Left to verify" under W03 in `context/build-plan.md`. W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W08 (Siddarth), in parallel. W09 to W11 can start on stand-ins when an owner is free.
 
 ## Progress
 

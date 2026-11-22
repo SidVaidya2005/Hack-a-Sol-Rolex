@@ -23,7 +23,7 @@
 ## Current Status
 
 **Last completed:** W02 Monorepo and tool setup
-**Next:** W03 (Shikhar). W04 placeholder files are ready, and the real setup waits on W03. See "Left to verify" under W04 in `context/build-plan.md`. W05 (Shreya), W06 and W07 (Shreyansh), and W08 (Siddarth), in parallel. W09 to W11 can start on stand-ins when an owner is free.
+**Next:** W03 is merged and waiting for its test run on Shikhar's Windows laptop. See "Left to verify" under W03 in `context/build-plan.md`. W04 placeholder files are ready, and its real setup can now run on that laptop. See "Left to verify" under W04. W05 (Shreya), W06 and W07 (Shreyansh), and W08 (Siddarth), in parallel. W09 to W11 can start on stand-ins when an owner is free.
 
 ## Progress
 

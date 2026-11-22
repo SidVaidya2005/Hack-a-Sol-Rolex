@@ -89,7 +89,9 @@ $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 
 Hardhat on Windows also needs the Microsoft C++ redistributable: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
 
-TODO: verify `circom_tester` runs the claim circuit tests on Shikhar's Windows laptop during W03.
+TODO: verify `circom_tester` runs the claim circuit tests on Shikhar's Windows laptop during W03, using `npm test --workspace @rado/circuits`. They pass on Linux.
+
+**`circom_tester` notes:** it builds an unquoted shell command, so pass relative paths. A witness calculator keeps earlier error text, so use a fresh one for each rejection test. snarkjs leaves curve worker threads open, so terminate `globalThis.curve_bn128` after tests or the process will not exit.
 
 ```circom
 component main {public [claimAmount, policyCommitment, nullifier, hospitalRoot, claimDay, payoutAddress]} = Claim(8, 6);

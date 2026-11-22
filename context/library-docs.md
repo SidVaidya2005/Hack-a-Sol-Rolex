@@ -66,7 +66,18 @@ npx hardhat test nodejs
 
 ## Circom and snarkjs
 
-The official v2.2.3 macOS binary is `circom-macos-amd64`. See Open Questions in `context/progress-tracker.md`.
+**Install on Shikhar's Windows laptop (T1).** Run this in PowerShell, then open a new terminal and run `circom --version`:
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\bin" | Out-Null
+Invoke-WebRequest "https://github.com/iden3/circom/releases/download/v2.2.3/circom-windows-amd64.exe" -OutFile "$HOME\bin\circom.exe"
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+[Environment]::SetEnvironmentVariable("Path", "$userPath;$HOME\bin", "User")
+```
+
+Hardhat on Windows also needs the Microsoft C++ redistributable: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+
+TODO: verify `circom_tester` runs the claim circuit tests on Shikhar's Windows laptop during W03.
 
 ```circom
 component main {public [claimAmount, policyCommitment, nullifier, hospitalRoot, claimDay, payoutAddress]} = Claim(8, 6);

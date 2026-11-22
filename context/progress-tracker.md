@@ -35,12 +35,9 @@
 
 ## Key Decisions
 
+- **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
 - **D-024 — Exchange private policy and claim messages through an encrypted `/api/inbox` on L4.** Reason: the flow needs insurer-to-patient and hospital-to-patient exchanges across laptops, and this adds no on-chain link between a patient and a visit. Accepted tradeoff: L4 can see who messaged whom and when. Source: documentation review, W07 and W10.
 
 ## Open Questions
 
-- TODO: choose the allowed claim age for `MAX_CLAIM_AGE_DAYS` before W05. Recommended: 30 days.
-- TODO: name the person who owns each track (T1 to T4) in `context/build-plan.md` before W01 ends.
-- TODO: choose how the T1 laptop runs Circom before W03. The official macOS release binary is Intel-only, so an Apple Silicon laptop needs Rosetta or a Rust build.
-- TODO: confirm the final product name before the pitch. Rado is the working name.
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.

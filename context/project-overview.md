@@ -113,7 +113,7 @@ State these openly in the pitch and threat model.
 
 ## Product Decisions
 
-- **D-001 — Use Rado as the working product name.** Reason: the team chose it for now and may rename it later. Source: setup interview.
+- **D-001 — Use Rado as the product name.** Reason: the team confirmed it as the final name. Source: setup interview and post-setup confirmation.
 - **D-002 — Assign L1 Patient, L2 Hospital with Doctor and Responder, L3 Insurer, L4 Host and Public Chain View.** Reason: each main role gets a visible screen, the strongest laptop proves, and the public view demonstrates privacy. Source: setup interview.
 - **D-003 — Use venue Wi-Fi with HTTPS.** Reason: not recorded during setup. Accepted tradeoff: venues may block device-to-device traffic, so the on-arrival check and phone hotspot are the fallback. Source: setup interview.
 - **D-004 — Include all four bonuses, with break-glass built last and cut first.** Reason: audit events, expiry, and FHIR shape are cheap inside the core, while break-glass must not endanger the main claim flow. Source: setup interview.

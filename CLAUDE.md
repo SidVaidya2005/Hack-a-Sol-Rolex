@@ -75,7 +75,7 @@ Read the complete essential set before task-specific references or code changes.
 - **Freeze:** after hour 20, merge only fixes for demo-breaking problems.
 - **Libraries:** use Context7 before writing third-party API calls. Use official sources only for gaps, and record them in `context/library-docs.md`. After install, record exact lockfile versions there.
 
-**Documentation check (manual, at hours 10 and 20).** No script enforces this, so run it deliberately:
+**Documentation check (manual, at hours 10 and 20).** No script enforces this, so run it deliberately, using Git Bash on Windows:
 
 1. Estimate essential reading: `cat CLAUDE.md context/project-overview.md context/architecture.md context/progress-tracker.md | wc -c`, then divide by 4. It must be at most 15,000.
 2. Confirm every file and section in Information locations exists.
@@ -85,5 +85,7 @@ Read the complete essential set before task-specific references or code changes.
 6. Search for leftover template tokens and credential values before merging.
 
 ## Commands
+
+- `claude mcp add --transport http context7 https://mcp.context7.com/mcp` — each teammate runs this once in the repo, then restarts Claude Code, so the Context7 rule works on every laptop.
 
 The app is not scaffolded yet. Add install, dev, test, and lint commands here during W02. Library-specific commands are in `context/library-docs.md`.

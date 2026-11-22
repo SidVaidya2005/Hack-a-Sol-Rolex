@@ -15,12 +15,12 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 ## Tracks
 
-| Track | Owns | Branch |
-| ----- | ---- | ------ |
-| T1 Circuits | Claim circuit, rejection tests, trusted setup, generated verifier | `track/circuits` |
-| T2 Contracts | Solidity, deployment, seed chain state, contract tests | `track/contracts` |
-| T3 App | Role screens, wallet flows, browser proving UI, Public Chain View | `track/app` |
-| T4 Storage and Demo | Encryption library, Pinata, cache, RPC proxy, escrow, network, rehearsal | `track/storage` |
+| Track | Owner | Owns | Branch |
+| ----- | ----- | ---- | ------ |
+| T1 Circuits | Shikhar | Claim circuit, rejection tests, trusted setup, generated verifier | `track/circuits` |
+| T2 Contracts | Shreya | Solidity, deployment, seed chain state, contract tests | `track/contracts` |
+| T3 App | Siddarth | Role screens, wallet flows, browser proving UI, Public Chain View | `track/app` |
+| T4 Storage and Demo | Shreyansh | Encryption library, Pinata, cache, RPC proxy, inbox, escrow, network, rehearsal | `track/storage` |
 
 ## Timeline
 
@@ -47,7 +47,7 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 **Owner:** T4. Create the npm workspaces, install the selected ranges, configure TypeScript, ESLint, and Prettier, and record lockfile versions.
 
-**Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version.
+**Verify:** `npm install` and `npm run lint` succeed on all four laptops. Expected: every laptop reports the same Node major version, and `circom --version` on Shikhar's Windows laptop reports 2.2.3.
 
 ### W03 Claim circuit and rejection tests
 
@@ -65,7 +65,7 @@ Agree shared interfaces first, build tracks in parallel against sample data, the
 
 **Owner:** T2. Build `MockUSD`, `RecordAccess`, and `ClaimSettlement` with deployment and seed scripts.
 
-**Verify:** contract tests pass. Expected rejections: replayed nullifier, wrong root, unknown policy, invalid day, over total cap, invalid proof, unauthorized record actions, and expired access.
+**Verify:** contract tests pass. Expected rejections: replayed nullifier, wrong root, unknown policy, future claim day, claim day older than 30 days, over total cap, invalid proof, unauthorized record actions, and expired access.
 
 ### W06 Encryption and key library
 

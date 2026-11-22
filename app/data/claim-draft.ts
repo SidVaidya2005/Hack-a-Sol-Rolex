@@ -1,4 +1,9 @@
-import { SAMPLE_CLAIM, SAMPLE_POLICY, SAMPLE_PROCEDURES, SAMPLE_UNCOVERED_PROCEDURE } from "@rado/shared";
+import {
+  SAMPLE_CLAIM,
+  SAMPLE_POLICY,
+  SAMPLE_PROCEDURES,
+  SAMPLE_UNCOVERED_PROCEDURE,
+} from "@rado/shared";
 
 /*
  * Private claim details for the Patient and Hospital screens only.
@@ -14,7 +19,10 @@ export const INITIAL_CLAIM_DRAFT: ClaimDraft = {
 
 // The neutral label stops the Hospital's menu from revealing which option the patient's policy excludes (D-032).
 export const PROCEDURE_OPTIONS = [
-  ...SAMPLE_PROCEDURES.map(({ code, label }) => ({ code: code.toString(), label: label as string })),
+  ...SAMPLE_PROCEDURES.map(({ code, label }) => ({
+    code: code.toString(),
+    label: label as string,
+  })),
   { code: SAMPLE_UNCOVERED_PROCEDURE.code.toString(), label: "Sample specialist procedure" },
 ];
 
@@ -32,7 +40,8 @@ export function parseClaimAmount(text: string) {
 
 /** Patient-side check, because only the patient holds the full policy terms. */
 export function policyProblem(procedureCode: string, amount: bigint) {
-  if (!SAMPLE_PROCEDURES.some(({ code }) => code.toString() === procedureCode)) return "This procedure is not covered by your policy.";
+  if (!SAMPLE_PROCEDURES.some(({ code }) => code.toString() === procedureCode))
+    return "This procedure is not covered by your policy.";
   if (amount > SAMPLE_POLICY.perClaimLimit) return "This amount is above your per-claim limit.";
   return null;
 }

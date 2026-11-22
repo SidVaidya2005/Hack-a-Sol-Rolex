@@ -20,15 +20,27 @@ export function WalletConnection() {
     return (
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
         <div className="flex items-center gap-2">
-          <span className={`size-2 rounded-full ${account.chainId === radoChain.id ? "bg-rado-green" : "bg-rado-coral"}`} />
+          <span
+            className={`size-2 rounded-full ${account.chainId === radoChain.id ? "bg-rado-green" : "bg-rado-coral"}`}
+          />
           <span className="font-mono text-xs text-rado-slate">{shortAddress(account.address)}</span>
-          <span className="hidden border-l border-rado-line pl-2 text-xs text-rado-slate xl:inline">{account.chain?.name ?? "Unknown network"}</span>
+          <span className="hidden border-l border-rado-line pl-2 text-xs text-rado-slate xl:inline">
+            {account.chain?.name ?? "Unknown network"}
+          </span>
         </div>
         {account.chainId !== radoChain.id ? (
           <button
             className="button-pill-outline disabled:opacity-50"
             disabled={switchChain.isPending}
-            onClick={() => switchChain.mutate({ chainId: radoChain.id })}
+            onClick={() =>
+              switchChain.mutate({
+                chainId: radoChain.id,
+                // Wallets run outside this page, so they need the full URL when adding the network.
+                addEthereumChainParameter: {
+                  rpcUrls: [new URL("/api/rpc", window.location.origin).href],
+                },
+              })
+            }
             type="button"
           >
             {switchChain.isPending ? "Switching…" : "Switch network"}
@@ -42,7 +54,11 @@ export function WalletConnection() {
         >
           Disconnect
         </button>
-        {switchChain.isError ? <p className="w-full text-right text-xs text-rado-error">Could not switch networks. Try again in your wallet.</p> : null}
+        {switchChain.isError ? (
+          <p className="w-full text-right text-xs text-rado-error">
+            Could not switch networks. Try again in your wallet.
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -58,7 +74,11 @@ export function WalletConnection() {
         <Icon name="wallet" className="size-4" />
         {!connector ? "Wallet unavailable" : connect.isPending ? "Connecting…" : "Connect wallet"}
       </button>
-      {connect.isError ? <p className="max-w-52 text-right text-xs text-rado-error">Wallet connection failed. Check your wallet and try again.</p> : null}
+      {connect.isError ? (
+        <p className="max-w-52 text-right text-xs text-rado-error">
+          Wallet connection failed. Check your wallet and try again.
+        </p>
+      ) : null}
     </div>
   );
 }

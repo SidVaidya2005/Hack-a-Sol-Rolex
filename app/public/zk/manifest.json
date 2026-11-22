@@ -1,0 +1,34 @@
+{
+  "placeholder": false,
+  "demoOnly": true,
+  "warning": "DEMO ONLY. One person generated this trusted setup on one laptop, so it must never protect real funds or data.",
+  "circuit": "circuits/src/claim.circom",
+  "circuitSha256": "be4312ff88f9504272f18f8328fd6a5a343607c16d9386639231f91744c58713",
+  "compiler": "circom compiler 2.2.3",
+  "constraints": 27352,
+  "publicInputs": 6,
+  "outputs": 0,
+  "powersOfTau": 15,
+  "files": {
+    "wasm": {
+      "path": "app/public/zk/claim.wasm",
+      "bytes": 4719006,
+      "sha256": "a1e3c14b5cb74408b64933b50e7698d8c4e8d8b99b006549b2ef15ecf84eb9d1"
+    },
+    "zkey": {
+      "path": "app/public/zk/claim_final.zkey",
+      "bytes": 13250235,
+      "sha256": "6c19c66499fe71f6161d3eeb549511f57b83adfafe2dd159bf3b96bf725f5118"
+    },
+    "verificationKey": {
+      "path": "app/public/zk/verification_key.json",
+      "bytes": 4138,
+      "sha256": "af94d2c3af4019855273fdfedda30817bf0f0a61a9984e88b938f3b917866845"
+    },
+    "verifier": {
+      "path": "contracts/contracts/Groth16Verifier.sol",
+      "bytes": 9004,
+      "sha256": "b83f1c68d6471d05447b51b62be52913d867ccbf6cb5dcd8f87b9845214b449d"
+    }
+  }
+}

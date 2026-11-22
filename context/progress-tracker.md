@@ -22,17 +22,24 @@
 
 ## Current Status
 
-**Last completed:** W02 Monorepo and tool setup
-**Next:** W03 and W04 on the placeholder circuit (Shikhar), W05 (Shreya), W06 and W07 (Shreyansh), and W09 to W11 as their listed start dependencies become available. W08 passed its sample-data and interactive checks on `w08/role-screens`, and needs one real MetaMask connection test before it is ticked.
+**Last completed:** W05 Smart contracts and tests
+**Next:** W07 and W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
+
+**Left to do now:**
+
+- **Shreyansh, W07:** routes, cache, and LAN HTTPS are built and pass `scripts/check-server-routes.mjs` on L4 against deployed contracts, with Pinata stubbed. Still unticked until these run: the same script from a real second laptop, `crypto.subtle` in that laptop's browser, a real Pinata upload and gateway read, and a real internet-off record load.
+- **Siddarth, W08:** the latest `main` is merged into `w08/role-screens`. Test a real MetaMask connection, including adding the Rado network and a call through `/api/rpc`, rerun the browser flows, then add the W08 Result and tick it.
+- **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
+- **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
 
 - [x] W01 Shared interfaces and sample data
 - [x] W02 Monorepo and tool setup
-- [ ] W03 Claim circuit and rejection tests
-- [ ] W04 Trusted setup and verifier
-- [ ] W05 Smart contracts and tests
-- [ ] W06 Encryption and key library
+- [x] W03 Claim circuit and rejection tests
+- [x] W04 Trusted setup and verifier
+- [x] W05 Smart contracts and tests
+- [x] W06 Encryption and key library
 - [ ] W07 Server routes
 - [ ] W08 Role screens with sample data
 - [ ] W09 Patient records and permissions
@@ -44,16 +51,16 @@
 
 ## Key Decisions
 
-- **D-041 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
-- **D-040 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
-- **D-039 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
+- **D-046 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
+- **D-045 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
+- **D-044 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
+- **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
+- **D-042 — Keep the documented inbox request digest, which does not sign `recipient`, `messageId`, or acknowledged IDs.** Reason: changing it would change a documented crypto rule, and AES-GCM AAD still stops an altered message from being read as genuine. Accepted tradeoff: a party able to alter a request in transit, including L4, could misroute a send or change which messages are deleted, but could not read them. Source: W06 plan, user-approved 2026-11-23.
+- **D-041 — Bind each wrapped record key with AAD `rado/wrap/v1 || recordId || reader`.** Reason: the docs did not specify this AAD, and binding it stops a wrapped key being moved to another record or reader without a shared type change. Source: W06 plan, user-approved 2026-11-23.
+- **D-040 — Restrict `mint`, `setResponder`, `registerPolicy`, and `updateHospitalRoot` to one insurer wallet set at deployment, using `NotInsurer(address caller)`.** Reason: `abi.ts` had no authorization rule, and open calls would let anyone approve a fake hospital and drain the pool. Source: W05 plan, user-approved 2026-11-23.
+- **D-039 — Accept the GitHub Actions Windows run as the W03 and W04 Windows check, and generate the committed proving files on LInep's Linux laptop.** Reason: the run passed the required checks on a clean Windows machine, and each setup creates different keys, so the team must commit the output of only one run. Accepted tradeoff: this does not prove the checks pass on a specific team laptop. Source: Windows run 45069101245, user-approved 2026-11-23.
 - **D-038 — Apply `context/DESIGN.md` to role screens with a top nav, one dark focal band per screen, a fully dark Public Chain View, repo-owned SVG icons, and self-hosted Space Grotesk, Inter, and IBM Plex Mono.** Reason: this follows the agreed design while giving each screen one clear focus and making the outsider's view visibly distinct, with no new dependency or browser font requests. Accepted tradeoff: the first build needs internet to download fonts. Source: W08 design plan, user-approved 2026-11-23.
 - **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
-- **D-036 — Use Node 26 on all four laptops.** Reason: the team needs one major version, and the app build, Hardhat compile, lint, clean install, and claim vector all passed on it. `engine-strict` makes another version fail at install. Source: W02 plan, user-approved.
-- **D-035 — Use ESLint `^9.39.5` instead of `^10.15.0`.** Reason: `eslint-config-next` installs React, import, and accessibility plugins that declare support only up to ESLint 9. Version 9 installs without peer conflicts and caught the same planted problems. Source: W02 plan, user-approved.
-- **D-034 — Omit the contract address from the unlock signing domain.** Reason: including it would change every user's derived keys whenever contracts are redeployed. Source: W01 plan, user-approved.
-- **D-033 — Take `claimDay` from the latest block's UTC day.** Reason: a laptop clock ahead of UTC could otherwise produce a claim the contract rejects as future-dated. Source: W01 plan, user-approved.
-- **D-032 — Send the hospital one covered-procedure path, not the full coverage list.** Reason: the hospital needs only this claim's proof inputs, so the patient's wider coverage stays private. Source: W01 plan, user-approved.
 
 ## Open Questions
 

@@ -20,7 +20,12 @@ export const ACCESS_CANDIDATES = [
 
 type SimulatedChainEvent = { id: string; name: string; block: number };
 export type AuditCategory = "Access" | "Claims" | "Records";
-export type AccessGrant = { id: string; name: string; status: "Active" | "Expired" | "Revoked"; expiry: string };
+export type AccessGrant = {
+  id: string;
+  name: string;
+  status: "Active" | "Expired" | "Revoked";
+  expiry: string;
+};
 
 export type ClaimSimulationState = {
   stage: ClaimStage;
@@ -54,8 +59,18 @@ export const INITIAL_CLAIM_SIMULATION: ClaimSimulationState = {
   amount: SAMPLE_CLAIM.claimAmount,
   access: { status: "idle", step: 0, target: null, keyVersion: 1 },
   grants: [
-    { id: "clinic-one", name: "Sample City Clinic", status: "Active", expiry: "Expires in 30 days" },
-    { id: "hospital-two", name: "Sample General Hospital", status: "Expired", expiry: "Access ended" },
+    {
+      id: "clinic-one",
+      name: "Sample City Clinic",
+      status: "Active",
+      expiry: "Expires in 30 days",
+    },
+    {
+      id: "hospital-two",
+      name: "Sample General Hospital",
+      status: "Expired",
+      expiry: "Access ended",
+    },
   ],
   chainEvents: [],
   audit: [],
@@ -73,10 +88,16 @@ function simulatedId(block: number, index: number) {
 /** Events passed together share a block, as they would inside one transaction. */
 function addTransaction(events: SimulatedChainEvent[], names: string[]) {
   const block = (events.at(-1)?.block ?? LAST_SAMPLE_BLOCK) + 1;
-  return [...events, ...names.map((name, index) => ({ id: simulatedId(block, index), name, block }))];
+  return [
+    ...events,
+    ...names.map((name, index) => ({ id: simulatedId(block, index), name, block })),
+  ];
 }
 
-export function claimSimulationReducer(state: ClaimSimulationState, action: ClaimSimulationAction): ClaimSimulationState {
+export function claimSimulationReducer(
+  state: ClaimSimulationState,
+  action: ClaimSimulationAction,
+): ClaimSimulationState {
   switch (action.type) {
     case "request":
       if (state.stage !== "draft") return state;
@@ -89,10 +110,19 @@ export function claimSimulationReducer(state: ClaimSimulationState, action: Clai
       };
     case "approve":
       if (state.stage !== "requested") return state;
-      return { ...state, stage: "approved", audit: [...state.audit, { title: "Claim approved", category: "Claims" }] };
+      return {
+        ...state,
+        stage: "approved",
+        audit: [...state.audit, { title: "Claim approved", category: "Claims" }],
+      };
     case "decline":
       if (state.stage !== "requested") return state;
-      return { ...state, stage: "draft", declined: true, audit: [...state.audit, { title: "Claim request declined", category: "Claims" }] };
+      return {
+        ...state,
+        stage: "draft",
+        declined: true,
+        audit: [...state.audit, { title: "Claim request declined", category: "Claims" }],
+      };
     case "startProof":
       return state.stage === "approved" ? { ...state, stage: "proving", proofStep: 0 } : state;
     case "tick": {
@@ -101,7 +131,8 @@ export function claimSimulationReducer(state: ClaimSimulationState, action: Clai
       return { ...state, proofStep, stage: proofStep >= PROOF_CHECK_COUNT ? "proved" : "proving" };
     }
     case "submit":
-      if (state.stage === "settled") return { ...state, rejection: "This claim was already submitted." };
+      if (state.stage === "settled")
+        return { ...state, rejection: "This claim was already submitted." };
       if (state.stage !== "proved") return state;
       return {
         ...state,
@@ -113,12 +144,19 @@ export function claimSimulationReducer(state: ClaimSimulationState, action: Clai
     case "grant": {
       const candidate = ACCESS_CANDIDATES.find(({ id }) => id === action.id);
       const existing = state.grants.find(({ id }) => id === action.id);
-      if (!candidate || state.access.status === "rotating" || existing?.status === "Active") return state;
-      const grant: AccessGrant = { ...candidate, status: "Active", expiry: `Expires in ${action.days} ${action.days === 1 ? "day" : "days"}` };
+      if (!candidate || state.access.status === "rotating" || existing?.status === "Active")
+        return state;
+      const grant: AccessGrant = {
+        ...candidate,
+        status: "Active",
+        expiry: `Expires in ${action.days} ${action.days === 1 ? "day" : "days"}`,
+      };
       return {
         ...state,
         access: { ...state.access, step: 0 },
-        grants: existing ? state.grants.map((item) => (item.id === action.id ? grant : item)) : [...state.grants, grant],
+        grants: existing
+          ? state.grants.map((item) => (item.id === action.id ? grant : item))
+          : [...state.grants, grant],
         chainEvents: addTransaction(state.chainEvents, ["AccessGranted"]),
         audit: [...state.audit, { title: "Doctor access granted", category: "Access" }],
       };
@@ -126,7 +164,10 @@ export function claimSimulationReducer(state: ClaimSimulationState, action: Clai
     case "startRotation": {
       const target = state.grants.find(({ id }) => id === action.target);
       if (state.access.status === "rotating" || target?.status !== "Active") return state;
-      return { ...state, access: { ...state.access, status: "rotating", step: 0, target: action.target } };
+      return {
+        ...state,
+        access: { ...state.access, status: "rotating", step: 0, target: action.target },
+      };
     }
     case "rotationTick": {
       if (state.access.status !== "rotating") return state;
@@ -135,9 +176,17 @@ export function claimSimulationReducer(state: ClaimSimulationState, action: Clai
       return {
         ...state,
         access: { ...state.access, status: "idle", step, keyVersion: state.access.keyVersion + 1 },
-        grants: state.grants.map((grant) => (grant.id === state.access.target ? { ...grant, status: "Revoked", expiry: "Access removed" } : grant)),
+        grants: state.grants.map((grant) =>
+          grant.id === state.access.target
+            ? { ...grant, status: "Revoked", expiry: "Access removed" }
+            : grant,
+        ),
         chainEvents: addTransaction(state.chainEvents, ["AccessRevoked", "RecordKeyRotated"]),
-        audit: [...state.audit, { title: "Doctor access revoked", category: "Access" }, { title: "Record key rotated", category: "Access" }],
+        audit: [
+          ...state.audit,
+          { title: "Doctor access revoked", category: "Access" },
+          { title: "Record key rotated", category: "Access" },
+        ],
       };
     }
     case "restart":
@@ -167,6 +216,8 @@ export function publicClaimView(state: ClaimSimulationState) {
     amount: state.amount,
     date: formatClaimDay(SAMPLE_CLAIM.claimDay),
     latestBlock: formatBlock(state.chainEvents.at(-1)?.block ?? LAST_SAMPLE_BLOCK),
-    events: [...state.chainEvents].reverse().map((event) => ({ ...event, block: formatBlock(event.block) })),
+    events: [...state.chainEvents]
+      .reverse()
+      .map((event) => ({ ...event, block: formatBlock(event.block) })),
   };
 }

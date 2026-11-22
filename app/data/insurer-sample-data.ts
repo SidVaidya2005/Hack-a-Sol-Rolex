@@ -1,6 +1,6 @@
 import { MUSD_DECIMALS, SAMPLE_POLICY } from "@rado/shared";
 
-/** Displays mock token amounts as rupees at 1 token = ₹1. This is a label only, with no exchange rate (D-041). */
+/** Displays mock token amounts as rupees at 1 token = ₹1. This is a label only, with no exchange rate (D-046). */
 export function formatAmount(value: bigint) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",

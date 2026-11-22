@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "dev:lan": "next dev --hostname 0.0.0.0 --experimental-https --experimental-https-key certificates/key.pem --experimental-https-cert certificates/cert.pem"
   },
   "dependencies": {
     "@rado/shared": "*",

@@ -19,7 +19,9 @@ export function getPatientSampleData() {
     })),
     claim: {
       encounter: "VISIT-SAMPLE-1042",
-      procedure: SAMPLE_PROCEDURES.find(({ code }) => code === SAMPLE_CLAIM.procedureCode)?.label ?? "Sample procedure",
+      procedure:
+        SAMPLE_PROCEDURES.find(({ code }) => code === SAMPLE_CLAIM.procedureCode)?.label ??
+        "Sample procedure",
       amount: SAMPLE_CLAIM.claimAmount,
       claimDay: SAMPLE_CLAIM.claimDay,
     },

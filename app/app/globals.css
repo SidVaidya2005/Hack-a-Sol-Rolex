@@ -2,7 +2,8 @@
 
 @theme inline {
   --font-sans: var(--font-inter), Arial, ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
@@ -165,7 +166,9 @@ button:disabled {
   color: var(--color-rado-ink);
   font-size: 0.875rem;
   font-weight: 500;
-  transition: background 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 }
 
 .button-pill-outline:hover {
@@ -182,7 +185,9 @@ button:disabled {
   color: var(--color-rado-slate);
   font-size: 0.875rem;
   white-space: nowrap;
-  transition: color 150ms ease, background 150ms ease;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
 }
 
 .nav-link:hover {

@@ -89,7 +89,7 @@ $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 
 Hardhat on Windows also needs the Microsoft C++ redistributable: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
 
-TODO: verify `circom_tester` runs the claim circuit tests on Shikhar's Windows laptop during W03.
+**`circom_tester` notes:** it builds an unquoted shell command, so pass relative paths. A witness calculator keeps earlier error text, so use a fresh one for each rejection test. snarkjs leaves curve worker threads open, so terminate `globalThis.curve_bn128` after tests or the process will not exit.
 
 ```circom
 component main {public [claimAmount, policyCommitment, nullifier, hospitalRoot, claimDay, payoutAddress]} = Claim(8, 6);
@@ -114,7 +114,11 @@ const callData = await groth16.exportSolidityCallData(proof, publicSignals);
 
 TODO: verify snarkjs browser bundling under Next.js Turbopack in W10. If it fails, test `next dev --webpack`.
 
-TODO: choose the Powers of Tau file size from the constraint count printed by the first circuit compile in W04.
+**Powers of Tau size:** power 15 (32,768), chosen from `Claim(8, 6)`'s 27,352 constraints. `circuits/scripts/trusted-setup.mjs` computes the power from the compiled circuit, so a circuit change cannot silently outgrow it.
+
+**Setup commands:** `npm run setup --workspace @rado/circuits`, then `npm run verify:setup --workspace @rado/circuits`. Use `setup:placeholder` and `verify:placeholder` for the placeholder.
+
+**Node 26 note:** snarkjs 0.7.6 leaves some file handles open, and Node 26 crashes when garbage collection reaches one. Import `circuits/scripts/retain-file-handles.mjs` first in any Node script that runs the snarkjs setup.
 
 ## circomlib and circomlibjs
 

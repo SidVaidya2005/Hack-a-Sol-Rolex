@@ -1,6 +1,16 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useReducer, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
 import { INITIAL_CLAIM_DRAFT, type ClaimDraft } from "../data/claim-draft";
 import {
@@ -44,23 +54,29 @@ export function ClaimSimulationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!rotating) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const intervalId = setInterval(() => dispatch({ type: "rotationTick" }), reducedMotion ? 120 : 600);
+    const intervalId = setInterval(
+      () => dispatch({ type: "rotationTick" }),
+      reducedMotion ? 120 : 600,
+    );
     return () => clearInterval(intervalId);
   }, [rotating]);
 
-  const actions = useMemo<ClaimActions>(() => ({
-    requestApproval: (amount) => dispatch({ type: "request", amount }),
-    approveClaim: () => dispatch({ type: "approve" }),
-    declineClaim: () => dispatch({ type: "decline" }),
-    startProof: () => dispatch({ type: "startProof" }),
-    submitClaim: () => dispatch({ type: "submit" }),
-    grantAccess: (id, days) => dispatch({ type: "grant", id, days }),
-    revokeAndRotate: (target) => dispatch({ type: "startRotation", target }),
-    restart: () => {
-      dispatch({ type: "restart" });
-      setDraft(INITIAL_CLAIM_DRAFT);
-    },
-  }), []);
+  const actions = useMemo<ClaimActions>(
+    () => ({
+      requestApproval: (amount) => dispatch({ type: "request", amount }),
+      approveClaim: () => dispatch({ type: "approve" }),
+      declineClaim: () => dispatch({ type: "decline" }),
+      startProof: () => dispatch({ type: "startProof" }),
+      submitClaim: () => dispatch({ type: "submit" }),
+      grantAccess: (id, days) => dispatch({ type: "grant", id, days }),
+      revokeAndRotate: (target) => dispatch({ type: "startRotation", target }),
+      restart: () => {
+        dispatch({ type: "restart" });
+        setDraft(INITIAL_CLAIM_DRAFT);
+      },
+    }),
+    [],
+  );
   const privateDraft = useMemo(() => ({ draft, setDraft }), [draft]);
 
   return (

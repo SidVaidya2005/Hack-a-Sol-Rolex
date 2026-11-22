@@ -1,9 +1,7 @@
 import { SAMPLE_CLAIM, SAMPLE_HOSPITALS, SAMPLE_PROCEDURES } from "@rado/shared";
 
 export function getHospitalSampleData() {
-  const procedure = SAMPLE_PROCEDURES.find(
-    ({ code }) => code === SAMPLE_CLAIM.procedureCode,
-  );
+  const procedure = SAMPLE_PROCEDURES.find(({ code }) => code === SAMPLE_CLAIM.procedureCode);
 
   return {
     name: SAMPLE_HOSPITALS[0].name,

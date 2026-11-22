@@ -88,6 +88,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-22. All four owners reviewed the shared types, confirmed by the team during W02 planning. Checks passed: strict TypeScript, ABI parsing with viem, 35 claim-vector checks, identical regeneration, and a clean secret scan. The vector still needs its real circuit and contract checks in W03 and W05. Decisions: D-026 to D-034.
 
+- **D-028 — Commit one computed valid claim using test keys derived from public labels.** Reason: tracks can detect hash and encoding mismatches at hour 1 instead of during integration, and no private key is stored. Source: W01 decision round.
+
 ### W02 Monorepo and tool setup
 
 **Owner:** T4. Create the npm workspaces, install the selected ranges, configure TypeScript, ESLint, and Prettier, and record lockfile versions.
@@ -121,6 +123,10 @@ An item can **start** before its dependencies are finished by building against a
 **Owner:** T4. In `packages/shared`, build the key creation from the user's unlock signature, AES-GCM record encryption, X25519 wrapping of record keys for readers, key rotation, and inbox encryption and sender verification.
 
 **Verify:** tests show that an approved reader decrypts, a non-reader fails, a rotated key blocks the old reader, and two encryptions use different IVs. Expected inbox failures: changed message ID, sender, or recipient fails decryption, and each forged message type fails its sender check.
+
+**Plan:** `packages/shared/src/crypto` holds key derivation, record encryption and rotation, inbox encryption, request authentication, and sender checks. Wrapped-key AAD follows D-038, and the request digest keeps its documented fields (D-039). Sender checks also require the signing hospital or patient key to match the envelope sender's registered key, because anyone can encrypt to a public key and claim any sender address. The policy check also confirms the coverage list rebuilds `coveredRoot`.
+
+**Result:** 2026-11-23. On Node 26.13.1, all 56 `@rado/shared` tests passed, covering every Verify check, all inbox failures, and forgeries of each message type against the committed claim vector. Typecheck, lint with no errors, format check, app build, a Next.js client-bundle probe, and byte-identical vector regeneration also passed. The library has not yet run in a real browser, so W09 and W10 exercise it there. Decisions: D-038, D-039.
 
 ### W07 Server routes
 

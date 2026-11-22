@@ -126,6 +126,7 @@ Mention these clearly in both the pitch and the threat model.
 - The app logs doctor views on-chain before decrypting, but a modified client could skip that step.
 - The escrow service on L4 is trusted for emergency summaries only.
 - The L4 host cannot read inbox messages, but it can see who messaged whom and when.
+- Inbox request signatures do not cover the recipient, message ID, or acknowledged IDs, so L4 or someone altering traffic could misroute or delete messages, but could not read them (D-039).
 - The Groth16 trusted setup and all wallets are demo-grade.
 
 ## Product Decisions

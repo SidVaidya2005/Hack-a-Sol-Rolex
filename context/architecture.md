@@ -239,6 +239,7 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
 - **D-026 — Reject claims dated before a policy's on-chain registration day.** Reason: "active policy" needs a start as well as an expiry, and a contract check needs no circuit change. Accepted tradeoff: the start day is public. Source: W01 decision round.
 - **D-027 — Have the Insurer approve registered hospitals, with approved leaves emitted on-chain.** Reason: hospital keys come from the MetaMask unlock, so the root cannot be fixed in sample data, and no script needs a hospital private key. Source: W01 decision round.
+- **D-029 — Declare the six public inputs first in `Claim`, with no outputs.** Reason: snarkjs orders public signals by declaration and outputs are also public, so the `public` list alone does not guarantee the required order. W03 must confirm this in a test. Source: W01 plan, Context7 snarkjs and Circom docs.
 
 ## Code Standards
 

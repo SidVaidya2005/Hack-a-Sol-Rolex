@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
+import { hasReached, type ClaimStage } from "../data/claim-simulation";
 import { getPatientSampleData } from "../data/patient-sample-data";
+import { useClaimActions, useClaimState } from "./ClaimSimulationProvider";
 import { Icon, type IconName } from "./icons";
 import { Badge, Band, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
 
@@ -17,12 +19,23 @@ function recordIcon(kind: string): IconName {
 
 export function PatientScreen() {
   const [accessGranted, setAccessGranted] = useState(false);
-  const [claimApproved, setClaimApproved] = useState(false);
   const [recordAdded, setRecordAdded] = useState(false);
-  const [message, setMessage] = useState("");
+  const [note, setNote] = useState<{ text: string; stage: ClaimStage } | null>(null);
+  const { stage } = useClaimState();
+  const { approveClaim } = useClaimActions();
+  const claimRequested = hasReached(stage, "requested");
+  const claimApproved = hasReached(stage, "approved");
+  const message = note?.stage === stage ? note.text : "";
+  const setMessage = (text: string, forStage: ClaimStage = stage) => setNote({ text, stage: forStage });
   const records = recordAdded
     ? [...sample.records, { id: "sample-preview-record", kind: "Document", description: "Sample health record" }]
     : sample.records;
+  const activity = [
+    ...(stage === "settled" ? [{ title: "Claim settled", when: "Just now", detail: "Simulated event" }] : []),
+    ...(claimApproved ? [{ title: "Claim approved", when: "Just now", detail: "Simulated event" }] : []),
+    ...(claimRequested ? [{ title: "Claim request received", when: "Just now", detail: "Simulated event" }] : []),
+    ...sample.activity,
+  ];
 
   function toggleAccess() {
     setAccessGranted((current) => !current);
@@ -41,7 +54,7 @@ export function PatientScreen() {
       <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard label="Your records" value={String(records.length)} detail="Available in this sample" icon="file" />
         <MetricCard label="People with access" value={String(sample.access.filter((item) => item.status === "Active").length + Number(accessGranted))} detail="You control every connection" icon="users" />
-        <MetricCard label="Recent activity" value="3 events" detail="A private audit trail" icon="clock" />
+        <MetricCard label="Recent activity" value={`${activity.length} events`} detail="A private audit trail" icon="clock" />
       </div>
       {message ? <p aria-live="polite" className="status-success mb-8 rounded-lg border px-4 py-3 text-sm">{message}</p> : null}
       <div className="grid items-start gap-10 xl:grid-cols-[1.25fr_1fr] xl:gap-16">
@@ -80,21 +93,27 @@ export function PatientScreen() {
           </Panel>
         </div>
         <div className="order-1 grid gap-10 xl:order-2">
-          <Band eyebrow="Your approval" title="Claim request" description="Review the details before approving this sample request." action={<Badge tone={claimApproved ? "success" : "warning"}>{claimApproved ? "Approved · sample" : "Needs your review"}</Badge>}>
-            <dl className="divide-y divide-rado-line border-y border-rado-line">
-              <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-rado-slate">Visit</dt><dd className="font-mono text-xs text-rado-ink">{sample.claim.encounter}</dd></div>
-              <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-rado-slate">Procedure</dt><dd className="text-right text-sm text-rado-ink">{sample.claim.procedure}</dd></div>
-              <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-rado-slate">Requested amount</dt><dd className="text-sm text-rado-ink">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(sample.claim.amount) / 1_000_000)}</dd></div>
-            </dl>
-            <div className="mt-6 flex flex-wrap items-center gap-4">
-              <button className="button-primary" disabled={claimApproved} onClick={() => { setClaimApproved(true); setMessage("Sample approval recorded in this preview only. Nothing was sent."); }} type="button">{claimApproved ? "Approved" : "Approve sample claim"}</button>
-              <button className="button-secondary" onClick={() => setMessage("Sample claim details are ready for your review.")} type="button">Review request</button>
-            </div>
+          <Band eyebrow="Your approval" title="Claim request" description={claimRequested ? "Review the details before approving this sample request." : "A hospital's request will appear here for your approval."} action={<Badge tone={claimApproved ? "success" : claimRequested ? "warning" : "neutral"}>{claimApproved ? "Approved · sample" : claimRequested ? "Needs your review" : "No request yet"}</Badge>}>
+            {claimRequested ? (
+              <>
+                <dl className="motion-reveal divide-y divide-rado-line border-y border-rado-line">
+                  <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-rado-slate">Visit</dt><dd className="font-mono text-xs text-rado-ink">{sample.claim.encounter}</dd></div>
+                  <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-rado-slate">Procedure</dt><dd className="text-right text-sm text-rado-ink">{sample.claim.procedure}</dd></div>
+                  <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm text-rado-slate">Requested amount</dt><dd className="text-sm text-rado-ink">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(sample.claim.amount) / 1_000_000)}</dd></div>
+                </dl>
+                <div className="mt-6 flex flex-wrap items-center gap-4">
+                  <button className="button-primary" disabled={claimApproved} onClick={() => { approveClaim(); setMessage("Simulated approval recorded in this browser only. Nothing was signed or sent.", "approved"); }} type="button">{claimApproved ? "Approved" : "Approve sample claim"}</button>
+                  <button className="button-secondary" onClick={() => setMessage("Sample claim details are ready for your review.")} type="button">Review request</button>
+                </div>
+              </>
+            ) : (
+              <p className="border-y border-rado-line py-6 text-sm text-rado-slate">Nothing needs your approval right now.</p>
+            )}
           </Band>
           <Panel title="Recent activity" description="Actions appear here so you stay in control.">
             <div className="space-y-4">
-              {sample.activity.map((event, index) => (
-                <div className="flex gap-3" key={event.title}>
+              {activity.map((event, index) => (
+                <div className="motion-reveal flex gap-3" key={event.title}>
                   <span className={`mt-1.5 size-2 shrink-0 rounded-full ${index === 0 ? "bg-rado-green" : "bg-rado-line"}`} />
                   <div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><p className="text-sm text-rado-ink">{event.title}</p><span className="whitespace-nowrap font-mono text-xs text-rado-muted">{event.when}</span></div><p className="mt-0.5 text-xs text-rado-slate">{event.detail}</p></div>
                 </div>

@@ -3,11 +3,11 @@ import { PUBLIC_SIGNALS, SAMPLE_CLAIM, SAMPLE_POLICY } from "@rado/shared";
 export function getPublicChainSampleData() {
   const values = [
     SAMPLE_CLAIM.claimAmount.toString(),
-    "176548529681430125678934",
-    "218440392512932881",
-    "1922381114902245279931",
+    "sim:176548529681430125678934",
+    "sim:218440392512932881",
+    "sim:1922381114902245279931",
     SAMPLE_CLAIM.claimDay.toString(),
-    "0x8b91...e620",
+    "sim:0x8b91...e620",
   ];
 
   return {

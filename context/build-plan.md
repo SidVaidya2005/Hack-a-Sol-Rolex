@@ -144,6 +144,10 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — Design pass passed typecheck, production build, and lint with no errors and the existing PostCSS warning. Browser checks at 390, 768, and 1440px found no horizontal scroll, page errors, or external requests. All sample actions, duplicate rejection, filtering, visible keyboard focus, and font loading passed. Insurer and Public Chain View showed no medical terms. A real MetaMask connection is still untested.
 
+**Interactive pass, Slice 1 (D-039):** one simulated claim moves through Hospital request, Patient approval, simulated proof, submission, Insurer payout, and a Public Chain event. Remaining approved slices: (2) privacy lens, attack simulator, revoke and rotate; (3) Patient access controls, Hospital claim builder, Insurer details, live chain explorer.
+
+**Result:** 2026-11-23 — Slice 1 passed typecheck, production build, and lint with no errors and the existing PostCSS warning. A browser run at 390, 768, and 1440px, plus reduced motion, passed the full story, blocked out-of-order actions, replay rejection, restart, proof continuation while switching roles, no horizontal scroll, no page errors, and no story network requests. Insurer and Public Chain showed no medical terms at any tested stage. The simulation stores nothing; wagmi's default `wagmi.store` connection entry remains in `localStorage`. Cross-laptop sync and real proofs are not part of this slice.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.

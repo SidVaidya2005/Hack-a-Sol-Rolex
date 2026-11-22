@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { ClaimSimulationProvider } from "../components/ClaimSimulationProvider";
+import { ClaimStoryBar } from "../components/ClaimStoryBar";
 import { HospitalScreen } from "../components/HospitalScreen";
 import { InsurerScreen } from "../components/InsurerScreen";
 import { PatientScreen } from "../components/PatientScreen";
@@ -14,6 +16,7 @@ export default function Home() {
   const [activeRole, setActiveRole] = useState<RoleId>("patient");
 
   return (
+    <ClaimSimulationProvider>
     <div className={`min-h-screen ${activeRole === "public" ? "surface-dark band-navy" : "bg-rado-canvas"}`}>
       <p className="flex min-h-9 items-center justify-center bg-black px-4 py-1 text-center text-xs text-white">
         Sample environment · synthetic data, no real records or payments
@@ -29,6 +32,7 @@ export default function Home() {
           </div>
         </div>
       </header>
+      <ClaimStoryBar activeRole={activeRole} onGo={setActiveRole} />
       <main className="mx-auto max-w-[1280px] px-4 py-12 sm:px-8 lg:py-20">
         {activeRole === "patient" ? <PatientScreen /> : null}
         {activeRole === "hospital" ? <HospitalScreen /> : null}
@@ -37,5 +41,6 @@ export default function Home() {
         {activeRole === "public" ? <PublicChainScreen /> : null}
       </main>
     </div>
+    </ClaimSimulationProvider>
   );
 }

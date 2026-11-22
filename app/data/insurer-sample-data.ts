@@ -1,6 +1,6 @@
-import { MUSD_DECIMALS, SAMPLE_CLAIM, SAMPLE_POLICY } from "@rado/shared";
+import { MUSD_DECIMALS, SAMPLE_POLICY } from "@rado/shared";
 
-function formatAmount(value: bigint) {
+export function formatAmount(value: bigint) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -10,17 +10,12 @@ function formatAmount(value: bigint) {
 
 export function getInsurerSampleData() {
   return {
-    balance: formatAmount(84_500_000_000n),
+    balanceUnits: 84_500_000_000n,
+    paidUnits: 2_925_000_000n,
+    usedCapUnits: 7_200_000_000n,
+    capUnits: SAMPLE_POLICY.totalCap,
     policyCap: formatAmount(SAMPLE_POLICY.totalCap),
-    paid: formatAmount(SAMPLE_CLAIM.claimAmount),
     claims: [
-      {
-        id: "CLM-00824",
-        policy: "POL-00481",
-        amount: formatAmount(SAMPLE_CLAIM.claimAmount),
-        date: "Nov 22, 2026",
-        state: "Verified · sample",
-      },
       {
         id: "CLM-00823",
         policy: "POL-00480",

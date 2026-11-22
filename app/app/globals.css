@@ -238,3 +238,53 @@ button:disabled {
   background: var(--color-rado-error-wash);
   color: var(--color-rado-error);
 }
+
+.story-segment {
+  display: block;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--color-rado-line);
+  transition: background 300ms ease;
+}
+
+.story-segment-complete {
+  background: var(--color-rado-ink);
+}
+
+.story-segment-current {
+  background: var(--color-rado-coral);
+}
+
+.motion-reveal {
+  animation: rado-reveal 320ms ease-out both;
+}
+
+.motion-pulse {
+  animation: rado-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes rado-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rado-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test --test-timeout=300000 test/claim.test.mjs"
+    "test": "node --test --test-timeout=300000 test/claim.test.mjs",
+    "setup": "node scripts/trusted-setup.mjs",
+    "setup:placeholder": "node scripts/trusted-setup.mjs --placeholder",
+    "verify:setup": "node scripts/verify-setup.mjs",
+    "verify:placeholder": "node scripts/verify-setup.mjs --placeholder"
   },
   "dependencies": {
     "circomlib": "^2.0.5",
@@ -12,6 +16,8 @@
     "snarkjs": "^0.7.6"
   },
   "devDependencies": {
-    "circom_tester": "^0.0.24"
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
+    "circom_tester": "^0.0.24",
+    "hardhat": "^3.22.0"
   }
 }

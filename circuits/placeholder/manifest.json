@@ -1,0 +1,34 @@
+{
+  "placeholder": true,
+  "demoOnly": true,
+  "warning": "PLACEHOLDER. This circuit proves none of the claim rules. Never use it in a rehearsal, final E2E run, or the demo.",
+  "circuit": "circuits/placeholder/placeholder.circom",
+  "circuitSha256": "829ffb27f7ab7c30c1ed47d859f013db37e84dc11a91e9f2f12fc235e9bd0887",
+  "compiler": "circom compiler 2.2.3",
+  "constraints": 6,
+  "publicInputs": 6,
+  "outputs": 0,
+  "powersOfTau": 8,
+  "files": {
+    "wasm": {
+      "path": "circuits/placeholder/placeholder.wasm",
+      "bytes": 34547,
+      "sha256": "bbcdf830179ad61b98797cfa130c901b9cc5a38f4c67e53e40ddcdab0b2e0758"
+    },
+    "zkey": {
+      "path": "circuits/placeholder/placeholder_final.zkey",
+      "bytes": 7299,
+      "sha256": "ed57abcd7f1e0ec797cdf11bd87992f055549c7dc1df1a6805d9afc537bf81b6"
+    },
+    "verificationKey": {
+      "path": "circuits/placeholder/verification_key.json",
+      "bytes": 4134,
+      "sha256": "7f1ce447deea5dc42a4f47311f92ea535b2b85b60ec4b02627776e4aa802efb5"
+    },
+    "verifier": {
+      "path": "circuits/placeholder/Groth16Verifier.sol",
+      "bytes": 9003,
+      "sha256": "97cd5ec0469bb6e050b431ef5961a086e5375c6652e95c8bd56d3018480ed003"
+    }
+  }
+}

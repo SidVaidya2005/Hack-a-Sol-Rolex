@@ -1,0 +1,91 @@
+# Runs the W03 and W04 checks on Windows.
+# The setup here is a throwaway test: its keys are never committed or uploaded.
+name: Windows circuit checks
+
+on:
+  push:
+    branches: [ci/windows-checks]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/windows-checks.yml"
+      - "circuits/**"
+      - "packages/shared/vectors/**"
+      - "scripts/generate-claim-vector.mjs"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CIRCOM_VERSION: 2.2.3
+  CIRCOM_SHA256: e43f132ee6f0aa79b705beceb59c2a7e6a54d7bdeab917ca34e9fc1951d185e1
+  EXPECTED_CONSTRAINTS: 27352
+  EXPECTED_POWER: 15
+  EXPECTED_TESTS: 28
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+          cache: npm
+
+      - name: Install circom
+        run: |
+          mkdir -p "$RUNNER_TEMP/circom"
+          curl -fsSL -o "$RUNNER_TEMP/circom/circom.exe" \
+            "https://github.com/iden3/circom/releases/download/v${CIRCOM_VERSION}/circom-windows-amd64.exe"
+          echo "${CIRCOM_SHA256}  $RUNNER_TEMP/circom/circom.exe" | sha256sum --check
+          echo "$RUNNER_TEMP/circom" >> "$GITHUB_PATH"
+
+      - name: Check circom version
+        run: circom --version | grep -F "$CIRCOM_VERSION"
+
+      - run: npm ci
+
+      - name: W03 circuit tests
+        run: |
+          npm test --workspace @rado/circuits 2>&1 | tee "$RUNNER_TEMP/circuit-test.log"
+          grep -F "Claim constraints for W04: $EXPECTED_CONSTRAINTS" "$RUNNER_TEMP/circuit-test.log"
+          grep -E "pass $EXPECTED_TESTS\s*$" "$RUNNER_TEMP/circuit-test.log"
+          grep -E "fail 0\s*$" "$RUNNER_TEMP/circuit-test.log"
+
+      - name: Claim vector is unchanged
+        run: |
+          node scripts/generate-claim-vector.mjs
+          git diff --exit-code packages/shared/vectors/claim-valid.json
+
+      - name: W04 trusted setup
+        run: npm run setup --workspace @rado/circuits
+
+      - name: W04 proof checks
+        run: |
+          npm run verify:setup --workspace @rado/circuits 2>&1 | tee "$RUNNER_TEMP/verify.log"
+          grep -F "all checks passed" "$RUNNER_TEMP/verify.log"
+
+      - name: Check setup manifest
+        run: |
+          node -e '
+            const m = JSON.parse(require("node:fs").readFileSync("app/public/zk/manifest.json", "utf8"));
+            const ok = m.placeholder === false && m.demoOnly === true &&
+              m.constraints === Number(process.env.EXPECTED_CONSTRAINTS) &&
+              m.powersOfTau === Number(process.env.EXPECTED_POWER);
+            console.log({ placeholder: m.placeholder, demoOnly: m.demoOnly, constraints: m.constraints, power: m.powersOfTau });
+            process.exit(ok ? 0 : 1);
+          '

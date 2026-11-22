@@ -125,17 +125,19 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** a proof generated from sample inputs verifies with snarkjs and with the generated Solidity verifier. Expected: changing any public signal makes verification fail.
 
-**Status:** 2026-11-23. The setup script and placeholder files are merged through PR #8, and the placeholder passes every proof check on Linux with Node 26.13.1 and Circom 2.2.3. A rehearsal on the unmerged W03 circuit also passed: 27,352 constraints at power 15, `claim.wasm` 4.50 MB, `claim_final.zkey` 12.64 MB, and the sample proof accepted by snarkjs and Solidity with all six changed signals rejected. The rehearsal's real files were discarded and are not committed. The GitHub Actions Windows run 45069101245 also passed the real setup and proof checks at 27,352 constraints and power 15 (D-039). Its keys were discarded. W04 stays unticked until the real files are committed.
+**Status:** 2026-11-23. The setup script and placeholder files are merged through PR #8, and the placeholder passes every proof check on Linux with Node 26.13.1 and Circom 2.2.3. A rehearsal on the unmerged W03 circuit also passed: 27,352 constraints at power 15, `claim.wasm` 4.50 MB, `claim_final.zkey` 12.64 MB, and the sample proof accepted by snarkjs and Solidity with all six changed signals rejected. The rehearsal's real files were discarded and are not committed. The GitHub Actions Windows run 45069101245 also passed the real setup and proof checks at 27,352 constraints and power 15 (D-039). Its keys were discarded.
 
 **Left to verify for W04 (blocks the tick):**
 
 - [x] Merge W03 (PR #7).
 - [x] Run the setup and proof checks on Windows through GitHub Actions (D-039, run 45069101245).
-- [ ] On LInep's Linux laptop, on a new `w04/real-setup` branch from the latest `main`, run `npm ci`, `npm run setup --workspace @rado/circuits`, and `npm run verify:setup --workspace @rado/circuits`. The setup takes about 4 minutes on the Linux build laptop.
-- [ ] Confirm 27,352 constraints, power 15, and `all checks passed`. Commit `app/public/zk/` and `contracts/contracts/Groth16Verifier.sol` together from that one run.
-- [ ] Confirm that run reports the sample proof accepted by snarkjs and Solidity, and each of the six changed public signals rejected by both. Stop and ask if a proving file reaches 100 MB or the circuit must change.
-- [ ] Before committing, confirm `git status` shows no `*.ptau` or `circuits/build/` files, and that `app/public/zk/manifest.json` has `"placeholder": false` and `"demoOnly": true`.
-- [ ] Add the dated `**Result:**`, tick W04 in Progress, update Current Status, and open the PR. Do not rerun setup after committing.
+- [x] On LInep's Linux laptop, on a new `w04/real-setup` branch from the latest `main`, run `npm ci`, `npm run setup --workspace @rado/circuits`, and `npm run verify:setup --workspace @rado/circuits`. The setup takes about 4 minutes on the Linux build laptop.
+- [x] Confirm 27,352 constraints, power 15, and `all checks passed`. Commit `app/public/zk/` and `contracts/contracts/Groth16Verifier.sol` together from that one run.
+- [x] Confirm that run reports the sample proof accepted by snarkjs and Solidity, and each of the six changed public signals rejected by both. Stop and ask if a proving file reaches 100 MB or the circuit must change.
+- [x] Before committing, confirm `git status` shows no `*.ptau` or `circuits/build/` files, and that `app/public/zk/manifest.json` has `"placeholder": false` and `"demoOnly": true`.
+- [x] Add the dated `**Result:**`, tick W04 in Progress, update Current Status, and open the PR. Do not rerun setup after committing.
+
+**Result:** 2026-11-23. One real setup ran on the Linux build laptop with Node 26.13.1 and Circom 2.2.3: 27,352 constraints, power 15, `claim.wasm` 4.50 MB, and `claim_final.zkey` 12.64 MB. The sample proof was accepted by snarkjs and the generated Solidity verifier, and each of the six changed public signals was rejected by both. All 28 circuit, 33 contract, and 56 shared tests passed, with the contract proof test using the REAL verifier. A fresh seed without `RADO_ALLOW_PLACEHOLDER` deployed with `placeholder: false`. Typecheck, format check, app build, lint with no errors, and byte-identical vector regeneration also passed.
 
 **Not covered by W04 (later items must prove these):**
 

@@ -22,6 +22,7 @@ contracts/artifacts/
 contracts/cache/
 contracts/coverage/
 contracts/ignition/deployments/chain-31337/
+contracts/deployments/
 
 # Circuit build output (the final .wasm, .zkey, and verifier are copied to tracked folders)
 circuits/build/

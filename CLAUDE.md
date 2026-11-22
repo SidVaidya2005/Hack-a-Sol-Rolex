@@ -97,6 +97,7 @@ Read the complete essential set before task-specific references or code changes.
 - `npm run typecheck` — type-check every workspace.
 - `npm test` — run every workspace's tests.
 - `npm run format` — format code with Prettier. `npm run format:check` checks it without changing files.
+- `npm run seed --workspace @rado/contracts` — rebuild the demo chain on a fresh Hardhat node.
 - `node scripts/generate-claim-vector.mjs` — regenerate the claim vector. `git diff --exit-code packages/shared/vectors/claim-valid.json` must then pass.
 
 Server configuration goes in `app/.env.local`, using the names in `app/.env.example`. Library-specific commands are in `context/library-docs.md`.

@@ -136,6 +136,8 @@ Function, event, and error signatures are in `packages/shared/src/abi.ts`.
 
 **Hospital approval (D-027):** a hospital registers its key, then the Insurer approves it. `updateHospitalRoot` emits every approved leaf in `HospitalRootUpdated`, so the hospital can rebuild its Merkle path from chain data.
 
+**Insurer-only calls (D-040):** `MockUSD.mint`, `RecordAccess.setResponder`, `ClaimSettlement.registerPolicy`, and `ClaimSettlement.updateHospitalRoot` accept only the insurer wallet set at deployment, and otherwise revert with `NotInsurer`.
+
 `ClaimSettlement.submitClaim` checks, in order: amount above zero, payout address fits 160 bits (D-030), registered policy, current hospital root, unused nullifier, claim day not before the policy's registration day (D-026), not in the future, and at most `MAX_CLAIM_AGE_DAYS` (30) days old, total cap, valid proof. It then records the nullifier and paid total before transferring tokens.
 
 **Audit events:** `KeysRegistered`, `RecordAnchored`, `AccessGranted`, `AccessRevoked`, `RecordKeyRotated`, `RecordViewed`, `BreakGlassInvoked`, `ResponderUpdated`, `PolicyRegistered`, `HospitalRootUpdated`, `ClaimSettled`.

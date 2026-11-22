@@ -79,9 +79,10 @@ function merklePath(tree, leafIndex, depth) {
 function checkPath(leaf, proof, root) {
   let node = leaf;
   proof.pathElements.forEach((sibling, i) => {
-    node = proof.pathIndices[i] === 0
-      ? hash(merkleNodeInputs(node, sibling))
-      : hash(merkleNodeInputs(sibling, node));
+    node =
+      proof.pathIndices[i] === 0
+        ? hash(merkleNodeInputs(node, sibling))
+        : hash(merkleNodeInputs(sibling, node));
   });
   if (node !== root) throw new Error("Merkle path does not reach the root");
 }
@@ -185,7 +186,14 @@ const circuitInput = {
 
 const vector = {
   warning: "Synthetic test vector. Its keys come from public labels and must never hold funds.",
-  labels: ["patient", "hospital", "other-hospital", "policy-salt", "encounter-id", "payout-address"].map(label),
+  labels: [
+    "patient",
+    "hospital",
+    "other-hospital",
+    "policy-salt",
+    "encounter-id",
+    "payout-address",
+  ].map(label),
   payoutAddressHex: payoutHex,
   policy: { totalCap, coveredProcedures: coveredCodes },
   hospitalLeaves,
@@ -204,11 +212,22 @@ const vector = {
     hospitalOverClaim: hospitalSignature,
     patientOverClaim: patientSignature,
   },
-  publicSignals: [claimAmount, policyCommitment, nullifier, hospitalTree.root, claimDay, payoutAddress],
+  publicSignals: [
+    claimAmount,
+    policyCommitment,
+    nullifier,
+    hospitalTree.root,
+    claimDay,
+    payoutAddress,
+  ],
   circuitInput,
 };
 
-const json = JSON.stringify(vector, (_key, value) => (typeof value === "bigint" ? value.toString() : value), 2);
+const json = JSON.stringify(
+  vector,
+  (_key, value) => (typeof value === "bigint" ? value.toString() : value),
+  2,
+);
 mkdirSync(path.dirname(outFile), { recursive: true });
 writeFileSync(outFile, `${json}\n`);
 console.log(`Wrote ${path.relative(process.cwd(), outFile)}`);

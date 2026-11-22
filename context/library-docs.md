@@ -20,36 +20,38 @@
 
 ## Selected Versions
 
-All entries were checked on 2026-11-22 using Context7 and the npm registry. No packages have been installed yet.
+All entries were checked on 2026-11-22 using Context7 and the npm registry. Locked versions come from `package-lock.json`, installed during W02 on Node 26.13.0.
 
-TODO: record the lockfile-resolved version after first install
-
-| Package | Range | Context7 ID or source |
-| ------- | ----- | --------------------- |
-| `hardhat` | `^3.22.0` | `/websites/hardhat` |
-| `@nomicfoundation/hardhat-toolbox-viem` | `^5.0.7` | `/websites/hardhat` |
-| `@openzeppelin/contracts` | `^5.6.1` | npm registry |
-| Circom compiler | `2.2.3` | `/iden3/circom`, GitHub release |
-| `circomlib` | `^2.0.5` | GitHub source, `iden3/circomlib` |
-| `circomlibjs` | `^0.1.7` | `/iden3/circomlibjs` |
-| `circom_tester` | `^0.0.24` | npm registry |
-| `snarkjs` | `^0.7.6` | `/iden3/snarkjs` |
-| `next` | `^16.4.6` | `/vercel/next.js` |
-| `react`, `react-dom` | `^19.3.1` | npm registry |
-| `wagmi` | `^3.7.11` | `/websites/wagmi_sh_react` |
-| `viem` | `^2.58.4` | `/websites/viem_sh` |
-| `@tanstack/react-query` | `^5.108.2` | Wagmi docs |
-| `pinata` | `^2.7.0` | `/pinatacloud/pinata` |
-| `@noble/curves` | `^2.4.0` | `/paulmillr/noble-curves` |
-| `@noble/hashes` | `^2.4.0` | `/paulmillr/noble-hashes` |
-| `tailwindcss`, `@tailwindcss/postcss` | `^4.3.5` | `/tailwindlabs/tailwindcss.com` |
-| `typescript` | `~5.9.3` | npm registry, wagmi peer range |
-| `eslint` | `^10.15.0` | npm registry |
-| `eslint-config-next` | `^16.4.6` | npm registry |
-| `prettier` | `^3.10.1` | npm registry |
-| `server-only` | `^0.0.1` | Next.js docs |
+| Package | Range | Locked | Context7 ID or source |
+| ------- | ----- | ------ | --------------------- |
+| `hardhat` | `^3.22.0` | `3.22.0` | `/websites/hardhat` |
+| `@nomicfoundation/hardhat-toolbox-viem` | `^5.0.7` | `5.0.7` | `/websites/hardhat` |
+| `@openzeppelin/contracts` | `^5.6.1` | `5.6.1` | npm registry |
+| Circom compiler | `2.2.3` | Not an npm package | `/iden3/circom`, GitHub release |
+| `circomlib` | `^2.0.5` | `2.0.5` | GitHub source, `iden3/circomlib` |
+| `circomlibjs` | `^0.1.7` | `0.1.7` | `/iden3/circomlibjs` |
+| `circom_tester` | `^0.0.24` | `0.0.24` | npm registry |
+| `snarkjs` | `^0.7.6` | `0.7.6` | `/iden3/snarkjs` |
+| `next` | `^16.4.6` | `16.4.6` | `/vercel/next.js` |
+| `react`, `react-dom` | `^19.3.1` | `19.3.1` | npm registry |
+| `wagmi` | `^3.7.11` | `3.7.11` | `/websites/wagmi_sh_react` |
+| `viem` | `^2.58.4` | `2.58.4` | `/websites/viem_sh` |
+| `@tanstack/react-query` | `^5.108.2` | `5.108.2` | Wagmi docs |
+| `pinata` | `^2.7.0` | `2.7.0` | `/pinatacloud/pinata` |
+| `@noble/curves` | `^2.4.0` | `2.4.0` | `/paulmillr/noble-curves` |
+| `@noble/hashes` | `^2.4.0` | `2.4.0` | `/paulmillr/noble-hashes` |
+| `tailwindcss`, `@tailwindcss/postcss` | `^4.3.5` | `4.3.5` | `/tailwindlabs/tailwindcss.com` |
+| `typescript` | `~5.9.3` | `5.9.3` | npm registry, wagmi peer range |
+| `eslint` | `^9.39.5` | `9.39.5` | npm registry, D-035 |
+| `eslint-config-next` | `^16.4.6` | `16.4.6` | npm registry |
+| `prettier` | `^3.10.1` | `3.10.1` | npm registry |
+| `server-only` | `^0.0.1` | `0.0.1` | Next.js docs |
+| `@types/node` | `^26.6.6` | `26.6.6` | npm registry |
+| `@types/react`, `@types/react-dom` | `^19.3.0` | `19.3.0` | npm registry |
 
 TypeScript stays on 5.9 rather than the newer 7.x because this project's tools have not been checked for compatibility with 7.x.
+
+npm may print an `install-scripts` notice for `blake-hash` and `esbuild`. Do not approve them: W02's install, build, and vector checks passed with those scripts not run.
 
 ## Hardhat
 

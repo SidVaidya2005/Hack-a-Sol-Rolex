@@ -1,0 +1,10 @@
+# Keep LF on every OS so Windows checkouts do not change generated or vector files.
+* text=auto eol=lf
+
+*.docx binary
+*.png binary
+*.ico binary
+*.mp4 binary
+*.wasm binary
+*.zkey binary
+*.ptau binary

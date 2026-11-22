@@ -22,12 +22,12 @@
 
 ## Current Status
 
-**Last completed:** Nothing yet — build not started
-**Next:** W01 Shared interfaces and sample data. Built on `w01/shared-interfaces`, waiting for review by all four owners.
+**Last completed:** W01 Shared interfaces and sample data
+**Next:** W02 Monorepo and tool setup. Built on `track/storage` and passing on one macOS laptop. Waiting for the other three laptops to pass `npm ci` and `npm run lint` on Node 26, and for `circom --version` on Shikhar's Windows laptop.
 
 ## Progress
 
-- [ ] W01 Shared interfaces and sample data
+- [x] W01 Shared interfaces and sample data
 - [ ] W02 Monorepo and tool setup
 - [ ] W03 Claim circuit and rejection tests
 - [ ] W04 Trusted setup and verifier
@@ -44,6 +44,8 @@
 
 ## Key Decisions
 
+- **D-036 — Use Node 26 on all four laptops.** Reason: the team needs one major version, and the app build, Hardhat compile, lint, clean install, and claim vector all passed on it. `engine-strict` makes another version fail at install. Source: W02 plan, user-approved.
+- **D-035 — Use ESLint `^9.39.5` instead of `^10.15.0`.** Reason: `eslint-config-next` installs React, import, and accessibility plugins that declare support only up to ESLint 9. Version 9 installs without peer conflicts and caught the same planted problems. Source: W02 plan, user-approved.
 - **D-034 — Omit the contract address from the unlock signing domain.** Reason: including it would change every user's derived keys whenever contracts are redeployed. Source: W01 plan, user-approved.
 - **D-033 — Take `claimDay` from the latest block's UTC day.** Reason: a laptop clock ahead of UTC could otherwise produce a claim the contract rejects as future-dated. Source: W01 plan, user-approved.
 - **D-032 — Send the hospital one covered-procedure path, not the full coverage list.** Reason: the hospital needs only this claim's proof inputs, so the patient's wider coverage stays private. Source: W01 plan, user-approved.
@@ -52,8 +54,6 @@
 - **D-029 — Declare the six public inputs first in `Claim`, with no outputs.** Reason: snarkjs orders public signals by declaration and outputs are also public, so the `public` list alone does not guarantee the required order. W03 must confirm this in a test. Source: W01 plan, Context7 snarkjs and Circom docs.
 - **D-028 — Commit one computed valid claim using test keys derived from public labels.** Reason: tracks can detect hash and encoding mismatches at hour 1 instead of during integration, and no private key is stored. Source: W01 decision round.
 - **D-027 — Have the Insurer approve registered hospitals, with approved leaves emitted on-chain.** Reason: hospital keys come from the MetaMask unlock, so the root cannot be fixed in sample data, and no script needs a hospital private key. Source: W01 decision round.
-- **D-026 — Reject claims dated before a policy's on-chain registration day.** Reason: "active policy" needs a start as well as an expiry, and a contract check needs no circuit change. Accepted tradeoff: the start day is public. Source: W01 decision round.
-- **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
 
 ## Open Questions
 

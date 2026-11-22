@@ -13,6 +13,7 @@ export const mockUsdAbi = [
   "function mint(address to, uint256 amount)",
   "event Transfer(address indexed from, address indexed to, uint256 value)",
   "event Approval(address indexed owner, address indexed spender, uint256 value)",
+  "error NotInsurer(address caller)",
 ] as const;
 
 export const recordAccessAbi = [
@@ -43,6 +44,7 @@ export const recordAccessAbi = [
   "error InvalidExpiry(uint64 expiresAt)",
   "error AccessNotActive(bytes32 recordId, address reader)",
   "error NotResponder(address caller)",
+  "error NotInsurer(address caller)",
 ] as const;
 
 export const claimSettlementAbi = [
@@ -67,4 +69,5 @@ export const claimSettlementAbi = [
   "error ClaimTooOld(uint64 claimDay)",
   "error TotalCapExceeded(uint256 policyCommitment)",
   "error InvalidProof()",
+  "error NotInsurer(address caller)",
 ] as const;

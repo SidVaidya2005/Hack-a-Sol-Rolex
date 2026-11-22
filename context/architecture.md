@@ -85,7 +85,7 @@ Use this table as a placement rule: before adding data, identify where it will l
 1. **Unlock:** the user signs a fixed EIP-712 `RadoKeyUnlock` message once. HKDF-SHA256 with an empty salt derives a BabyJubJub EdDSA seed with info `rado/zk-eddsa/v1` and an X25519 secret with info `rado/x25519/v1`. Its input is the signature's `r||s`, because wallets encode the recovery byte differently. The signing domain omits the contract address, so a redeploy does not change derived keys (D-034).
 2. **Register:** each user publishes their EdDSA and X25519 public keys on-chain.
 3. **Encrypt:** each record gets a random AES-256-GCM key and a fresh 96-bit IV for every encryption. The on-chain bundle hash is keccak256 of the exact pinned JSON bytes.
-4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM, with AAD `rado/wrap/v1 || recordId || reader` (D-038). The record ciphertext uses `recordId` as AAD. A grant adds a wrapped key, so `grantAccess` also updates the bundle hash and CID (D-031).
+4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM, with AAD `rado/wrap/v1 || recordId || reader` (D-041). The record ciphertext uses `recordId` as AAD. A grant adds a wrapped key, so `grantAccess` also updates the bundle hash and CID (D-031).
 5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
 6. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event.
 
@@ -136,6 +136,8 @@ Function, event, and error signatures are in `packages/shared/src/abi.ts`.
 
 **Hospital approval (D-027):** a hospital registers its key, then the Insurer approves it. `updateHospitalRoot` emits every approved leaf in `HospitalRootUpdated`, so the hospital can rebuild its Merkle path from chain data.
 
+**Insurer-only calls (D-040):** `MockUSD.mint`, `RecordAccess.setResponder`, `ClaimSettlement.registerPolicy`, and `ClaimSettlement.updateHospitalRoot` accept only the insurer wallet set at deployment, and otherwise revert with `NotInsurer`.
+
 `ClaimSettlement.submitClaim` checks, in order: amount above zero, payout address fits 160 bits (D-030), registered policy, current hospital root, unused nullifier, claim day not before the policy's registration day (D-026), not in the future, and at most `MAX_CLAIM_AGE_DAYS` (30) days old, total cap, valid proof. It then records the nullifier and paid total before transferring tokens.
 
 **Audit events:** `KeysRegistered`, `RecordAnchored`, `AccessGranted`, `AccessRevoked`, `RecordKeyRotated`, `RecordViewed`, `BreakGlassInvoked`, `ResponderUpdated`, `PolicyRegistered`, `HospitalRootUpdated`, `ClaimSettled`.
@@ -177,7 +179,7 @@ The inbox carries policy and claim messages between laptops. L4 stores and forwa
 - `claim-request` must have a valid hospital signature over the recomputed `requestHash`, and the hospital key must be in the current approved root.
 - `claim-approval` must have terms that hash to a registered policy commitment and a valid signature from that policy's patient key over the recomputed `claimHash`.
 
-**Request authentication:** clients sign inbox requests with their derived EdDSA key, so polling causes no MetaMask popups. Each request includes the action, wallet, single-use nonce, an expiry at most 60 seconds ahead, and the ciphertext hash when sending. The signed digest is keccak256 of those fields with the tag `rado/inbox-auth/v1`, reduced to the BN254 field. L4 verifies it against the key registered on-chain. The digest does not cover `recipient`, `messageId`, or acknowledged IDs (D-039).
+**Request authentication:** clients sign inbox requests with their derived EdDSA key, so polling causes no MetaMask popups. Each request includes the action, wallet, single-use nonce, an expiry at most 60 seconds ahead, and the ciphertext hash when sending. The signed digest is keccak256 of those fields with the tag `rado/inbox-auth/v1`, reduced to the BN254 field. L4 verifies it against the key registered on-chain. The digest does not cover `recipient`, `messageId`, or acknowledged IDs (D-042).
 
 **Exact byte encodings:**
 
@@ -245,7 +247,8 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
 - **D-026 — Reject claims dated before a policy's on-chain registration day.** Reason: "active policy" needs a start as well as an expiry, and a contract check needs no circuit change. Accepted tradeoff: the start day is public. Source: W01 decision round.
 - **D-027 — Have the Insurer approve registered hospitals, with approved leaves emitted on-chain.** Reason: hospital keys come from the MetaMask unlock, so the root cannot be fixed in sample data, and no script needs a hospital private key. Source: W01 decision round.
-- **D-029 — Declare the six public inputs first in `Claim`, with no outputs.** Reason: snarkjs orders public signals by declaration and outputs are also public, so the `public` list alone does not guarantee the required order. W03 must confirm this in a test. Source: W01 plan, Context7 snarkjs and Circom docs.
+- **D-030 — Reject payout values above 160 bits in `submitClaim`.** Reason: casting a larger field value to an address would silently change it. Source: W01 plan, user-approved.
+- **D-031 — Update the bundle hash and CID inside `grantAccess` and `revokeAndRotate`.** Reason: a grant changes the bundle, and a single revoke transaction avoids a state where access is revoked but the old key still opens the current record. Source: W01 plan, user-approved.
 
 ## Code Standards
 

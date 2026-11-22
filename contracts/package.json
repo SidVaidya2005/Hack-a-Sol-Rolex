@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "hardhat build",
+    "seed": "node ../scripts/seed-demo.mjs",
     "test": "hardhat test nodejs",
     "typecheck": "tsc --noEmit"
   },
@@ -16,6 +17,7 @@
     "@rado/shared": "*",
     "@types/node": "^26.6.6",
     "hardhat": "^3.22.0",
+    "snarkjs": "^0.7.6",
     "viem": "^2.58.4"
   }
 }

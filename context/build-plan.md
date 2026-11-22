@@ -27,12 +27,12 @@ First agree on how the parts connect. Then let each track build against the same
 
 ## Tracks
 
-| Track | Owner | Owns | Branch |
+| Track | Owner | Owns | Lead on |
 | ----- | ----- | ---- | ------ |
-| T1 Circuits | Shikhar | Claim circuit, rejection tests, trusted setup, generated verifier | `track/circuits` |
-| T2 Contracts | Shreya | Solidity, deployment, seed chain state, contract tests | `track/contracts` |
-| T3 App | Siddarth | Role screens, wallet flows, browser proving UI, Public Chain View | `track/app` |
-| T4 Storage and Demo | Shreyansh | Encryption library, Pinata, cache, RPC proxy, inbox, escrow, network, rehearsal | `track/storage` |
+| T1 Circuits | Shikhar | Claim circuit, rejection tests, trusted setup, generated verifier | W03, W04, W10 |
+| T2 Contracts | Shreya | Solidity, deployment, seed chain state, contract tests | W05, W11, W12 |
+| T3 App | Siddarth | Role screens, wallet flows, browser proving UI, Public Chain View | W08, W09 |
+| T4 Storage and Demo | Shreyansh | Encryption library, Pinata, cache, RPC proxy, inbox, escrow, network, rehearsal | W02, W06, W07, W13, W14 |
 
 ## Timeline
 
@@ -46,6 +46,35 @@ First agree on how the parts connect. Then let each track build against the same
 | 20-24 | Feature freeze, four-laptop rehearsals, backup video, pitch | W14 |
 
 **When to cut work:** if W11 has not passed by hour 16, stop W12 and move everyone to the claim flow. After hour 20, work only on fixes that would otherwise break the demo.
+
+## Parallel Work
+
+An item can **start** before its dependencies are finished by building against a stand-in. It can be **ticked** only when its original Verify checks pass against the real dependency (D-037).
+
+| Item | Needs to start | Stand-in until ready | Needs to finish |
+| ---- | -------------- | -------------------- | --------------- |
+| W03 | W02 | None | W02 |
+| W04 | W02 | Placeholder circuit | W03 |
+| W05 | W02 | Placeholder verifier or test-only mock | W04 |
+| W06 | W02 | None | W02 |
+| W07 | W02 | `abi.ts`, agreed W06 signatures | W05, W06 |
+| W08 | W02 | Sample data | W02 |
+| W09 | W02, W06 signatures, W08 data layer | Labelled fakes behind the data layer | W05, W06, W07, W08 |
+| W10 | W02, W04 placeholder files | Placeholder proving files, committed claim vector, labelled fakes | W04, W05, W06, W07, W08 |
+| W11 | W02, W05 interfaces | Draft E2E script on placeholder files | W05, W08, W10 |
+| W12 to W14 | As listed in `prompt.md` | None | As listed in `prompt.md` |
+
+**Branches:** each item uses its own short-lived branch, named in `prompt.md`, such as `w04/trusted-setup`. W02 was completed on `track/storage`.
+
+**Placeholder rules:**
+
+- `circuits/placeholder/placeholder.circom` declares the same six public inputs, with the same names and order, as `Claim`. It proves none of the claim rules.
+- Its generated files stay in `circuits/placeholder/` with a `manifest.json` containing `"placeholder": true`. Real proving files never go there.
+- Deployment refuses the placeholder verifier unless `RADO_ALLOW_PLACEHOLDER=1` is set.
+- The E2E script refuses placeholders unless run with `--draft`, and a draft run never counts as a pass.
+- Rehearsals, the final E2E run, and the demo never use a placeholder (Invariant 24).
+
+**Interfaces:** changes to `packages/shared` go through a small PR agreed by the affected owners.
 
 ## Work Items
 
@@ -145,6 +174,6 @@ First agree on how the parts connect. Then let each track build against the same
 
 ## Workflow Decisions
 
-- **D-021 — Use four track branches merged through quick PRs.** Reason: this keeps `main` safe to demo while four people work in parallel. Source: setup interview.
+- **D-021 — Use four track branches merged through quick PRs.** Reason: this keeps `main` safe to demo while four people work in parallel. Source: setup interview. Superseded by D-037: one branch per track prevented dependent items from merging separately.
 - **D-022 — Use rejection tests plus one scripted end-to-end flow.** Reason: the most damaging failure is a proof that passes when it should fail, and a demo only shows the valid path. UI is checked by rehearsal. Source: setup interview.
 - **D-023 — Use six compact documents, a 15,000-token essential-reading limit, and manual documentation checks.** Reason: four people need clear homes for information without maintaining an extra script during a 24-hour build. Source: setup interview.

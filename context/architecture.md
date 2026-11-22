@@ -214,6 +214,7 @@ The inbox carries policy and claim messages between laptops. L4 stores and forwa
 21. Server logs never contain inbox message bodies, and inbox URLs never contain wallet addresses.
 22. A client never shows or acts on an inbox message until its sender check passes.
 23. Only the authenticated recipient can list or acknowledge its inbox messages.
+24. A placeholder circuit, verifier, or proving file is never used in a rehearsal, final E2E run, or the demo.
 
 ## Architecture Decisions
 
@@ -237,6 +238,7 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-024 — Exchange private policy and claim messages through an encrypted `/api/inbox` on L4.** Reason: the flow needs insurer-to-patient and hospital-to-patient exchanges across laptops, and this adds no on-chain link between a patient and a visit. Accepted tradeoff: L4 can see who messaged whom and when. Source: documentation review, W07 and W10.
 - **D-025 — Set `MAX_CLAIM_AGE_DAYS` to 30.** Reason: the contract needs a fixed window to stop backdated claims (D-017), and the team selected the recommended 30 days. Source: post-setup confirmation, W05.
 - **D-026 — Reject claims dated before a policy's on-chain registration day.** Reason: "active policy" needs a start as well as an expiry, and a contract check needs no circuit change. Accepted tradeoff: the start day is public. Source: W01 decision round.
+- **D-027 — Have the Insurer approve registered hospitals, with approved leaves emitted on-chain.** Reason: hospital keys come from the MetaMask unlock, so the root cannot be fixed in sample data, and no script needs a hospital private key. Source: W01 decision round.
 
 ## Code Standards
 
@@ -284,5 +286,6 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 | `HARDHAT_RPC_URL` | `/api/rpc` | Server config |
 | `DEMO_HOST_IP` | `allowedDevOrigins` in Next.js config | Server config |
 | `NEXT_PUBLIC_CHAIN_ID` | Wallet config | Public |
+| `RADO_ALLOW_PLACEHOLDER` | Local development deployment only | Development flag |
 
 **Dependencies:** check the package against `context/library-docs.md` and add it there before installing anything new.

@@ -28,6 +28,7 @@ This project uses six compact documents so a four-person team can find product, 
 | Open questions | `context/progress-tracker.md`, Open Questions |
 | Work items, checks, completion history | `context/build-plan.md`, Work Items |
 | Workflow decisions | `context/build-plan.md`, Workflow Decisions |
+| Parallel work and stand-ins | `context/build-plan.md`, Parallel Work |
 | Library versions and API patterns | `context/library-docs.md` |
 | Original brief | `problemstatement.md` |
 
@@ -69,7 +70,8 @@ Read the complete essential set before task-specific references or code changes.
 
 ### Project workflow
 
-- **Branches:** work on the owning track branch (`track/circuits`, `track/contracts`, `track/app`, `track/storage`). Merge to `main` through short PRs after relevant checks pass. `main` must stay safe to demo.
+- **Branches:** use one short-lived branch per work item, named in `prompt.md` (D-037). Merge to `main` through short PRs after relevant checks pass. `main` must stay safe to demo.
+- **Parallel work:** an item may start on a stand-in, but is ticked only after its Verify checks pass on the real dependency. Follow Parallel Work in `context/build-plan.md`.
 - **Commits:** use focused commits with a short descriptive subject that starts with the work item, such as `W03 add policy expiry check`.
 - **Tests:** circuit and contract changes need rejection tests. Integration changes must pass the scripted end-to-end flow once it exists.
 - **Freeze:** after hour 20, merge only fixes for demo-breaking problems.

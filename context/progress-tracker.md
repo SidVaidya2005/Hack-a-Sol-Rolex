@@ -23,7 +23,17 @@
 ## Current Status
 
 **Last completed:** W03 Claim circuit and rejection tests
-**Next:** W04 passed its Windows checks in GitHub Actions (D-039). LInep generates and commits the real proving files on Linux. See "Left to verify" under W04 in `context/build-plan.md`. W05 (Shreya), W06 and W07 (Shreyansh), and W08 (Siddarth), in parallel. W09 to W11 can start on stand-ins when an owner is free.
+**Next:** LInep generates and commits the real W04 proving files. W05 to W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
+
+**Left to do now:**
+
+- **LInep, W04:** on a new `w04/real-setup` branch from `main`, run the real setup once on Linux and open a PR with the proving files, the W04 Result, and the W04 tick. The steps are under W04 in `context/build-plan.md`.
+- **W06 owner:** merge the latest `main` into PR #9, resolve its conflict in this file, and merge it after its Verify checks pass.
+- **Shreya, W05:** make deployment refuse the placeholder verifier unless `RADO_ALLOW_PLACEHOLDER=1` is set, and deploy the real verifier once W04's files are on `main`.
+- **Shreyansh, W07:** finish the server routes against the real W05 and W06 work.
+- **Siddarth, W08:** merge the latest `main` into `w08/role-screens`, test a real MetaMask connection and the relative `/api/rpc` URL, and open the PR. W08's D-038 makes eleven Key Decisions, so move D-029 under W03 in that merge.
+- **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
+- **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
 

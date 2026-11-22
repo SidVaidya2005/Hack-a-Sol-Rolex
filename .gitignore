@@ -1,0 +1,35 @@
+# Private source documents (unfiled patent draft), never commit
+CS.docx
+Drawings.docx
+
+# Secrets and local certificates
+.env
+.env.*
+!.env.example
+certificates/
+*.pem
+
+# Dependencies and build output
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/coverage/
+contracts/ignition/deployments/chain-31337/
+
+# Circuit build output (the final .wasm, .zkey, and verifier are copied to tracked folders)
+circuits/build/
+*.ptau
+
+# Encrypted record cache on the host laptop
+.cache/
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/

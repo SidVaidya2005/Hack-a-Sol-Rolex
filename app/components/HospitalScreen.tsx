@@ -6,6 +6,7 @@ import { parseClaimAmount, PROCEDURE_OPTIONS, procedureLabel } from "../data/cla
 import { hasReached, type ClaimStage } from "../data/claim-simulation";
 import { getHospitalSampleData } from "../data/hospital-sample-data";
 import { formatAmount, getInsurerSampleData } from "../data/insurer-sample-data";
+import { formatClaimDay } from "../data/public-signal-labels";
 import { AttackSimulator } from "./AttackSimulator";
 import { useClaimActions, useClaimState, usePrivateClaimDraft } from "./ClaimSimulationProvider";
 import { DoctorRecordsPanel } from "./DoctorRecordsPanel";
@@ -13,7 +14,7 @@ import { HospitalClaimPanel } from "./HospitalClaimPanel";
 import { Icon } from "./icons";
 import { PrivacyLens } from "./PrivacyLens";
 import { ProofConsole } from "./ProofConsole";
-import { Badge, Band, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
+import { Badge, Band, PageHeading, Panel } from "./ui";
 
 const sample = getHospitalSampleData();
 const pool = getInsurerSampleData();
@@ -75,7 +76,7 @@ export function HospitalScreen() {
     requested: { label: "Waiting for patient" },
     approved: { label: "Run simulated proof", onClick: startProof },
     proving: { label: "Proof running…" },
-    proved: { label: "Submit sample claim", onClick: submitClaim },
+    proved: { label: "Submit simulated claim", onClick: submitClaim },
     settled: { label: "Submit again", onClick: submitClaim },
   };
   const action = primary[stage];
@@ -100,169 +101,158 @@ export function HospitalScreen() {
 
   return (
     <>
-      <PageHeading
-        eyebrow="Hospital workspace"
-        title="Claims workspace"
-        description="Prepare a claim, review the approval, and see each step before proving."
-        action={
-          <button
-            className="button-primary"
-            disabled={!action.onClick}
-            onClick={action.onClick}
-            type="button"
+      <div className="grid gap-10 xl:grid-cols-[1.2fr_1fr] xl:gap-16">
+        <div className="min-w-0 xl:flex xl:flex-col">
+          <PageHeading
+            eyebrow={`Hospital workspace · ${sample.name}`}
+            title="Claims workspace"
+            description="Prepare a claim, review the approval, and see each step before proving."
+            status="records-live"
+          />
+          {message ? (
+            <p
+              aria-live="polite"
+              className={`${rejection ? "status-error" : editing && declined ? "status-warning" : "status-success"} motion-reveal mb-8 rounded-lg border px-4 py-3 text-sm`}
+              role="status"
+            >
+              {message}
+            </p>
+          ) : null}
+          <Panel
+            className="min-w-0 xl:flex xl:flex-1 xl:flex-col xl:pb-0"
+            title={editing ? "Claim builder" : "Claim preview"}
+            description={
+              editing
+                ? "Choose a procedure and amount, then request approval."
+                : "Only the details needed for this claim are shown."
+            }
+            action={<Badge tone={STATUS[stage].tone}>{STATUS[stage].label}</Badge>}
           >
-            {action.label}
-            <Icon name="arrow" className="size-4" />
-          </button>
-        }
-      />
-      <SampleNotice>
-        Claim actions are a simulation. No proof, transaction, or payment is created.
-      </SampleNotice>
-      <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
-        <MetricCard
-          label="Ready for review"
-          value={settled ? "0 claims" : "1 claim"}
-          detail="Sample queue"
-          icon="clock"
-        />
-        <MetricCard label="This claim" value={amountLabel} detail="Sample amount" icon="coin" />
-        <MetricCard
-          label="Hospital"
-          value={sample.name}
-          detail="Sample organization"
-          icon="building"
-        />
-      </div>
-      {message ? (
-        <p
-          aria-live="polite"
-          className={`${rejection ? "status-error" : editing && declined ? "status-warning" : "status-success"} motion-reveal mb-8 rounded-lg border px-4 py-3 text-sm`}
-          role="status"
-        >
-          {message}
-        </p>
-      ) : null}
-      <div className="grid items-start gap-10 xl:grid-cols-[1.2fr_1fr] xl:gap-16">
-        <Panel
-          className="min-w-0"
-          title={editing ? "Claim builder" : "Claim preview"}
-          description={
-            editing
-              ? "Choose a sample procedure and amount, then request approval."
-              : "Only the details needed for this sample claim are shown."
-          }
-          action={<Badge tone={STATUS[stage].tone}>{STATUS[stage].label}</Badge>}
-        >
-          <dl className="grid gap-x-8 sm:grid-cols-2">
-            <div className="border-t border-rado-line py-4">
-              <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
-                Patient
-              </dt>
-              <dd className="mt-2 text-base text-rado-ink">{sample.patient}</dd>
-            </div>
-            <div className="border-t border-rado-line py-4">
-              <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
-                Visit reference
-              </dt>
-              <dd className="mt-2 font-mono text-sm text-rado-ink">{sample.encounter}</dd>
-            </div>
-            <div className="border-t border-rado-line py-4">
-              <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
-                {editing ? <label htmlFor="claim-procedure">Procedure</label> : "Procedure"}
-              </dt>
-              <dd className="mt-2 text-base text-rado-ink">
-                {editing ? (
-                  <select
-                    className="field"
-                    id="claim-procedure"
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, procedureCode: event.target.value }))
-                    }
-                    value={draft.procedureCode}
-                  >
-                    {PROCEDURE_OPTIONS.map(({ code, label }) => (
-                      <option key={code} value={code}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  procedureLabel(draft.procedureCode)
-                )}
-              </dd>
-            </div>
-            <div className="border-t border-rado-line py-4">
-              <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
-                {editing ? (
-                  <label htmlFor="claim-amount">Claim amount (INR)</label>
-                ) : (
-                  "Claim amount"
-                )}
-              </dt>
-              <dd className="mt-2 text-base text-rado-ink">
-                {editing ? (
-                  <input
-                    aria-invalid={!canRequest}
-                    className="field"
-                    id="claim-amount"
-                    inputMode="decimal"
-                    onChange={(event) =>
-                      setDraft((current) => ({ ...current, amountText: event.target.value }))
-                    }
-                    value={draft.amountText}
+            <dl className="grid gap-x-8 sm:grid-cols-2">
+              <div className="border-t border-rado-line py-4">
+                <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
+                  Patient
+                </dt>
+                <dd className="mt-2 text-base text-rado-ink">{sample.patient}</dd>
+              </div>
+              <div className="border-t border-rado-line py-4">
+                <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
+                  Visit reference
+                </dt>
+                <dd className="mt-2 font-mono text-sm text-rado-ink">{sample.encounter}</dd>
+              </div>
+              <div className="border-t border-rado-line py-4">
+                <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
+                  {editing ? <label htmlFor="claim-procedure">Procedure</label> : "Procedure"}
+                </dt>
+                <dd className="mt-2 text-base text-rado-ink">
+                  {editing ? (
+                    <select
+                      className="field"
+                      id="claim-procedure"
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, procedureCode: event.target.value }))
+                      }
+                      value={draft.procedureCode}
+                    >
+                      {PROCEDURE_OPTIONS.map(({ code, label }) => (
+                        <option key={code} value={code}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    procedureLabel(draft.procedureCode)
+                  )}
+                </dd>
+              </div>
+              <div className="border-t border-rado-line py-4">
+                <dt className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
+                  {editing ? (
+                    <label htmlFor="claim-amount">Claim amount (INR)</label>
+                  ) : (
+                    "Claim amount"
+                  )}
+                </dt>
+                <dd className="mt-2 text-base text-rado-ink">
+                  {editing ? (
+                    <input
+                      aria-invalid={!canRequest}
+                      className="field"
+                      id="claim-amount"
+                      inputMode="decimal"
+                      onChange={(event) =>
+                        setDraft((current) => ({ ...current, amountText: event.target.value }))
+                      }
+                      value={draft.amountText}
+                    />
+                  ) : (
+                    amountLabel
+                  )}
+                </dd>
+              </div>
+            </dl>
+            {editing ? (
+              <div className="border-t border-rado-line pt-4">
+                <ul aria-label="Claim checks" className="space-y-2">
+                  <BuilderCheck
+                    ok={draftAmount !== null}
+                    label="Amount is a positive rupee value"
                   />
-                ) : (
-                  amountLabel
-                )}
-              </dd>
-            </div>
-          </dl>
-          {editing ? (
-            <div className="border-t border-rado-line pt-4">
-              <ul aria-label="Claim checks" className="space-y-2">
-                <BuilderCheck ok={draftAmount !== null} label="Amount is a positive rupee value" />
-                <BuilderCheck
-                  ok={withinCap}
-                  label={`Within the public remaining cap of ${formatAmount(remainingCap)}`}
-                />
-              </ul>
-              <p className="mt-3 text-xs leading-5 text-rado-muted">
-                Coverage and the per-claim limit stay private. The patient checks them before
-                approving.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-4 flex flex-wrap gap-6">
+                  <BuilderCheck
+                    ok={withinCap}
+                    label={`Within the public remaining cap of ${formatAmount(remainingCap)}`}
+                  />
+                </ul>
+                <p className="mt-3 text-xs leading-5 text-rado-muted">
+                  Coverage and the per-claim limit stay private. The patient checks them before
+                  approving.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-wrap gap-6">
+                <button
+                  className="button-secondary"
+                  onClick={() =>
+                    setNote({
+                      text: "Sample only: proof inputs are ready for review. The browser did not generate a proof.",
+                      stage,
+                    })
+                  }
+                  type="button"
+                >
+                  Review proof inputs
+                </button>
+                <button
+                  className="button-secondary"
+                  onClick={() =>
+                    setNote({
+                      text: approved
+                        ? "The patient approved this claim in the simulation."
+                        : "The patient has not approved this claim yet.",
+                      stage,
+                    })
+                  }
+                  type="button"
+                >
+                  View patient approval
+                </button>
+              </div>
+            )}
+            {/* Fills spare height, so the action lines up with the bottom of Claim journey. */}
+            <div className="mt-6 xl:flex xl:flex-1 xl:items-end">
               <button
-                className="button-secondary"
-                onClick={() =>
-                  setNote({
-                    text: "Sample only: proof inputs are ready for review. The browser did not generate a proof.",
-                    stage,
-                  })
-                }
+                className="button-primary w-full justify-center sm:w-auto"
+                disabled={!action.onClick}
+                onClick={action.onClick}
                 type="button"
               >
-                Review proof inputs
-              </button>
-              <button
-                className="button-secondary"
-                onClick={() =>
-                  setNote({
-                    text: approved
-                      ? "The patient approved this claim in the simulation."
-                      : "The patient has not approved this claim yet.",
-                    stage,
-                  })
-                }
-                type="button"
-              >
-                View patient approval
+                {action.label}
+                <Icon name="arrow" className="size-4" />
               </button>
             </div>
-          )}
-        </Panel>
+          </Panel>
+        </div>
         <Band
           className="min-w-0"
           eyebrow="Proof console"
@@ -292,9 +282,11 @@ export function HospitalScreen() {
           <ProofConsole />
           <div className="mt-5 flex items-center justify-between gap-3">
             <span className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
-              Claim day
+              Claim date
             </span>
-            <span className="font-mono text-sm text-rado-ink">{sample.claimDay.toString()}</span>
+            <span className="font-mono text-sm text-rado-ink">
+              {formatClaimDay(sample.claimDay)}
+            </span>
           </div>
           <p className="mt-2 text-xs leading-5 text-rado-slate">
             The real proof step is reserved for the hospital browser flow.

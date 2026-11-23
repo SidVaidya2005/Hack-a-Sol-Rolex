@@ -16,6 +16,7 @@ import {
   type RecordService,
 } from "../lib/record-service";
 import { Icon } from "./icons";
+import { useWalletActions } from "./WalletConnection";
 
 /** Keys live only in this React state, so a reload or wallet change locks them (Invariant 5). */
 type Session = {
@@ -34,6 +35,7 @@ type RecordSessionValue = {
   connected: boolean;
   correctNetwork: boolean;
   unlocking: boolean;
+  unlockPrompt: string;
   error: string;
   unlock: () => Promise<void>;
 };
@@ -47,6 +49,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [revision, setRevision] = useState(0);
   const [unlocking, setUnlocking] = useState(false);
+  const [unlockPrompt, setUnlockPrompt] = useState("");
   const [error, setError] = useState("");
   const correctNetwork = chainId === radoChain.id;
 
@@ -70,6 +73,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
         setError("The Rado contracts are not available yet.");
         return;
       }
+      setUnlockPrompt("Sign the unlock message in your wallet. It costs nothing.");
       const signature = await walletClient.signTypedData({
         account: walletClient.account,
         ...unlockTypedData(address),
@@ -81,7 +85,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
         recordAccess: body.recordAccess,
       };
       const service = createRecordService(clients);
-      await service.ensureRegistered(keys);
+      await service.ensureRegistered(keys, setUnlockPrompt);
       const exchange = createClaimExchange({
         ...clients,
         claimSettlement: body.claimSettlement,
@@ -92,6 +96,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
       setError(plainRecordError(caught));
     } finally {
       setUnlocking(false);
+      setUnlockPrompt("");
     }
   }, [address, publicClient, walletClient]);
 
@@ -104,6 +109,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
       connected: isConnected,
       correctNetwork,
       unlocking,
+      unlockPrompt,
       error,
       unlock,
     }),
@@ -118,6 +124,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
       session,
       unlock,
       unlocking,
+      unlockPrompt,
       walletClient,
     ],
   );
@@ -132,32 +139,88 @@ export function useRecordSession() {
 }
 
 export function UnlockGate({ purpose }: { purpose: string }) {
-  const { connected, correctNetwork, ready, unlocking, error, unlock } = useRecordSession();
-  const hint = !connected
-    ? "Connect your wallet using the button at the top of the page."
-    : !correctNetwork
-      ? "Switch your wallet to Rado Local using the button at the top of the page."
-      : purpose;
+  const { connected, correctNetwork, ready, unlocking, unlockPrompt, error, unlock } =
+    useRecordSession();
+  const wallet = useWalletActions();
+  const current = !connected ? 0 : !correctNetwork ? 1 : 2;
+  const steps = [
+    {
+      title: "Connect wallet",
+      detail: "Use the MetaMask account for this role.",
+      label: !wallet.hasConnector
+        ? "Wallet unavailable"
+        : wallet.connecting
+          ? "Connecting…"
+          : "Connect wallet",
+      disabled: !wallet.hasConnector || wallet.connecting,
+      onClick: wallet.connectWallet,
+    },
+    {
+      title: "Switch to Rado Local",
+      detail: "Rado runs on the local demo network.",
+      label: wallet.switching ? "Switching…" : "Switch network",
+      disabled: wallet.switching,
+      onClick: wallet.switchNetwork,
+    },
+    {
+      title: "Unlock with one signature",
+      detail: unlockPrompt || purpose,
+      label: unlocking ? "Check your wallet…" : "Unlock Rado",
+      disabled: !ready || unlocking,
+      onClick: () => void unlock(),
+    },
+  ];
+  const failure =
+    current === 0 && wallet.connectFailed
+      ? "Wallet connection failed. Check your wallet and try again."
+      : current === 1 && wallet.switchFailed
+        ? "Could not switch networks. Try again in your wallet."
+        : current === 2
+          ? error
+          : "";
 
   return (
-    <div className="rounded-lg border border-dashed border-rado-line px-5 py-8 text-center">
-      <span className="inline-block text-rado-muted">
-        <Icon name="lock" className="size-7" />
-      </span>
-      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-rado-slate">{hint}</p>
-      {connected && correctNetwork ? (
-        <button
-          className="button-primary mt-4 disabled:opacity-50"
-          disabled={!ready || unlocking}
-          onClick={() => void unlock()}
-          type="button"
-        >
-          {unlocking ? "Check your wallet…" : "Unlock Rado"}
-        </button>
-      ) : null}
-      {error ? (
-        <p className="mt-3 text-sm text-rado-error" role="alert">
-          {error}
+    <div className="rounded-lg border border-rado-line px-5">
+      <ol className="divide-y divide-rado-line">
+        {steps.map((step, index) => {
+          const done = index < current;
+          const active = index === current;
+          return (
+            <li
+              aria-current={active ? "step" : undefined}
+              className="flex flex-wrap items-center gap-x-4 gap-y-3 py-4"
+              key={step.title}
+            >
+              <span
+                className={`grid size-7 shrink-0 place-items-center rounded-full font-mono text-xs ${done ? "bg-rado-pale-green text-rado-green" : active ? "bg-rado-ink text-rado-on-ink" : "bg-rado-stone-wash text-rado-muted"}`}
+              >
+                {done ? <Icon name="check" className="size-4" /> : index + 1}
+              </span>
+              <div className="min-w-48 flex-1">
+                <p className={`text-sm ${index > current ? "text-rado-muted" : "text-rado-ink"}`}>
+                  {step.title}
+                </p>
+                {active ? (
+                  <p className="mt-0.5 text-xs leading-5 text-rado-slate">{step.detail}</p>
+                ) : null}
+              </div>
+              {active ? (
+                <button
+                  className="button-primary !px-4 !py-1.5 disabled:opacity-50"
+                  disabled={step.disabled}
+                  onClick={step.onClick}
+                  type="button"
+                >
+                  {step.label}
+                </button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+      {failure ? (
+        <p className="border-t border-rado-line py-3 text-sm text-rado-error" role="alert">
+          {failure}
         </p>
       ) : null}
     </div>
@@ -189,6 +252,20 @@ export function RecordItems({
         </li>
       ))}
     </ul>
+  );
+}
+
+export function WalletPromptNotice({ text }: { text: string }) {
+  if (!text) return null;
+  return (
+    <p
+      aria-live="polite"
+      className="motion-reveal mb-6 flex items-center gap-2 rounded-lg bg-rado-pale-blue px-4 py-3 text-sm text-rado-blue"
+      role="status"
+    >
+      <Icon name="wallet" className="size-4" />
+      {text}
+    </p>
   );
 }
 

@@ -28,6 +28,7 @@
 **Left to do now:**
 
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
+- **Next rehearsal:** W08 UI polish was merged by user decision on 2026-11-23 without a real MetaMask run. Run Connect, Unlock, add record, grant, revoke, and one claim exchange, because it changed the wallet and record-service paths.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -49,6 +50,7 @@
 
 ## Key Decisions
 
+- **D-053 — Show one data status per screen, and keep "simulated" wording on every proof, payment, and attack outcome.** Reason: repeated sample labels made the product feel fake, while removing the outcome labels would imply a real proof or payment happened (D-044). Accepted tradeoff: W10 and W11 must change each screen's status as its data becomes real. Source: W08 UI polish, user-approved 2026-11-23.
 - **D-052 — Add a signed, encrypted `claim-decline` inbox message from the patient to the hospital.** Reason: without it, the Hospital keeps showing Awaiting patient after a decline. The signature stops anyone else from cancelling a claim. Accepted tradeoff: this adds one shared message type, so affected owners must be told. Source: W10 two-laptop test, user-approved 2026-11-23.
 - **D-051 — Test W10 with the Insurer in a separate Chrome profile on the host, but leave W10 unticked until a real third laptop runs it.** Reason: the team has two laptops now, and W10's Verify names separate Insurer, Patient, and Hospital laptops. Source: W10 plan, user-approved 2026-11-23.
 - **D-050 — Include minimal approve-hospital and register-policy actions on the Insurer screen in W10.** Reason: policy delivery cannot work until a hospital is approved and a policy is registered, and those actions are needed in the demo. Source: W10 plan, user-approved 2026-11-23.
@@ -58,7 +60,6 @@
 - **D-046 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
 - **D-045 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
 - **D-044 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
-- **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
 
 ## Open Questions
 

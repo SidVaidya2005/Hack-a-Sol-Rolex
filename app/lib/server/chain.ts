@@ -17,6 +17,7 @@ import {
   zeroAddress,
 } from "viem";
 
+import { providersFromWallets, type Provider } from "../providers";
 import { HttpError } from "./http";
 
 const DEFAULT_RPC_URL = "http://127.0.0.1:8545";
@@ -33,17 +34,32 @@ export function hardhatRpcUrl(): string {
   return url.toString();
 }
 
+// The E2E script runs on its own chain, so it must not read the demo deployment.
+function deploymentFile(): string {
+  return process.env.RADO_E2E_DIR
+    ? path.join(process.env.RADO_E2E_DIR, "localhost.json")
+    : path.resolve(process.cwd(), "..", "contracts", "deployments", "localhost.json");
+}
+
+/** An older deployment has no directory, so sharing falls back to unlisted wallets. */
+export async function deployedProviders(): Promise<Provider[]> {
+  try {
+    const deployment = JSON.parse(await readFile(deploymentFile(), "utf8")) as {
+      wallets?: unknown;
+    };
+    return providersFromWallets(deployment.wallets);
+  } catch {
+    return [];
+  }
+}
+
 /** Read on each call, so a fresh seed takes effect without restarting the app. */
 async function deployedAddress(
   name: "recordAccess" | "claimSettlement" | "mockUsd",
 ): Promise<Address> {
-  // The E2E script runs on its own chain, so it must not read the demo deployment.
-  const file = process.env.RADO_E2E_DIR
-    ? path.join(process.env.RADO_E2E_DIR, "localhost.json")
-    : path.resolve(process.cwd(), "..", "contracts", "deployments", "localhost.json");
   let address: unknown;
   try {
-    const deployment = JSON.parse(await readFile(file, "utf8")) as {
+    const deployment = JSON.parse(await readFile(deploymentFile(), "utf8")) as {
       contracts?: Record<string, unknown>;
     };
     address = deployment.contracts?.[name];

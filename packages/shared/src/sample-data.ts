@@ -82,6 +82,43 @@ export const SAMPLE_RECORD: FhirBundle = {
   ],
 };
 
+/** The sample record plus the allergy and lab data that W15 shares with providers. */
+export const SAMPLE_CARE_RECORD: FhirBundle = {
+  ...SAMPLE_RECORD,
+  entry: [
+    ...SAMPLE_RECORD.entry,
+    {
+      resource: {
+        resourceType: "AllergyIntolerance",
+        id: "sample-care-allergy",
+        patient: PATIENT_REF,
+        code: concept("A-300", "Sample drug allergy"),
+        criticality: "high",
+      },
+    },
+    {
+      resource: {
+        resourceType: "ServiceRequest",
+        id: "sample-lab-order",
+        status: "completed",
+        intent: "order",
+        subject: PATIENT_REF,
+        code: concept("L-500", "Sample blood panel"),
+      },
+    },
+    {
+      resource: {
+        resourceType: "Observation",
+        id: "sample-lab-result",
+        status: "final",
+        subject: PATIENT_REF,
+        code: concept("L-501", "Sample blood panel result"),
+        valueString: "Within sample range",
+      },
+    },
+  ],
+};
+
 export const SAMPLE_EMERGENCY_SUMMARY: FhirBundle = {
   resourceType: "Bundle",
   type: "collection",

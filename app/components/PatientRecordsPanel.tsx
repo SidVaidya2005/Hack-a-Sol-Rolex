@@ -1,9 +1,15 @@
 "use client";
 
-import { SAMPLE_EMERGENCY_SUMMARY, SAMPLE_RECORD, utf8Encode } from "@rado/shared";
-import type { Address, Hex32 } from "@rado/shared";
+import {
+  SAMPLE_CARE_RECORD,
+  SAMPLE_EMERGENCY_SUMMARY,
+  SHARE_PROFILES,
+  utf8Encode,
+} from "@rado/shared";
+import type { Address, Hex32, SliceProfile } from "@rado/shared";
 import { useEffect, useState } from "react";
 
+import { shareProfileFor, type Provider } from "../lib/providers";
 import {
   plainRecordError,
   type PatientRecord,
@@ -27,16 +33,30 @@ const EXPIRY_OPTIONS = [1, 7, 30];
 const POLL_MS = 5_000;
 const STATUS_TONE = { Active: "success", Expired: "neutral", Revoked: "warning" } as const;
 
+function providerFor(wallet: string, providers: Provider[]) {
+  return providers.find((item) => item.wallet.toLowerCase() === wallet.toLowerCase());
+}
+
+function providerLabel(wallet: string, providers: Provider[]) {
+  const provider = providerFor(wallet, providers);
+  return provider ? `${provider.name} · ${shortId(wallet)}` : `Unlisted · ${shortId(wallet)}`;
+}
+
 function RecordRow({
   record,
   emergency,
+  sliceProfile,
   wallets,
+  providers,
   busy,
   onRun,
 }: {
   record: PatientRecord;
   emergency: boolean;
+  /** Undefined until this record has been read, so a copy is never mistaken for a full record. */
+  sliceProfile: SliceProfile | null | undefined;
   wallets: Address[];
+  providers: Provider[];
   busy: string;
   onRun: (id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) => Promise<void>;
 }) {
@@ -48,8 +68,16 @@ function RecordRow({
   const active = new Set(
     grants.filter(({ status }) => status === "Active").map(({ reader }) => reader.toLowerCase()),
   );
-  const candidates = wallets.filter((wallet) => !active.has(wallet.toLowerCase()));
-  const doctor = candidates.find((wallet) => wallet === selected) ?? candidates[0] ?? "";
+  // A limited copy can only go to its own provider type, so a lab never gets a pharmacy copy.
+  const candidates = wallets
+    .filter((wallet) => !active.has(wallet.toLowerCase()))
+    .filter((wallet) => !sliceProfile || providerFor(wallet, providers)?.kind === sliceProfile)
+    .sort(
+      (a, b) =>
+        Number(Boolean(providerFor(b, providers))) - Number(Boolean(providerFor(a, providers))),
+    );
+  const target = candidates.find((wallet) => wallet === selected) ?? candidates[0] ?? "";
+  const profile = shareProfileFor(target ? providerFor(target, providers)?.kind : undefined);
   const locked = Boolean(busy) || !session;
 
   return (
@@ -60,7 +88,12 @@ function RecordRow({
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-base text-rado-ink">
-            {emergency ? "Emergency summary" : "Encrypted record"} {shortId(recordId)}
+            {emergency
+              ? "Emergency summary"
+              : sliceProfile
+                ? `${SHARE_PROFILES[sliceProfile].label} copy`
+                : "Encrypted record"}{" "}
+            {shortId(recordId)}
           </p>
           <p className="mt-0.5 font-mono text-xs text-rado-slate">
             Key version {keyVersion.toString()}
@@ -90,7 +123,7 @@ function RecordRow({
         {grants.map(({ reader, expiresAt, status }) => (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3" key={reader}>
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-sm text-rado-ink">{shortId(reader)}</p>
+              <p className="text-sm text-rado-ink">{providerLabel(reader, providers)}</p>
               <p className="text-xs text-rado-slate">
                 {status === "Revoked"
                   ? "Access removed"
@@ -124,25 +157,27 @@ function RecordRow({
         <div>
           <label
             className="mb-1.5 block text-xs text-rado-slate"
-            htmlFor={`grant-doctor-${recordId}`}
+            htmlFor={`grant-provider-${recordId}`}
           >
-            Doctor wallet
+            Share with
           </label>
           <select
             className="field"
             disabled={!candidates.length}
-            id={`grant-doctor-${recordId}`}
+            id={`grant-provider-${recordId}`}
             onChange={(event) => setSelected(event.target.value)}
-            value={doctor}
+            value={target}
           >
             {candidates.length ? (
               candidates.map((wallet) => (
                 <option key={wallet} value={wallet}>
-                  {shortId(wallet)}
+                  {providerLabel(wallet, providers)}
                 </option>
               ))
             ) : (
-              <option value="">No other unlocked wallets</option>
+              <option value="">
+                {sliceProfile ? "This provider type has not unlocked" : "No other unlocked wallets"}
+              </option>
             )}
           </select>
         </div>
@@ -168,14 +203,25 @@ function RecordRow({
         </div>
         <button
           className="button-pill-outline h-11 whitespace-nowrap disabled:opacity-50"
-          disabled={locked || !doctor}
+          disabled={locked || !target || sliceProfile === undefined}
           onClick={() =>
             void onRun(`grant-${recordId}`, async (onPrompt) => {
-              if (!session || !doctor) return "";
+              if (!session || !target) return "";
+              if (!sliceProfile && profile !== "hospital") {
+                const { expiresAt } = await session.service.shareSlice(
+                  session.keys,
+                  recordId,
+                  target as Address,
+                  profile,
+                  days,
+                  onPrompt,
+                );
+                return `Limited ${SHARE_PROFILES[profile].label.toLowerCase()} copy shared until ${formatExpiry(expiresAt)}.`;
+              }
               const expiresAt = await session.service.grant(
                 session.keys,
                 recordId as Hex32,
-                doctor as Address,
+                target as Address,
                 days,
                 onPrompt,
               );
@@ -184,9 +230,32 @@ function RecordRow({
           }
           type="button"
         >
-          {busy === `grant-${recordId}` ? "Granting…" : "Grant access"}
+          {busy === `grant-${recordId}`
+            ? "Sharing…"
+            : !sliceProfile && profile !== "hospital"
+              ? "Share limited copy"
+              : "Grant access"}
         </button>
       </div>
+      {target && sliceProfile !== undefined ? (
+        <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
+          <div>
+            <p className="text-rado-ink">Will be shared</p>
+            <p className="mt-1 text-rado-slate">
+              {sliceProfile
+                ? SHARE_PROFILES[sliceProfile].shares.join(", ")
+                : SHARE_PROFILES[profile].shares.join(", ")}
+            </p>
+          </div>
+          <div>
+            <p className="text-rado-ink">Stays private</p>
+            <p className="mt-1 text-rado-slate">
+              {SHARE_PROFILES[sliceProfile ?? profile].withholds.join(", ") ||
+                "Nothing. This wallet can read the whole record."}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -201,6 +270,8 @@ function PatientRecordsContent() {
   const { session, revision, refresh } = useRecordSession();
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [wallets, setWallets] = useState<Address[]>([]);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [sliceProfiles, setSliceProfiles] = useState<Map<string, SliceProfile | null>>(new Map());
   const [summaryIds, setSummaryIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
@@ -210,11 +281,21 @@ function PatientRecordsContent() {
     if (!session) return;
     let current = true;
     const load = () =>
-      Promise.all([session.service.listPatientRecords(), session.service.listRegisteredWallets()])
-        .then(([nextRecords, nextWallets]) => {
+      Promise.all([
+        session.service.listPatientRecords(),
+        session.service.listRegisteredWallets(),
+        session.service.listProviders(),
+      ])
+        .then(async ([nextRecords, nextWallets, nextProviders]) => {
           if (!current) return;
           setRecords(nextRecords);
           setWallets(nextWallets);
+          setProviders(nextProviders);
+          const nextProfiles = await session.service.sliceProfiles(
+            session.keys,
+            nextRecords.map(({ recordId }) => recordId),
+          );
+          if (current) setSliceProfiles(nextProfiles);
         })
         .catch(() => {
           if (current) setMessage({ ok: false, text: "Could not load your records." });
@@ -292,7 +373,7 @@ function PatientRecordsContent() {
                 void run("add", async (onPrompt) => {
                   await session.service.addRecord(
                     session.keys,
-                    utf8Encode(JSON.stringify(SAMPLE_RECORD)),
+                    utf8Encode(JSON.stringify(SAMPLE_CARE_RECORD)),
                     onPrompt,
                   );
                   return "Synthetic record encrypted, stored, and anchored on-chain.";
@@ -319,7 +400,9 @@ function PatientRecordsContent() {
                   emergency={summaryIds.has(record.recordId)}
                   key={record.recordId}
                   onRun={run}
+                  providers={providers}
                   record={record}
+                  sliceProfile={sliceProfiles.get(record.recordId)}
                   wallets={wallets}
                 />
               ))}

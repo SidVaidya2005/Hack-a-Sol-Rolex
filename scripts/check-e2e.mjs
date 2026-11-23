@@ -44,6 +44,7 @@ import {
   mockUsdAbi,
   PUBLIC_SIGNALS,
   recordAccessAbi,
+  SAMPLE_CARE_RECORD,
   SAMPLE_EMERGENCY_SUMMARY,
   SAMPLE_POLICY,
   SAMPLE_RECORD,
@@ -788,12 +789,125 @@ async function main() {
     afterRevoke.length === 3 &&
       (await rejectionOf(() => doctor.service.open(doctor.keys, summaryId))) !== null,
   );
+
+  // W15 lab and pharmacy sharing
+  const lab = await newUser(await newAccount());
+  const pharmacy = await newUser(await newAccount());
+  writeFileSync(
+    join(workDir, "localhost.json"),
+    JSON.stringify({
+      chainId: hardhat.id,
+      placeholder: false,
+      contracts: addresses,
+      wallets: {
+        insurer: insurer.address,
+        patient: patient.address,
+        lab: lab.address,
+        pharmacy: pharmacy.address,
+      },
+    }),
+  );
+  const providers = await patient.service.listProviders();
+  report(
+    "The provider directory lists providers and never the patient or insurer",
+    providers.length === 2 &&
+      providers.some(({ kind, wallet }) => kind === "lab" && wallet === lab.address) &&
+      providers.some(({ kind, wallet }) => kind === "pharmacy" && wallet === pharmacy.address),
+  );
+  const careId = await patient.service.addRecord(
+    patient.keys,
+    utf8Encode(JSON.stringify(SAMPLE_CARE_RECORD)),
+  );
+  const { recordId: pharmacySlice } = await patient.service.shareSlice(
+    patient.keys,
+    careId,
+    pharmacy.address,
+    "pharmacy",
+    1,
+  );
+  const { recordId: labSlice } = await patient.service.shareSlice(
+    patient.keys,
+    careId,
+    lab.address,
+    "lab",
+    1,
+  );
+  const textOf = (rows) => rows.map(({ description }) => description).join("|");
+  const pharmacyText = textOf(await pharmacy.service.open(pharmacy.keys, pharmacySlice));
+  report(
+    "The pharmacy reads prescriptions and allergies, and no diagnosis, procedure, or lab data",
+    /Sample medication/.test(pharmacyText) &&
+      /Sample drug allergy/.test(pharmacyText) &&
+      !/chronic condition|imaging scan|blood panel/.test(pharmacyText),
+  );
+  const labText = textOf(await lab.service.open(lab.keys, labSlice));
+  report(
+    "The lab reads test orders and results, and no diagnosis, procedure, or prescription",
+    /Sample blood panel result: Within sample range/.test(labText) &&
+      !/chronic condition|imaging scan|Sample medication|allergy/.test(labText),
+  );
+  report(
+    "The pharmacy cannot open the lab's copy",
+    (await rejectionOf(() => pharmacy.service.open(pharmacy.keys, labSlice))) !== null,
+  );
+  report(
+    "The lab cannot open the pharmacy's copy",
+    (await rejectionOf(() => lab.service.open(lab.keys, pharmacySlice))) !== null,
+  );
+  report(
+    "Neither provider can open the full source record",
+    (await rejectionOf(() => pharmacy.service.open(pharmacy.keys, careId))) !== null &&
+      (await rejectionOf(() => lab.service.open(lab.keys, careId))) !== null,
+  );
+  const { bundle: sourceBundle } = await patient.service.loadBundle(careId);
+  report(
+    "The source record gains no provider key",
+    sourceBundle.wrappedKeys.length === 1 &&
+      sourceBundle.wrappedKeys[0].reader.toLowerCase() === patient.address.toLowerCase(),
+  );
+  const { bundle: labBundle } = await patient.service.loadBundle(labSlice);
+  report(
+    "The pharmacy's key cannot decrypt the lab bundle",
+    await decryptRecord(labBundle, pharmacy.address, pharmacy.keys.x25519SecretKey).then(
+      () => false,
+      () => true,
+    ),
+  );
+  const profiles = await patient.service.sliceProfiles(patient.keys, [
+    careId,
+    pharmacySlice,
+    labSlice,
+  ]);
+  report(
+    "The patient's browser identifies each copy from its encrypted contents",
+    profiles.get(careId) === null &&
+      profiles.get(pharmacySlice) === "pharmacy" &&
+      profiles.get(labSlice) === "lab",
+  );
+  report(
+    "A limited copy cannot be sliced again",
+    (await rejectionOf(() =>
+      patient.service.shareSlice(patient.keys, labSlice, pharmacy.address, "pharmacy", 1),
+    )) === "This record is already a limited copy.",
+  );
+  await patient.service.revoke(patient.keys, pharmacySlice, pharmacy.address);
+  report(
+    "Revoking the pharmacy ends its access",
+    (await rejectionOf(() => pharmacy.service.open(pharmacy.keys, pharmacySlice))) !== null,
+  );
+  report(
+    "Revoking the pharmacy leaves the lab's access working",
+    /Within sample range/.test(textOf(await lab.service.open(lab.keys, labSlice))),
+  );
+
   const storedRecords = readdirSync(recordsDir)
     .map((name) => readFileSync(join(recordsDir, name), "utf8"))
     .join("");
   report(
     "Stored bundles hold no readable summary or record text",
-    !/Test Patient Alpha|Sample drug allergy|O positive|resourceType/.test(storedRecords),
+    !/Test Patient Alpha|Sample drug allergy|O positive|Sample medication|Sample blood panel|Within sample range|share-slice|resourceType/.test(
+      storedRecords,
+    ),
   );
   await globalThis.curve_bn128?.terminate?.();
 }

@@ -1,22 +1,27 @@
 "use client";
 
 import {
+  canShareDocument,
+  DOCUMENT_CATEGORIES,
   SAMPLE_CARE_RECORD,
   SAMPLE_EMERGENCY_SUMMARY,
   SHARE_PROFILES,
   utf8Encode,
 } from "@rado/shared";
-import type { Address, Hex32, SliceProfile } from "@rado/shared";
+import type { Address, Hex32 } from "@rado/shared";
 import { useEffect, useState } from "react";
 
 import { shareProfileFor, type Provider } from "../lib/providers";
 import {
   plainRecordError,
+  type OpenedRecord,
   type PatientRecord,
-  type RecordItem,
+  type RecordInfo,
   type TimelineEntry,
   type WalletPromptHandler,
 } from "../lib/record-service";
+import { DocumentUploadForm } from "./DocumentUploadForm";
+import { DocumentViewer, formatDocumentSize } from "./DocumentViewer";
 import { Icon } from "./icons";
 import {
   formatExpiry,
@@ -45,7 +50,7 @@ function providerLabel(wallet: string, providers: Provider[]) {
 function RecordRow({
   record,
   emergency,
-  sliceProfile,
+  info,
   wallets,
   providers,
   busy,
@@ -54,17 +59,19 @@ function RecordRow({
   record: PatientRecord;
   emergency: boolean;
   /** Undefined until this record has been read, so a copy is never mistaken for a full record. */
-  sliceProfile: SliceProfile | null | undefined;
+  info: RecordInfo | undefined;
   wallets: Address[];
   providers: Provider[];
   busy: string;
   onRun: (id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) => Promise<void>;
 }) {
   const { session } = useRecordSession();
-  const [opened, setOpened] = useState<RecordItem[] | null>(null);
+  const [opened, setOpened] = useState<OpenedRecord | null>(null);
   const [selected, setSelected] = useState("");
   const [days, setDays] = useState(7);
   const { recordId, grants, keyVersion } = record;
+  const sliceProfile = info === undefined ? undefined : info.sliceProfile;
+  const documentInfo = info?.document ?? null;
   const active = new Set(
     grants.filter(({ status }) => status === "Active").map(({ reader }) => reader.toLowerCase()),
   );
@@ -72,6 +79,11 @@ function RecordRow({
   const candidates = wallets
     .filter((wallet) => !active.has(wallet.toLowerCase()))
     .filter((wallet) => !sliceProfile || providerFor(wallet, providers)?.kind === sliceProfile)
+    .filter(
+      (wallet) =>
+        !documentInfo ||
+        canShareDocument(documentInfo.category, providerFor(wallet, providers)?.kind),
+    )
     .sort(
       (a, b) =>
         Number(Boolean(providerFor(b, providers))) - Number(Boolean(providerFor(a, providers))),
@@ -88,14 +100,20 @@ function RecordRow({
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-base text-rado-ink">
-            {emergency
-              ? "Emergency summary"
-              : sliceProfile
-                ? `${SHARE_PROFILES[sliceProfile].label} copy`
-                : "Encrypted record"}{" "}
-            {shortId(recordId)}
+            {documentInfo
+              ? documentInfo.name
+              : `${
+                  emergency
+                    ? "Emergency summary"
+                    : sliceProfile
+                      ? `${SHARE_PROFILES[sliceProfile].label} copy`
+                      : "Encrypted record"
+                } ${shortId(recordId)}`}
           </p>
           <p className="mt-0.5 font-mono text-xs text-rado-slate">
+            {documentInfo
+              ? `${DOCUMENT_CATEGORIES[documentInfo.category].label} · ${formatDocumentSize(documentInfo.size)} · `
+              : ""}
             Key version {keyVersion.toString()}
           </p>
         </div>
@@ -108,7 +126,7 @@ function RecordRow({
               ? setOpened(null)
               : void onRun(`open-${recordId}`, async () => {
                   if (!session) return "";
-                  setOpened(await session.service.open(session.keys, recordId));
+                  setOpened(await session.service.openRecord(session.keys, recordId));
                   return "";
                 })
           }
@@ -117,7 +135,10 @@ function RecordRow({
           {busy === `open-${recordId}` ? "Opening…" : opened ? "Close" : "Open"}
         </button>
       </div>
-      {opened ? <RecordItems items={opened} /> : null}
+      {opened?.kind === "record" ? <RecordItems items={opened.items} /> : null}
+      {opened?.kind === "document" ? (
+        <DocumentViewer canDownload document={opened.document} onClose={() => setOpened(null)} />
+      ) : null}
 
       <div className="mt-4 divide-y divide-rado-line">
         {grants.map(({ reader, expiresAt, status }) => (
@@ -176,7 +197,9 @@ function RecordRow({
               ))
             ) : (
               <option value="">
-                {sliceProfile ? "This provider type has not unlocked" : "No other unlocked wallets"}
+                {sliceProfile || documentInfo
+                  ? "No allowed provider has unlocked"
+                  : "No other unlocked wallets"}
               </option>
             )}
           </select>
@@ -207,7 +230,7 @@ function RecordRow({
           onClick={() =>
             void onRun(`grant-${recordId}`, async (onPrompt) => {
               if (!session || !target) return "";
-              if (!sliceProfile && profile !== "hospital") {
+              if (!documentInfo && !sliceProfile && profile !== "hospital") {
                 const { expiresAt } = await session.service.shareSlice(
                   session.keys,
                   recordId,
@@ -232,12 +255,27 @@ function RecordRow({
         >
           {busy === `grant-${recordId}`
             ? "Sharing…"
-            : !sliceProfile && profile !== "hospital"
+            : !documentInfo && !sliceProfile && profile !== "hospital"
               ? "Share limited copy"
               : "Grant access"}
         </button>
       </div>
-      {target && sliceProfile !== undefined ? (
+      {target && documentInfo ? (
+        <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
+          <div>
+            <p className="text-rado-ink">Will be shared</p>
+            <p className="mt-1 text-rado-slate">
+              The whole document. A file cannot be partly shared, so check that it holds only what
+              this provider needs.
+            </p>
+          </div>
+          <div>
+            <p className="text-rado-ink">Stays private</p>
+            <p className="mt-1 text-rado-slate">Your other records and documents</p>
+          </div>
+        </div>
+      ) : null}
+      {target && !documentInfo && sliceProfile !== undefined ? (
         <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
           <div>
             <p className="text-rado-ink">Will be shared</p>
@@ -271,7 +309,7 @@ function PatientRecordsContent() {
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [wallets, setWallets] = useState<Address[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [sliceProfiles, setSliceProfiles] = useState<Map<string, SliceProfile | null>>(new Map());
+  const [recordInfos, setRecordInfos] = useState<Map<string, RecordInfo>>(new Map());
   const [summaryIds, setSummaryIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
@@ -291,11 +329,11 @@ function PatientRecordsContent() {
           setRecords(nextRecords);
           setWallets(nextWallets);
           setProviders(nextProviders);
-          const nextProfiles = await session.service.sliceProfiles(
+          const nextInfos = await session.service.recordInfos(
             session.keys,
             nextRecords.map(({ recordId }) => recordId),
           );
-          if (current) setSliceProfiles(nextProfiles);
+          if (current) setRecordInfos(nextInfos);
         })
         .catch(() => {
           if (current) setMessage({ ok: false, text: "Could not load your records." });
@@ -392,6 +430,7 @@ function PatientRecordsContent() {
         <>
           <WalletPromptNotice text={walletPrompt} />
           <StatusMessage message={message} />
+          <DocumentUploadForm busy={busy} onRun={run} />
           {records.length ? (
             <div className="divide-y divide-rado-line">
               {records.map((record) => (
@@ -401,8 +440,8 @@ function PatientRecordsContent() {
                   key={record.recordId}
                   onRun={run}
                   providers={providers}
+                  info={recordInfos.get(record.recordId)}
                   record={record}
-                  sliceProfile={sliceProfiles.get(record.recordId)}
                   wallets={wallets}
                 />
               ))}

@@ -3,7 +3,8 @@
 import type { Hex32 } from "@rado/shared";
 import { useEffect, useState } from "react";
 
-import { plainRecordError, type RecordItem, type SharedRecord } from "../lib/record-service";
+import { plainRecordError, type OpenedRecord, type SharedRecord } from "../lib/record-service";
+import { DocumentViewer } from "./DocumentViewer";
 import {
   formatExpiry,
   RecordItems,
@@ -36,7 +37,7 @@ export function DoctorRecordsPanel({ text = DOCTOR_TEXT }: { text?: PanelText })
 function DoctorRecordsContent({ text }: { text: PanelText }) {
   const { session, revision, refresh } = useRecordSession();
   const [records, setRecords] = useState<SharedRecord[]>([]);
-  const [opened, setOpened] = useState<{ recordId: Hex32; items: RecordItem[] } | null>(null);
+  const [opened, setOpened] = useState<{ recordId: Hex32; content: OpenedRecord } | null>(null);
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -67,8 +68,8 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
     setMessage(null);
     setOpened(null);
     try {
-      const items = await session.service.open(session.keys, recordId, setWalletPrompt);
-      setOpened({ recordId, items });
+      const content = await session.service.openRecord(session.keys, recordId, setWalletPrompt);
+      setOpened({ recordId, content });
       setMessage({ ok: true, text: "This view was logged on-chain before the record opened." });
       refresh();
     } catch (error) {
@@ -119,7 +120,16 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
                               : "No access"}
                       </button>
                     </div>
-                    {isOpen ? <RecordItems items={opened.items} /> : null}
+                    {isOpen && opened.content.kind === "record" ? (
+                      <RecordItems items={opened.content.items} />
+                    ) : null}
+                    {isOpen && opened.content.kind === "document" ? (
+                      <DocumentViewer
+                        canDownload={false}
+                        document={opened.content.document}
+                        onClose={() => setOpened(null)}
+                      />
+                    ) : null}
                   </div>
                 );
               })}

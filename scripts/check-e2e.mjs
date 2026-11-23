@@ -41,6 +41,7 @@ import {
   encodeBundle,
   encryptRecord,
   hashBundleBytes,
+  MAX_DOCUMENT_BYTES,
   mockUsdAbi,
   PUBLIC_SIGNALS,
   recordAccessAbi,
@@ -52,7 +53,7 @@ import {
 } from "../packages/shared/src/index.ts";
 import { createClaimExchange } from "../app/lib/claim-exchange.ts";
 import { escrowReaderAddress, escrowReleaseTypedData } from "../app/lib/escrow-auth.ts";
-import { pinTypedData } from "../app/lib/pin-auth.ts";
+import { MAX_BUNDLE_BYTES, pinTypedData } from "../app/lib/pin-auth.ts";
 import {
   createRecordService,
   describeEmergencySummary,
@@ -900,6 +901,178 @@ async function main() {
     /Within sample range/.test(textOf(await lab.service.open(lab.keys, labSlice))),
   );
 
+  // W16 patient document upload
+  writeFileSync(
+    join(workDir, "localhost.json"),
+    JSON.stringify({
+      chainId: hardhat.id,
+      placeholder: false,
+      contracts: addresses,
+      wallets: { doctor: doctor.address, lab: lab.address, pharmacy: pharmacy.address },
+    }),
+  );
+  const documentMarker = `RadoW16Marker${randomBytes(6).toString("hex")}`;
+  const documentName = `${documentMarker}.pdf`;
+  const documentBytes = utf8Encode(`%PDF-1.4\n% ${documentMarker}\n%%EOF\n`);
+  const sameBytes = (a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)) === 0;
+  const documentId = await patient.service.addDocument(patient.keys, {
+    name: documentName,
+    category: "lab-report",
+    bytes: documentBytes,
+  });
+  const ownDocument = await patient.service.openRecord(patient.keys, documentId);
+  report(
+    "The patient gets back the exact file, name, type, and category",
+    ownDocument.kind === "document" &&
+      sameBytes(ownDocument.document.bytes, documentBytes) &&
+      ownDocument.document.name === documentName &&
+      ownDocument.document.mime === "application/pdf" &&
+      ownDocument.document.category === "lab-report",
+  );
+  // A new service has no remembered details, like a fresh browser session.
+  const freshPatient = createRecordService({
+    publicClient,
+    walletClient: patient.walletClient,
+    recordAccess: contracts.recordAccess,
+    baseUrl: base,
+  });
+  const documentInfos = await freshPatient.recordInfos(patient.keys, [documentId, careId]);
+  report(
+    "A fresh session identifies the document from its encrypted contents",
+    documentInfos.get(documentId)?.document?.name === documentName &&
+      documentInfos.get(careId)?.document === null,
+  );
+  const blockBeforeRefusal = await publicClient.getBlockNumber();
+  report(
+    "A pharmacy cannot be granted a lab report",
+    (await rejectionOf(() =>
+      patient.service.grant(patient.keys, documentId, pharmacy.address, 1),
+    )) === "A lab report cannot be shared with this wallet.",
+  );
+  report(
+    "An unlisted wallet cannot be granted a document",
+    (await rejectionOf(() =>
+      patient.service.grant(patient.keys, documentId, outsider.address, 1),
+    )) === "A lab report cannot be shared with this wallet.",
+  );
+  report(
+    "Refused document shares send no transaction",
+    (await publicClient.getBlockNumber()) === blockBeforeRefusal,
+  );
+  report(
+    "A document cannot be split into a limited copy",
+    (await rejectionOf(() =>
+      patient.service.shareSlice(patient.keys, documentId, lab.address, "lab", 1),
+    )) === "A document is shared whole and cannot be split into a copy.",
+  );
+  report(
+    "A provider without access cannot open the document",
+    (await rejectionOf(() => lab.service.openRecord(lab.keys, documentId))) !== null,
+  );
+  await patient.service.grant(patient.keys, documentId, lab.address, 1);
+  await patient.service.grant(patient.keys, documentId, doctor.address, 1);
+  const labDocument = await lab.service.openRecord(lab.keys, documentId);
+  report(
+    "An approved lab opens the exact document",
+    labDocument.kind === "document" && sameBytes(labDocument.document.bytes, documentBytes),
+  );
+  report(
+    "A provider's document view is logged on-chain",
+    (await patient.service.timeline()).some(
+      (entry) =>
+        entry.recordId === documentId &&
+        entry.title === "Record viewed" &&
+        entry.actor?.toLowerCase() === lab.address.toLowerCase(),
+    ),
+  );
+  await patient.service.revoke(patient.keys, documentId, lab.address);
+  report(
+    "Revoking the lab ends its document access",
+    (await rejectionOf(() => lab.service.openRecord(lab.keys, documentId))) !== null,
+  );
+  const doctorDocument = await doctor.service.openRecord(doctor.keys, documentId);
+  const rotatedDocument = await patient.service.openRecord(patient.keys, documentId);
+  report(
+    "After rotation, the doctor and patient still get the exact bytes",
+    doctorDocument.kind === "document" &&
+      sameBytes(doctorDocument.document.bytes, documentBytes) &&
+      rotatedDocument.kind === "document" &&
+      sameBytes(rotatedDocument.document.bytes, documentBytes),
+  );
+  report(
+    "Break-glass cannot release an uploaded document",
+    refused(await requestRelease(responder, documentId, await invoke(documentId)), 403),
+  );
+  const fullSizeBytes = new Uint8Array(MAX_DOCUMENT_BYTES);
+  fullSizeBytes.set(documentBytes);
+  const fullSizeIds = [];
+  for (let index = 0; index < 5; index += 1) {
+    fullSizeIds.push(
+      await patient.service.addDocument(patient.keys, {
+        name: `full-size-${index}.pdf`,
+        category: "other",
+        bytes: fullSizeBytes,
+      }),
+    );
+  }
+  await patient.service.grant(patient.keys, fullSizeIds[0], doctor.address, 1);
+  const { bundle: fullSizeBundle } = await patient.service.loadBundle(fullSizeIds[0]);
+  report(
+    "A maximum-size document with a reader fits the bundle limit",
+    encodeBundle(fullSizeBundle).length <= MAX_BUNDLE_BYTES,
+  );
+  report(
+    "A file over the limit is refused",
+    (await rejectionOf(() =>
+      patient.service.addDocument(patient.keys, {
+        name: "too-large.pdf",
+        category: "other",
+        bytes: new Uint8Array(MAX_DOCUMENT_BYTES + 1).fill(0x25),
+      }),
+    )) === "This file is larger than the 750 KB limit.",
+  );
+  // A new service measures a real first load, then the repeat that each screen refresh makes.
+  const timedPatient = createRecordService({
+    publicClient,
+    walletClient: patient.walletClient,
+    recordAccess: contracts.recordAccess,
+    baseUrl: base,
+  });
+  const loadPatientScreen = async () => {
+    const started = Date.now();
+    const records = await timedPatient.listPatientRecords();
+    await Promise.all([
+      timedPatient.emergencySummaryIds(),
+      timedPatient.recordInfos(
+        patient.keys,
+        records.map(({ recordId }) => recordId),
+      ),
+    ]);
+    return Date.now() - started;
+  };
+  const firstLoadMs = await loadPatientScreen();
+  const repeatLoadMs = await loadPatientScreen();
+  console.log(
+    `INFO  Patient screen with five maximum-size documents: first ${firstLoadMs} ms, repeat ${repeatLoadMs} ms`,
+  );
+  report("The first patient screen load finishes within 10 seconds", firstLoadMs < 10_000);
+  report("A repeat patient screen load finishes within 2 seconds", repeatLoadMs < 2_000);
+  const reloadedDocument = await timedPatient.openRecord(patient.keys, fullSizeIds[1]);
+  report(
+    "A document opened from the session cache still has its exact bytes",
+    reloadedDocument.kind === "document" &&
+      sameBytes(reloadedDocument.document.bytes, fullSizeBytes),
+  );
+  const chainLogs = await chainClient.getLogs({
+    address: addresses.recordAccess,
+    fromBlock: 0n,
+  });
+  const markerHex = Buffer.from(documentMarker).toString("hex");
+  report(
+    "The document's name and contents never appear on-chain",
+    !chainLogs.some((log) => log.data.toLowerCase().includes(markerHex)),
+  );
+
   const storedRecords = readdirSync(recordsDir)
     .map((name) => readFileSync(join(recordsDir, name), "utf8"))
     .join("");
@@ -908,6 +1081,12 @@ async function main() {
     !/Test Patient Alpha|Sample drug allergy|O positive|Sample medication|Sample blood panel|Within sample range|share-slice|resourceType/.test(
       storedRecords,
     ),
+  );
+  report(
+    "Stored bundles hold no readable document name, contents, or type",
+    !storedRecords.includes(documentMarker) &&
+      !storedRecords.includes(Buffer.from(documentMarker).toString("base64").slice(0, 16)) &&
+      !/RADODOC1|application\/pdf|%PDF/.test(storedRecords),
   );
   await globalThis.curve_bn128?.terminate?.();
 }

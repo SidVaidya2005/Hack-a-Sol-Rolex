@@ -2,10 +2,16 @@ import {
   addRecordReader,
   buildRecordSlice,
   bytesToBase64,
+  canShareDocument,
+  decodeDocument,
   decryptRecord,
+  DOCUMENT_CATEGORIES,
+  DocumentError,
   encodeBundle,
+  encodeDocument,
   encryptRecord,
   hashBundleBytes,
+  isDocumentPayload,
   parseBundle,
   recordAccessAbi,
   rotateRecordKey,
@@ -17,8 +23,11 @@ import {
 } from "@rado/shared";
 import type {
   Address,
+  DocumentCategory,
   EncryptedBundle,
   Hex32,
+  RadoDocument,
+  RadoDocumentInfo,
   RecordReader,
   SliceProfile,
   UnlockedKeys,
@@ -54,6 +63,7 @@ const abi = parseAbi(recordAccessAbi);
 const PIN_AUTH_TTL_SECONDS = 180;
 const ESCROW_AUTH_TTL_SECONDS = 180;
 const SECONDS_PER_DAY = 86_400;
+const MAX_CACHED_BUNDLES = 32;
 
 export type RecordAccount = JsonRpcAccount | LocalAccount;
 export type GrantStatus = "Active" | "Expired" | "Revoked";
@@ -92,6 +102,15 @@ export interface RecordItem {
   kind: string;
   description: string;
 }
+
+/** Read from decrypted contents, because the chain must not label a record's type. */
+export interface RecordInfo {
+  sliceProfile: SliceProfile | null;
+  document: RadoDocumentInfo | null;
+}
+
+export type OpenedRecord =
+  { kind: "record"; items: RecordItem[] } | { kind: "document"; document: RadoDocument };
 
 export interface RecordServiceConfig {
   publicClient: PublicClient;
@@ -175,6 +194,11 @@ export function plainRecordError(error: unknown): string {
     }
   }
   return "This could not be completed. Try again.";
+}
+
+/** Keeps only the labels, so remembered record details never hold the file itself. */
+function documentDetails({ name, mime, category, size }: RadoDocument): RadoDocumentInfo {
+  return { name, mime, category, size };
 }
 
 function randomHex32(): Hex32 {
@@ -278,8 +302,9 @@ export function createRecordService({
   const self = account.address;
   /** A confirmed event whose release did not finish, so a retry does not log a second one. */
   const pendingBreakGlass = new Map<Hex32, { transactionHash: Hex32; logIndex: number }>();
-  /** A record's contents never change, so its slice type is safe to remember in memory. */
-  const sliceProfileCache = new Map<string, SliceProfile | null>();
+  const recordInfoCache = new Map<string, RecordInfo>();
+  /** Holds ciphertext only, so repeated screen loads do not download and hash it again. */
+  const verifiedBundles = new Map<string, Promise<EncryptedBundle>>();
 
   async function confirmed(hash: Hex32): Promise<void> {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -313,6 +338,25 @@ export function createRecordService({
   async function loadBundle(recordId: Hex32) {
     const [patient, bundleHash, cid, keyVersion] = await contract.read.recordOf([recordId]);
     if (patient === zeroAddress) throw new RecordError("This record could not be found.");
+    // Keyed by the current on-chain hash, so a grant or rotation always fetches the new bundle.
+    const cacheKey = `${recordId}:${bundleHash}`.toLowerCase();
+    let pending = verifiedBundles.get(cacheKey);
+    if (!pending) {
+      pending = fetchVerifiedBundle(recordId, bundleHash, cid);
+      verifiedBundles.set(cacheKey, pending);
+      pending.catch(() => verifiedBundles.delete(cacheKey));
+      if (verifiedBundles.size > MAX_CACHED_BUNDLES) {
+        verifiedBundles.delete(verifiedBundles.keys().next().value as string);
+      }
+    }
+    return { patient, bundle: await pending, bundleHash, cid, keyVersion };
+  }
+
+  async function fetchVerifiedBundle(
+    recordId: Hex32,
+    bundleHash: Hex32,
+    cid: string,
+  ): Promise<EncryptedBundle> {
     const response = await fetch(`${baseUrl}/api/records/${cid}`, { cache: "no-store" });
     if (!response.ok) throw new RecordError("The encrypted record could not be loaded.");
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -328,7 +372,7 @@ export function createRecordService({
     if (bundle.recordId.toLowerCase() !== recordId.toLowerCase()) {
       throw new RecordError("This record failed its integrity check.");
     }
-    return { patient, bundle, bundleHash, cid, keyVersion };
+    return bundle;
   }
 
   /** The escrow reader label is recomputed here instead of trusting the server's. */
@@ -451,6 +495,75 @@ export function createRecordService({
     onPrompt?.(needsUpload ? CHAIN_PROMPT : SINGLE_CHAIN_PROMPT);
     await confirmed(await walletClient.writeContract(request));
     return expiresAt;
+  }
+
+  /** Off-chain directory only. A failure leaves sharing usable with unlisted wallets. */
+  async function listProviders(): Promise<Provider[]> {
+    try {
+      const response = await fetch(`${baseUrl}/api/providers`, { cache: "no-store" });
+      if (!response.ok) return [];
+      const body = (await response.json()) as { providers?: unknown };
+      if (!Array.isArray(body.providers)) return [];
+      const wallets = Object.fromEntries(
+        (body.providers as { kind?: unknown; wallet?: unknown }[]).map((item) => [
+          String(item?.kind),
+          item?.wallet,
+        ]),
+      );
+      return providersFromWallets(wallets);
+    } catch {
+      return [];
+    }
+  }
+
+  /** A record's contents survive key rotation, so its details are safe to remember in memory. */
+  async function ownRecordInfo(keys: UnlockedKeys, recordId: Hex32): Promise<RecordInfo> {
+    const cached = recordInfoCache.get(recordId);
+    if (cached) return cached;
+    const { bundle } = await loadOwnRecord(recordId);
+    let info: RecordInfo;
+    try {
+      const plaintext = await decryptRecord(bundle, self, keys.x25519SecretKey);
+      if (isDocumentPayload(plaintext)) {
+        const document = documentDetails(decodeDocument(plaintext));
+        info = { sliceProfile: null, document };
+      } else {
+        info = { sliceProfile: sliceProfileOf(JSON.parse(utf8Decode(plaintext))), document: null };
+      }
+    } catch {
+      throw new RecordError("This record could not be read.");
+    }
+    recordInfoCache.set(recordId, info);
+    return info;
+  }
+
+  async function openRecord(
+    keys: UnlockedKeys,
+    recordId: Hex32,
+    onPrompt?: WalletPromptHandler,
+  ): Promise<OpenedRecord> {
+    const [patient] = await contract.read.recordOf([recordId]);
+    if (patient === zeroAddress) throw new RecordError("This record could not be found.");
+    if (!sameAddress(patient, self)) {
+      const { request } = await contract.simulate.logView([recordId], { account });
+      onPrompt?.(VIEW_PROMPT);
+      await confirmed(await walletClient.writeContract(request));
+    }
+    const { bundle } = await loadBundle(recordId);
+    let plaintext: Uint8Array;
+    try {
+      plaintext = await decryptRecord(bundle, self, keys.x25519SecretKey);
+    } catch {
+      throw new RecordError("You do not have access to this version of the record.");
+    }
+    if (isDocumentPayload(plaintext)) {
+      try {
+        return { kind: "document", document: decodeDocument(plaintext) };
+      } catch {
+        throw new RecordError("This document could not be read.");
+      }
+    }
+    return { kind: "record", items: describeRecord(plaintext) };
   }
 
   return {
@@ -588,26 +701,27 @@ export function createRecordService({
       }
     },
 
-    grant: grantReader,
-
-    /** Off-chain directory only. A failure leaves sharing usable with unlisted wallets. */
-    async listProviders(): Promise<Provider[]> {
-      try {
-        const response = await fetch(`${baseUrl}/api/providers`, { cache: "no-store" });
-        if (!response.ok) return [];
-        const body = (await response.json()) as { providers?: unknown };
-        if (!Array.isArray(body.providers)) return [];
-        const wallets = Object.fromEntries(
-          (body.providers as { kind?: unknown; wallet?: unknown }[]).map((item) => [
-            String(item?.kind),
-            item?.wallet,
-          ]),
-        );
-        return providersFromWallets(wallets);
-      } catch {
-        return [];
+    /** A document can go only to its category's provider types, checked before any popup. */
+    async grant(
+      keys: UnlockedKeys,
+      recordId: Hex32,
+      reader: Address,
+      days: number,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<bigint> {
+      const { document } = await ownRecordInfo(keys, recordId);
+      if (document) {
+        const provider = (await listProviders()).find(({ wallet }) => sameAddress(wallet, reader));
+        if (!canShareDocument(document.category, provider?.kind)) {
+          throw new RecordError(
+            `A ${DOCUMENT_CATEGORIES[document.category].label.toLowerCase()} cannot be shared with this wallet.`,
+          );
+        }
       }
+      return grantReader(keys, recordId, reader, days, onPrompt);
     },
+
+    listProviders,
 
     /**
      * Copies only this provider's fields into a new record with its own key, then grants it.
@@ -626,10 +740,13 @@ export function createRecordService({
       const loaded = await loadOwnRecord(sourceId);
       let source: unknown;
       try {
-        source = JSON.parse(
-          utf8Decode(await decryptRecord(loaded.bundle, self, keys.x25519SecretKey)),
-        );
-      } catch {
+        const plaintext = await decryptRecord(loaded.bundle, self, keys.x25519SecretKey);
+        if (isDocumentPayload(plaintext)) {
+          throw new RecordError("A document is shared whole and cannot be split into a copy.");
+        }
+        source = JSON.parse(utf8Decode(plaintext));
+      } catch (error) {
+        if (error instanceof RecordError) throw error;
         throw new RecordError("This record could not be read.");
       }
       if (sliceProfileOf(source)) throw new RecordError("This record is already a limited copy.");
@@ -655,7 +772,7 @@ export function createRecordService({
         [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
         stepped,
       );
-      sliceProfileCache.set(recordId, profile);
+      recordInfoCache.set(recordId, { sliceProfile: profile, document: null });
       try {
         const expiresAt = await grantReader(keys, recordId, reader, days, stepped);
         return { recordId, expiresAt };
@@ -666,23 +783,47 @@ export function createRecordService({
       }
     },
 
+    /** Encrypts the file, its name, type, and category together, then pins and anchors them. */
+    async addDocument(
+      keys: UnlockedKeys,
+      input: { name: string; category: DocumentCategory; bytes: Uint8Array },
+      onPrompt?: WalletPromptHandler,
+    ): Promise<Hex32> {
+      let payload: Uint8Array;
+      try {
+        payload = encodeDocument(input);
+      } catch (error) {
+        if (error instanceof DocumentError) throw new RecordError(error.message);
+        throw new RecordError("This file could not be read.");
+      }
+      const details = documentDetails(decodeDocument(payload));
+      const recordId = await anchorNewRecord(
+        payload,
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
+        onPrompt,
+      );
+      recordInfoCache.set(recordId, { sliceProfile: null, document: details });
+      return recordId;
+    },
+
     /** Decrypts only this patient's own records. A record that fails is left out and retried. */
+    async recordInfos(keys: UnlockedKeys, recordIds: Hex32[]): Promise<Map<string, RecordInfo>> {
+      await Promise.all(
+        recordIds.map((recordId) => ownRecordInfo(keys, recordId).catch(() => null)),
+      );
+      return new Map(recordInfoCache);
+    },
+
     async sliceProfiles(
       keys: UnlockedKeys,
       recordIds: Hex32[],
     ): Promise<Map<string, SliceProfile | null>> {
       await Promise.all(
-        recordIds
-          .filter((recordId) => !sliceProfileCache.has(recordId))
-          .map(async (recordId) => {
-            try {
-              const { bundle } = await loadOwnRecord(recordId);
-              const bytes = await decryptRecord(bundle, self, keys.x25519SecretKey);
-              sliceProfileCache.set(recordId, sliceProfileOf(JSON.parse(utf8Decode(bytes))));
-            } catch {}
-          }),
+        recordIds.map((recordId) => ownRecordInfo(keys, recordId).catch(() => null)),
       );
-      return new Map(sliceProfileCache);
+      return new Map(
+        [...recordInfoCache].map(([recordId, info]) => [recordId, info.sliceProfile] as const),
+      );
     },
 
     /** New key, re-encrypt, re-wrap for active readers, pin, then one transaction (D-031). */
@@ -731,25 +872,18 @@ export function createRecordService({
     },
 
     /** A reader's view is logged on-chain and confirmed before anything is decrypted. */
+    openRecord,
+
     async open(
       keys: UnlockedKeys,
       recordId: Hex32,
       onPrompt?: WalletPromptHandler,
     ): Promise<RecordItem[]> {
-      const [patient] = await contract.read.recordOf([recordId]);
-      if (patient === zeroAddress) throw new RecordError("This record could not be found.");
-      if (!sameAddress(patient, self)) {
-        const { request } = await contract.simulate.logView([recordId], { account });
-        onPrompt?.(VIEW_PROMPT);
-        await confirmed(await walletClient.writeContract(request));
+      const opened = await openRecord(keys, recordId, onPrompt);
+      if (opened.kind === "document") {
+        throw new RecordError("This document must be opened in the document viewer.");
       }
-      const { bundle } = await loadBundle(recordId);
-      try {
-        return describeRecord(await decryptRecord(bundle, self, keys.x25519SecretKey));
-      } catch (error) {
-        if (error instanceof RecordError) throw error;
-        throw new RecordError("You do not have access to this version of the record.");
-      }
+      return opened.items;
     },
 
     async listRegisteredWallets(): Promise<Address[]> {

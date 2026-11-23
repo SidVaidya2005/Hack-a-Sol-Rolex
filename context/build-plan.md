@@ -303,7 +303,7 @@ An item can **start** before its dependencies are finished by building against a
 
 **Plan:** `packages/shared/src/record-slices.ts` rebuilds each copy from named fields. `shareSlice` in `app/lib/record-service.ts` encrypts it as a new record and grants it through the existing paths. The slice marker exists only inside the ciphertext. No contract, ABI, or circuit change. The seed adds `lab` and `pharmacy` wallets. Decisions: D-058, D-059.
 
-**Built, not yet verified through MetaMask:** 2026-11-23. On Windows with Node 26, all 46 E2E checks passed, including 12 new sharing checks. The 68 shared and 35 contract tests, typecheck, lint, format check, and production build also passed. The screens, the updated seed, and a real Pinata upload have not been run. `scripts/check-patient-records.mjs` had its timeline titles updated but was not run, because it moves chain time and a live demo chain was running.
+**Built, not yet verified through MetaMask:** 2026-11-23. On Windows with Node 26, all 46 E2E checks passed, including 12 new sharing checks. The 68 shared and 35 contract tests, typecheck, lint, format check, and production build also passed. On a separate temporary chain, the updated seed created the `lab` and `pharmacy` wallets, `GET /api/providers` listed only provider wallets, and all 36 `scripts/check-patient-records.mjs` checks passed with bundles stored in a local cache. The screens through MetaMask and a real Pinata upload have not been run.
 
 ## Workflow Decisions
 

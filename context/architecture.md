@@ -149,7 +149,7 @@ All routes run on L4 and share the app's HTTPS origin.
 | Route | Purpose | Required guard |
 | ----- | ------- | -------------- |
 | `POST /api/rpc` | Same-origin proxy to Hardhat on `127.0.0.1:8545` | Allow only read methods and `eth_sendRawTransaction` |
-| `GET /api/contracts` | Return the public RecordAccess and ClaimSettlement addresses (D-047) | Same origin, read-only |
+| `GET /api/contracts` | Return the public RecordAccess, ClaimSettlement, and MockUSD addresses (D-047) | Same origin, read-only |
 | `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
 | `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder signature, single use |
@@ -261,6 +261,7 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-040 — Restrict `mint`, `setResponder`, `registerPolicy`, and `updateHospitalRoot` to one insurer wallet set at deployment, using `NotInsurer(address caller)`.** Reason: `abi.ts` had no authorization rule, and open calls would let anyone approve a fake hospital and drain the pool. Source: W05 plan, user-approved 2026-11-23.
 - **D-041 — Bind each wrapped record key with AAD `rado/wrap/v1 || recordId || reader`.** Reason: the docs did not specify this AAD, and binding it stops a wrapped key being moved to another record or reader without a shared type change. Source: W06 plan, user-approved 2026-11-23.
 - **D-042 — Keep the documented inbox request digest, which does not sign `recipient`, `messageId`, or acknowledged IDs.** Reason: changing it would change a documented crypto rule, and AES-GCM AAD still stops an altered message from being read as genuine. Accepted tradeoff: a party able to alter a request in transit, including L4, could misroute a send or change which messages are deleted, but could not read them. Source: W06 plan, user-approved 2026-11-23.
+- **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
 
 ## Code Standards
 
@@ -309,5 +310,6 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 | `DEMO_HOST_IP` | `allowedDevOrigins` in Next.js config | Server config |
 | `NEXT_PUBLIC_CHAIN_ID` | Wallet config | Public |
 | `RADO_ALLOW_PLACEHOLDER` | Local development deployment only | Development flag |
+| `RADO_E2E_DIR` | Set only by `scripts/check-e2e.mjs` for its own deployment, cache, and build folder | Test flag |
 
 **Dependencies:** check the package against `context/library-docs.md` and add it there before installing anything new.

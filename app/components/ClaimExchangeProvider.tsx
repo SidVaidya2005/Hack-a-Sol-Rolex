@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ExchangeEvent } from "../lib/claim-exchange";
 import { generateClaimProof, type ClaimProof } from "../lib/proof-client";
 import { plainRecordError } from "../lib/record-service";
+import type { SettlementReceipt } from "../lib/settlement";
 import { useRecordSession } from "./RecordSession";
 
 /*
@@ -24,9 +25,11 @@ export type IncomingClaim = {
 export type OutgoingClaim = {
   patient: Address;
   body: ClaimRequestBody;
-  status: "awaiting" | "approved" | "proving" | "proved" | "declined";
+  status: "awaiting" | "approved" | "proving" | "proved" | "submitting" | "settled" | "declined";
   approval: ClaimApprovalBody | null;
   proof: ClaimProof | null;
+  settlement: SettlementReceipt | null;
+  replayReason: string;
   error: string;
 };
 
@@ -45,6 +48,8 @@ type ExchangeValue = ExchangeData & {
   approveClaim: (encounterId: string) => Promise<void>;
   declineClaim: (encounterId: string) => Promise<void>;
   proveClaim: (encounterId: string) => Promise<void>;
+  submitClaim: (encounterId: string) => Promise<void>;
+  replayClaim: (encounterId: string) => Promise<void>;
 };
 
 const emptyData = (owner: Address | null): ExchangeData => ({
@@ -120,8 +125,10 @@ export function ClaimExchangeProvider({ children }: { children: ReactNode }) {
     const poll = () =>
       session.exchange
         .poll()
+        // A poll has already acknowledged these messages, so they must be applied even if this
+        // effect was re-run meanwhile. `update` still refuses data for a different wallet.
         .then((events) => {
-          if (active) update((current) => ({ ...applyEvents(current, events), offline: false }));
+          update((current) => ({ ...applyEvents(current, events), offline: false }));
         })
         .catch(() => {
           if (active) update((current) => ({ ...current, offline: true }));
@@ -152,7 +159,16 @@ export function ClaimExchangeProvider({ children }: { children: ReactNode }) {
       update((current) => ({
         ...current,
         outgoing: [
-          { patient, body, status: "awaiting", approval: null, proof: null, error: "" },
+          {
+            patient,
+            body,
+            status: "awaiting",
+            approval: null,
+            proof: null,
+            settlement: null,
+            replayReason: "",
+            error: "",
+          },
           ...current.outgoing,
         ],
       }));
@@ -218,9 +234,60 @@ export function ClaimExchangeProvider({ children }: { children: ReactNode }) {
     [changeOutgoing, data.outgoing, session],
   );
 
+  const submitClaim = useCallback(
+    async (encounterId: string) => {
+      const claim = data.outgoing.find(({ body }) => body.encounterId === encounterId);
+      if (!session || !claim?.proof || claim.status !== "proved") return;
+      changeOutgoing(encounterId, (item) => ({ ...item, status: "submitting", error: "" }));
+      try {
+        const settlement = await session.settlement.submit(claim.proof);
+        changeOutgoing(encounterId, (item) => ({ ...item, status: "settled", settlement }));
+      } catch (error) {
+        changeOutgoing(encounterId, (item) => ({
+          ...item,
+          status: "proved",
+          error: plainRecordError(error),
+        }));
+      }
+    },
+    [changeOutgoing, data.outgoing, session],
+  );
+
+  const replayClaim = useCallback(
+    async (encounterId: string) => {
+      const claim = data.outgoing.find(({ body }) => body.encounterId === encounterId);
+      if (!session || !claim?.proof || claim.status !== "settled") return;
+      try {
+        const replayReason = await session.settlement.replayReason(claim.proof);
+        changeOutgoing(encounterId, (item) => ({ ...item, replayReason, error: "" }));
+      } catch (error) {
+        changeOutgoing(encounterId, (item) => ({ ...item, error: plainRecordError(error) }));
+      }
+    },
+    [changeOutgoing, data.outgoing, session],
+  );
+
   const value = useMemo(
-    () => ({ ...data, requestClaim, resendRequest, approveClaim, declineClaim, proveClaim }),
-    [approveClaim, data, declineClaim, proveClaim, requestClaim, resendRequest],
+    () => ({
+      ...data,
+      requestClaim,
+      resendRequest,
+      approveClaim,
+      declineClaim,
+      proveClaim,
+      submitClaim,
+      replayClaim,
+    }),
+    [
+      approveClaim,
+      data,
+      declineClaim,
+      proveClaim,
+      replayClaim,
+      requestClaim,
+      resendRequest,
+      submitClaim,
+    ],
   );
 
   return <ClaimExchangeContext.Provider value={value}>{children}</ClaimExchangeContext.Provider>;

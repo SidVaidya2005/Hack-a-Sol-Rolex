@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
+    "e2e": "node scripts/check-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev:lan": "npm run dev:lan --workspace @rado/app"

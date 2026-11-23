@@ -19,6 +19,8 @@ const STATUS: Record<
   approved: { label: "Patient approved", tone: "info" },
   proving: { label: "Proving…", tone: "info" },
   proved: { label: "Proof verified", tone: "success" },
+  submitting: { label: "Submitting…", tone: "info" },
+  settled: { label: "Paid on-chain", tone: "success" },
   declined: { label: "Declined by patient", tone: "warning" },
 };
 
@@ -29,8 +31,16 @@ export function HospitalClaimPanel() {
 
 function HospitalClaimContent() {
   const { session } = useRecordSession();
-  const { outgoing, rejected, offline, requestClaim, resendRequest, proveClaim } =
-    useClaimExchange();
+  const {
+    outgoing,
+    rejected,
+    offline,
+    requestClaim,
+    resendRequest,
+    proveClaim,
+    submitClaim,
+    replayClaim,
+  } = useClaimExchange();
   const [wallets, setWallets] = useState<Address[]>([]);
   const [approved, setApproved] = useState<boolean | null>(null);
   const [patientChoice, setPatientChoice] = useState("");
@@ -80,7 +90,7 @@ function HospitalClaimContent() {
     <Panel
       className="mt-14"
       title="Private claim exchange"
-      description="Real encrypted request and browser proof. Submitting it for payout arrives in W11."
+      description="Real encrypted request, browser proof, and on-chain payout in demo tokens."
       action={
         session ? (
           <Badge tone={approved ? "success" : "warning"}>
@@ -174,55 +184,111 @@ function HospitalClaimContent() {
 
           {outgoing.length ? (
             <div className="mt-6 divide-y divide-rado-line border-t border-rado-line">
-              {outgoing.map(({ body, patient: claimPatient, status, proof, error }) => (
-                <div className="py-4" key={body.encounterId}>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-rado-ink">
-                        {procedureLabel(BigInt(body.procedureCode).toString())}
-                      </p>
-                      <p className="mt-0.5 text-xs text-rado-slate">
-                        {formatAmount(BigInt(body.claimAmount))} · Patient {shortId(claimPatient)}
-                      </p>
+              {outgoing.map(
+                ({
+                  body,
+                  patient: claimPatient,
+                  status,
+                  proof,
+                  settlement,
+                  replayReason,
+                  error,
+                }) => (
+                  <div className="py-4" key={body.encounterId}>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-rado-ink">
+                          {procedureLabel(BigInt(body.procedureCode).toString())}
+                        </p>
+                        <p className="mt-0.5 text-xs text-rado-slate">
+                          {formatAmount(BigInt(body.claimAmount))} · Patient {shortId(claimPatient)}
+                        </p>
+                      </div>
+                      <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>
+                      {status === "awaiting" ? (
+                        <button
+                          className="button-secondary disabled:opacity-50"
+                          disabled={Boolean(busy)}
+                          onClick={() =>
+                            void run(`resend-${body.encounterId}`, "Request sent again.", () =>
+                              resendRequest(body.encounterId),
+                            )
+                          }
+                          type="button"
+                        >
+                          Resend
+                        </button>
+                      ) : null}
+                      {status === "approved" ? (
+                        <button
+                          className="button-primary"
+                          onClick={() => void proveClaim(body.encounterId)}
+                          type="button"
+                        >
+                          Generate proof
+                        </button>
+                      ) : null}
+                      {status === "proved" ? (
+                        <>
+                          {error ? (
+                            <button
+                              className="button-secondary"
+                              onClick={() => void proveClaim(body.encounterId)}
+                              type="button"
+                            >
+                              Generate new proof
+                            </button>
+                          ) : null}
+                          <button
+                            className="button-primary"
+                            onClick={() => void submitClaim(body.encounterId)}
+                            type="button"
+                          >
+                            Submit claim
+                          </button>
+                        </>
+                      ) : null}
+                      {status === "settled" ? (
+                        <button
+                          className="button-secondary"
+                          onClick={() => void replayClaim(body.encounterId)}
+                          type="button"
+                        >
+                          Try replay
+                        </button>
+                      ) : null}
                     </div>
-                    <Badge tone={STATUS[status].tone}>{STATUS[status].label}</Badge>
-                    {status === "awaiting" ? (
-                      <button
-                        className="button-secondary disabled:opacity-50"
-                        disabled={Boolean(busy)}
-                        onClick={() =>
-                          void run(`resend-${body.encounterId}`, "Request sent again.", () =>
-                            resendRequest(body.encounterId),
-                          )
-                        }
-                        type="button"
-                      >
-                        Resend
-                      </button>
+                    {error ? (
+                      <p className="mt-2 text-sm text-rado-error" role="alert">
+                        {error}
+                      </p>
                     ) : null}
-                    {status === "approved" ? (
-                      <button
-                        className="button-primary"
-                        onClick={() => void proveClaim(body.encounterId)}
-                        type="button"
+                    {proof ? (
+                      <p className="status-success mt-3 rounded-lg border px-3 py-2 text-xs">
+                        Valid zero-knowledge proof generated in this browser in{" "}
+                        {(proof.provingMs / 1000).toFixed(1)} seconds.
+                        {settlement ? "" : " It has not been submitted."}
+                      </p>
+                    ) : null}
+                    {settlement ? (
+                      <p className="status-success mt-2 rounded-lg border px-3 py-2 text-xs">
+                        Paid {formatAmount(settlement.amount)} in block{" "}
+                        {settlement.blockNumber.toString()}. Hospital balance:{" "}
+                        {formatAmount(settlement.balanceBefore)} to{" "}
+                        {formatAmount(settlement.balanceAfter)}.
+                      </p>
+                    ) : null}
+                    {replayReason ? (
+                      <p
+                        className="status-error mt-2 rounded-lg border px-3 py-2 text-xs"
+                        role="alert"
                       >
-                        Generate proof
-                      </button>
+                        Replay rejected by the contract: {replayReason}
+                      </p>
                     ) : null}
                   </div>
-                  {error ? (
-                    <p className="mt-2 text-sm text-rado-error" role="alert">
-                      {error}
-                    </p>
-                  ) : null}
-                  {proof ? (
-                    <p className="status-success mt-3 rounded-lg border px-3 py-2 text-xs">
-                      Valid zero-knowledge proof generated in this browser in{" "}
-                      {(proof.provingMs / 1000).toFixed(1)} seconds. It has not been submitted.
-                    </p>
-                  ) : null}
-                </div>
-              ))}
+                ),
+              )}
             </div>
           ) : null}
         </>

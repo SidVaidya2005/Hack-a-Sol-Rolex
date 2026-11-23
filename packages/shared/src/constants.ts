@@ -24,6 +24,10 @@ export const CLAIM_DOMAIN =
 export const REQUEST_DOMAIN =
   21803472362330635487052715487197964905180888138510215017635477094303959125006n;
 
+/** keccak256("rado/decline/v1") reduced to the BN254 field. */
+export const DECLINE_DOMAIN =
+  14158258723870042571997720807997689132131560123942856922003217913510009770706n;
+
 /** The circuit must declare these first, in this order, and have no outputs. */
 export const PUBLIC_SIGNALS = [
   "claimAmount",

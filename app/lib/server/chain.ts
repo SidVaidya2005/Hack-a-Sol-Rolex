@@ -24,14 +24,14 @@ export function hardhatRpcUrl(): string {
 }
 
 /** Read on each call, so a fresh seed takes effect without restarting the app. */
-export async function recordAccessAddress(): Promise<Address> {
+async function deployedAddress(name: "recordAccess" | "claimSettlement"): Promise<Address> {
   const file = path.resolve(process.cwd(), "..", "contracts", "deployments", "localhost.json");
   let address: unknown;
   try {
     const deployment = JSON.parse(await readFile(file, "utf8")) as {
-      contracts?: { recordAccess?: unknown };
+      contracts?: Record<string, unknown>;
     };
-    address = deployment.contracts?.recordAccess;
+    address = deployment.contracts?.[name];
   } catch {
     throw new HttpError(503, "The contracts are not deployed yet.");
   }
@@ -40,6 +40,9 @@ export async function recordAccessAddress(): Promise<Address> {
   }
   return address;
 }
+
+export const recordAccessAddress = () => deployedAddress("recordAccess");
+export const claimSettlementAddress = () => deployedAddress("claimSettlement");
 
 async function readRecordAccess<T>(
   read: (client: ReturnType<typeof createPublicClient>, address: Address) => Promise<T>,

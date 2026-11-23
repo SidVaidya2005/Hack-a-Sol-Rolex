@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatAmount, getInsurerSampleData } from "../data/insurer-sample-data";
 import { usePublicClaim } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
+import { InsurerPolicyPanel } from "./InsurerPolicyPanel";
 import { Badge, Band, MetricCard, PageHeading, Panel } from "./ui";
 
 const sample = getInsurerSampleData();
@@ -72,7 +73,7 @@ export function InsurerScreen() {
         eyebrow="Insurer workspace"
         title="Coverage at a glance"
         description="Review policy funding and verified claim payouts from one clear view."
-        status="simulated"
+        status="policies-live"
         action={
           <button
             className="button-primary"
@@ -93,6 +94,7 @@ export function InsurerScreen() {
           {message}
         </p>
       ) : null}
+      <InsurerPolicyPanel />
       <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-2">
         <MetricCard
           label="Pool balance"

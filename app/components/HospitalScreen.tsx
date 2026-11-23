@@ -10,6 +10,7 @@ import { formatClaimDay } from "../data/public-signal-labels";
 import { AttackSimulator } from "./AttackSimulator";
 import { useClaimActions, useClaimState, usePrivateClaimDraft } from "./ClaimSimulationProvider";
 import { DoctorRecordsPanel } from "./DoctorRecordsPanel";
+import { HospitalClaimPanel } from "./HospitalClaimPanel";
 import { Icon } from "./icons";
 import { PrivacyLens } from "./PrivacyLens";
 import { ProofConsole } from "./ProofConsole";
@@ -292,6 +293,7 @@ export function HospitalScreen() {
           </p>
         </Band>
       </div>
+      <HospitalClaimPanel />
       <DoctorRecordsPanel />
       <PrivacyLens
         procedure={procedureLabel(draft.procedureCode)}

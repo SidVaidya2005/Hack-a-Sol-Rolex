@@ -1,4 +1,4 @@
-import { recordAccessAddress } from "@/lib/server/chain";
+import { claimSettlementAddress, recordAccessAddress } from "@/lib/server/chain";
 import { assertSameOrigin, handleRoute } from "@/lib/server/http";
 
 export const runtime = "nodejs";
@@ -8,7 +8,13 @@ export const dynamic = "force-dynamic";
 export function GET(request: Request): Promise<Response> {
   return handleRoute("contracts", async () => {
     assertSameOrigin(request);
-    const recordAccess = await recordAccessAddress();
-    return Response.json({ recordAccess }, { headers: { "cache-control": "no-store" } });
+    const [recordAccess, claimSettlement] = await Promise.all([
+      recordAccessAddress(),
+      claimSettlementAddress(),
+    ]);
+    return Response.json(
+      { recordAccess, claimSettlement },
+      { headers: { "cache-control": "no-store" } },
+    );
   });
 }

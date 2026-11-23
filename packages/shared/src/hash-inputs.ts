@@ -1,4 +1,4 @@
-import { CLAIM_DOMAIN, REQUEST_DOMAIN } from "./constants.ts";
+import { CLAIM_DOMAIN, DECLINE_DOMAIN, REQUEST_DOMAIN } from "./constants.ts";
 
 /** Each function returns Poseidon inputs in their required order. */
 
@@ -53,6 +53,10 @@ export function claimHashInputs(claim: {
     claim.claimDay,
     claim.payoutAddress,
   ];
+}
+
+export function declineHashInputs(encounterId: bigint): bigint[] {
+  return [DECLINE_DOMAIN, encounterId];
 }
 
 export function requestHashInputs(request: {

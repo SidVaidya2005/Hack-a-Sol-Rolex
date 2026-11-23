@@ -8,6 +8,7 @@ import {
 import type {
   ApprovedPolicyTerms,
   ClaimApprovalBody,
+  ClaimDeclineBody,
   ClaimRequestBody,
   EddsaPublicKey,
   EddsaSignature,
@@ -115,6 +116,12 @@ function assertClaimApproval(value: unknown): asserts value is ClaimApprovalBody
   assertSignature(body.patientSignature);
 }
 
+function assertClaimDecline(value: unknown): asserts value is ClaimDeclineBody {
+  const body = exact(value, ["encounterId", "patientSignature"]);
+  assertField(body.encounterId);
+  assertSignature(body.patientSignature);
+}
+
 /** Validates decrypted or outgoing data. Errors never echo message contents. */
 export function parseInboxPlaintext(value: unknown): InboxPlaintext {
   try {
@@ -122,6 +129,7 @@ export function parseInboxPlaintext(value: unknown): InboxPlaintext {
     if (message.type === "policy-terms") assertPolicyTerms(message.body);
     else if (message.type === "claim-request") assertClaimRequest(message.body);
     else if (message.type === "claim-approval") assertClaimApproval(message.body);
+    else if (message.type === "claim-decline") assertClaimDecline(message.body);
     else invalid();
     return message as unknown as InboxPlaintext;
   } catch {

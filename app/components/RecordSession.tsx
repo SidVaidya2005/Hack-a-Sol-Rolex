@@ -8,6 +8,7 @@ import type { Chain, PublicClient, Transport, WalletClient } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 
 import { radoChain } from "../app/wagmi";
+import { createClaimExchange, type ClaimExchange } from "../lib/claim-exchange";
 import {
   createRecordService,
   plainRecordError,
@@ -18,7 +19,12 @@ import { Icon } from "./icons";
 import { useWalletActions } from "./WalletConnection";
 
 /** Keys live only in this React state, so a reload or wallet change locks them (Invariant 5). */
-type Session = { address: Address; keys: UnlockedKeys; service: RecordService };
+type Session = {
+  address: Address;
+  keys: UnlockedKeys;
+  service: RecordService;
+  exchange: ClaimExchange;
+};
 
 type RecordSessionValue = {
   session: Session | null;
@@ -59,8 +65,11 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
     setError("");
     try {
       const response = await fetch("/api/contracts", { cache: "no-store" });
-      const body = (await response.json().catch(() => null)) as { recordAccess?: Address } | null;
-      if (!response.ok || !body?.recordAccess) {
+      const body = (await response.json().catch(() => null)) as {
+        recordAccess?: Address;
+        claimSettlement?: Address;
+      } | null;
+      if (!response.ok || !body?.recordAccess || !body.claimSettlement) {
         setError("The Rado contracts are not available yet.");
         return;
       }
@@ -70,13 +79,19 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
         ...unlockTypedData(address),
       });
       const keys = await deriveUnlockKeys(signature);
-      const service = createRecordService({
+      const clients = {
         publicClient: publicClient as unknown as PublicClient,
         walletClient: walletClient as unknown as WalletClient<Transport, Chain, RecordAccount>,
         recordAccess: body.recordAccess,
-      });
+      };
+      const service = createRecordService(clients);
       await service.ensureRegistered(keys, setUnlockPrompt);
-      setSession({ address, keys, service });
+      const exchange = createClaimExchange({
+        ...clients,
+        claimSettlement: body.claimSettlement,
+        keys,
+      });
+      setSession({ address, keys, service, exchange });
     } catch (caught) {
       setError(plainRecordError(caught));
     } finally {

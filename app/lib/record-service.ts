@@ -99,7 +99,9 @@ const REVERT_MESSAGES: Record<string, string> = {
   AccessNotActive: "This wallet does not have active access to this record.",
   InvalidExpiry: "Choose an expiry in the future.",
   KeysNotRegistered: "That wallet has not unlocked Rado yet.",
+  NotInsurer: "Only the insurer wallet can do this.",
   NotRecordPatient: "Only the patient can change access to this record.",
+  PolicyAlreadyRegistered: "This policy is already registered.",
   RecordAlreadyExists: "This record already exists. Try again.",
   UnknownRecord: "This record could not be found.",
 };

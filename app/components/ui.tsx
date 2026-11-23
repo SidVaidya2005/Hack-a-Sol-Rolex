@@ -9,11 +9,12 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 /** W10 and W11 change a screen's value here as its data becomes real. */
-export type DataMode = "simulated" | "records-live" | "live";
+export type DataMode = "simulated" | "records-live" | "policies-live" | "live";
 
 const DATA_MODE_LABELS: Record<DataMode, string> = {
   simulated: "Simulated",
-  "records-live": "Records live · Claim simulated",
+  "records-live": "Records and claim exchange live · Payout simulated",
+  "policies-live": "Policies live · Payouts simulated",
   live: "Live",
 };
 

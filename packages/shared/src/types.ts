@@ -65,11 +65,18 @@ export interface ClaimApprovalBody {
   patientSignature: EddsaSignature;
 }
 
+/** The patient's signed refusal of one claim request (D-052). */
+export interface ClaimDeclineBody {
+  encounterId: DecimalString;
+  patientSignature: EddsaSignature;
+}
+
 /** Encrypted before it leaves the browser. L4 never sees this shape. */
 export type InboxPlaintext =
   | { type: "policy-terms"; body: PolicyTerms }
   | { type: "claim-request"; body: ClaimRequestBody }
-  | { type: "claim-approval"; body: ClaimApprovalBody };
+  | { type: "claim-approval"; body: ClaimApprovalBody }
+  | { type: "claim-decline"; body: ClaimDeclineBody };
 
 /** The only inbox fields visible to L4. */
 export interface InboxEnvelope {

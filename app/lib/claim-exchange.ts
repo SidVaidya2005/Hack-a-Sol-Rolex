@@ -5,6 +5,7 @@ import {
   claimSettlementAbi,
   COVERED_TREE_DEPTH,
   coveredLeafInputs,
+  declineHashInputs,
   decryptInboxMessage,
   eddsaSign,
   EMPTY_LEAF,
@@ -71,6 +72,7 @@ export type ExchangeEvent =
   | { kind: "terms"; messageId: string; from: Address; terms: PolicyTerms; commitment: bigint }
   | { kind: "request"; messageId: string; hospital: Address; body: ClaimRequestBody }
   | { kind: "approval"; messageId: string; patient: Address; body: ClaimApprovalBody }
+  | { kind: "decline"; messageId: string; patient: Address; encounterId: string }
   | { kind: "rejected"; messageId: string; reason: string };
 
 function sameAddress(a: string, b: string): boolean {
@@ -191,7 +193,10 @@ export function createClaimExchange({
   const account = walletClient.account as JsonRpcAccount;
   const self = account.address;
   /** The hospital's own requests. Held in browser memory only (Invariant 6). */
-  const requests = new Map<string, { body: ClaimRequestBody; patient: Address }>();
+  const requests = new Map<
+    string,
+    { body: ClaimRequestBody; patient: Address; declined?: boolean }
+  >();
   const handled = new Set<string>();
   const unreadable = new Set<string>();
   let polling = false;
@@ -343,7 +348,27 @@ export function createClaimExchange({
             reason: "This approval did not come from the patient you asked.",
           };
         }
+        if (pending.declined) {
+          return {
+            kind: "rejected",
+            messageId,
+            reason: "The patient already declined this claim.",
+          };
+        }
         return { kind: "approval", messageId, patient: sender, body: message.body };
+      }
+      case "claim-decline": {
+        const encounterId = BigInt(message.body.encounterId).toString();
+        const pending = requests.get(encounterId);
+        if (!pending || !sameAddress(pending.patient, sender)) {
+          return {
+            kind: "rejected",
+            messageId,
+            reason: "This decline did not come from the patient you asked.",
+          };
+        }
+        pending.declined = true;
+        return { kind: "decline", messageId, patient: sender, encounterId };
       }
     }
   }
@@ -443,6 +468,7 @@ export function createClaimExchange({
     async resendRequest(encounterId: string): Promise<void> {
       const pending = requests.get(encounterId);
       if (!pending) throw new RecordError("This claim request is no longer available.");
+      if (pending.declined) throw new RecordError("The patient already declined this claim.");
       await send(pending.patient, { type: "claim-request", body: pending.body });
     },
 
@@ -491,10 +517,23 @@ export function createClaimExchange({
       });
     },
 
+    /** Patient. Tells the hospital, with a signature, that this claim was refused (D-052). */
+    async declineClaim(body: ClaimRequestBody, hospital: Address): Promise<void> {
+      const declineHash = await poseidonHash(declineHashInputs(BigInt(body.encounterId)));
+      await send(hospital, {
+        type: "claim-decline",
+        body: {
+          encounterId: body.encounterId,
+          patientSignature: await eddsaSign(keys.eddsaSeed, declineHash),
+        },
+      });
+    },
+
     /** Hospital. Signs the final claim and builds the witness, which stays in this browser. */
     async buildCircuitInput(approval: ClaimApprovalBody): Promise<ClaimCircuitInput> {
       const pending = requests.get(BigInt(approval.encounterId).toString());
       if (!pending) throw new RecordError("This approval does not match a claim you requested.");
+      if (pending.declined) throw new RecordError("The patient already declined this claim.");
       const { body } = pending;
       const { terms } = approval;
       const leaves = await approvedLeaves();

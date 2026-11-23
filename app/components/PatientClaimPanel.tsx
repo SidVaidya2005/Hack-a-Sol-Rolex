@@ -29,6 +29,19 @@ export function PatientClaimPanel() {
     }
   }
 
+  async function decline(encounterId: string) {
+    setBusy(`decline-${encounterId}`);
+    setMessage(null);
+    try {
+      await declineClaim(encounterId);
+      setMessage({ ok: true, text: "Your signed decline was sent to the hospital, encrypted." });
+    } catch (error) {
+      setMessage({ ok: false, text: plainRecordError(error) });
+    } finally {
+      setBusy("");
+    }
+  }
+
   return (
     <Panel
       title="Claim approvals"
@@ -106,10 +119,10 @@ export function PatientClaimPanel() {
                         <button
                           className="button-secondary"
                           disabled={Boolean(busy)}
-                          onClick={() => declineClaim(body.encounterId)}
+                          onClick={() => void decline(body.encounterId)}
                           type="button"
                         >
-                          Decline
+                          {busy === `decline-${body.encounterId}` ? "Sending…" : "Decline"}
                         </button>
                       </div>
                     ) : null}

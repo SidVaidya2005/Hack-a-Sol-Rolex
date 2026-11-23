@@ -24,7 +24,7 @@ export type IncomingClaim = {
 export type OutgoingClaim = {
   patient: Address;
   body: ClaimRequestBody;
-  status: "awaiting" | "approved" | "proving" | "proved";
+  status: "awaiting" | "approved" | "proving" | "proved" | "declined";
   approval: ClaimApprovalBody | null;
   proof: ClaimProof | null;
   error: string;
@@ -43,7 +43,7 @@ type ExchangeValue = ExchangeData & {
   requestClaim: (patient: Address, procedureCode: bigint, claimAmount: bigint) => Promise<void>;
   resendRequest: (encounterId: string) => Promise<void>;
   approveClaim: (encounterId: string) => Promise<void>;
-  declineClaim: (encounterId: string) => void;
+  declineClaim: (encounterId: string) => Promise<void>;
   proveClaim: (encounterId: string) => Promise<void>;
 };
 
@@ -78,6 +78,16 @@ function applyEvents(data: ExchangeData, events: ExchangeEvent[]): ExchangeData 
         outgoing: next.outgoing.map((claim) =>
           claim.body.encounterId === id && claim.status === "awaiting"
             ? { ...claim, status: "approved", approval: event.body }
+            : claim,
+        ),
+      };
+    } else if (event.kind === "decline") {
+      next = {
+        ...next,
+        outgoing: next.outgoing.map((claim) =>
+          claim.body.encounterId === event.encounterId &&
+          (claim.status === "awaiting" || claim.status === "approved")
+            ? { ...claim, status: "declined", approval: null }
             : claim,
         ),
       };
@@ -173,14 +183,18 @@ export function ClaimExchangeProvider({ children }: { children: ReactNode }) {
   );
 
   const declineClaim = useCallback(
-    (encounterId: string) =>
+    async (encounterId: string) => {
+      const claim = data.incoming.find(({ body }) => body.encounterId === encounterId);
+      if (!session || !claim) return;
+      await session.exchange.declineClaim(claim.body, claim.hospital);
       update((current) => ({
         ...current,
         incoming: current.incoming.map((item) =>
           item.body.encounterId === encounterId ? { ...item, status: "declined" } : item,
         ),
-      })),
-    [update],
+      }));
+    },
+    [data.incoming, session, update],
   );
 
   const proveClaim = useCallback(

@@ -116,7 +116,7 @@ patient EdDSA signature over claimHash is valid
 
 - Exact signal names, hash input orders, domain tags, and a computed valid claim are in `packages/shared`.
 - Merkle nodes are `Poseidon(left, right)`, empty leaves are `0`, and path index `0` means the current node is the left child.
-- `CLAIM_DOMAIN` and `REQUEST_DOMAIN` are keccak256 of `rado/claim/v1` and `rado/request/v1`, reduced to the BN254 field.
+- `CLAIM_DOMAIN`, `REQUEST_DOMAIN`, and `DECLINE_DOMAIN` are keccak256 of `rado/claim/v1`, `rado/request/v1`, and `rado/decline/v1`, reduced to the BN254 field.
 - JSON carries field values and amounts as decimal strings and bytes as base64.
 - `claimDay` and `expiryDay` are whole days since the Unix epoch, range-checked to 32 bits. Clients take `claimDay` from the latest block's UTC day, not the laptop clock (D-033).
 - `claimAmount` and `perClaimLimit` are mUSD base units with 6 decimals, range-checked to 64 bits.
@@ -169,6 +169,7 @@ The inbox carries policy and claim messages between laptops. L4 stores and forwa
 2. **Hospital → Patient, `claim-request`:** `encounterId`, `procedureCode`, `claimAmount`, `claimDay`, `payoutAddress`, the hospital public key and Merkle path, and a hospital EdDSA signature over `requestHash = Poseidon(REQUEST_DOMAIN, encounterId, procedureCode, claimAmount, claimDay, payoutAddress)`.
 3. **Patient → Hospital, `claim-approval`:** the policy terms without the coverage list, the Merkle path for this one procedure (D-032), and the patient's EdDSA signature over `claimHash`.
 4. **Hospital:** verifies the approval, signs `claimHash`, and generates the proof. The hospital signs twice because `claimHash` needs the policy commitment, which it learns from the approval.
+5. **Patient → Hospital, `claim-decline` (instead of step 3):** `encounterId` and the patient's EdDSA signature over `declineHash = Poseidon(DECLINE_DOMAIN, encounterId)` (D-052).
 
 **Envelope visible to L4:** `messageId`, `sender`, `recipient`, `createdAt`, `ephemeralPublicKey`, `iv`, `ciphertext`. `messageId` is 32 lowercase hex characters.
 
@@ -179,6 +180,7 @@ The inbox carries policy and claim messages between laptops. L4 stores and forwa
 - `policy-terms` must hash to a registered policy commitment and name the recipient's registered patient key.
 - `claim-request` must have a valid hospital signature over the recomputed `requestHash`, and the hospital key must be in the current approved root.
 - `claim-approval` must have terms that hash to a registered policy commitment and a valid signature from that policy's patient key over the recomputed `claimHash`.
+- `claim-decline` must match the hospital's own request and have a valid signature from the sender's registered key, and the sender must be the patient that request was sent to.
 
 **Request authentication:** clients sign inbox requests with their derived EdDSA key, so polling causes no MetaMask popups. Each request includes the action, wallet, single-use nonce, an expiry at most 60 seconds ahead, and the ciphertext hash when sending. The signed digest is keccak256 of those fields with the tag `rado/inbox-auth/v1`, reduced to the BN254 field. L4 verifies it against the key registered on-chain. The digest does not cover `recipient`, `messageId`, or acknowledged IDs (D-042).
 
@@ -258,6 +260,7 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
 - **D-040 — Restrict `mint`, `setResponder`, `registerPolicy`, and `updateHospitalRoot` to one insurer wallet set at deployment, using `NotInsurer(address caller)`.** Reason: `abi.ts` had no authorization rule, and open calls would let anyone approve a fake hospital and drain the pool. Source: W05 plan, user-approved 2026-11-23.
 - **D-041 — Bind each wrapped record key with AAD `rado/wrap/v1 || recordId || reader`.** Reason: the docs did not specify this AAD, and binding it stops a wrapped key being moved to another record or reader without a shared type change. Source: W06 plan, user-approved 2026-11-23.
+- **D-042 — Keep the documented inbox request digest, which does not sign `recipient`, `messageId`, or acknowledged IDs.** Reason: changing it would change a documented crypto rule, and AES-GCM AAD still stops an altered message from being read as genuine. Accepted tradeoff: a party able to alter a request in transit, including L4, could misroute a send or change which messages are deleted, but could not read them. Source: W06 plan, user-approved 2026-11-23.
 
 ## Code Standards
 

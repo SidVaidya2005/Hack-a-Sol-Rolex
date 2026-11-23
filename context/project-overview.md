@@ -33,6 +33,7 @@ Today, hospitals often have to show insurers diagnoses, prescriptions, and treat
 
 - **Patient** — view records, grant or revoke doctor access, approve a specific claim, read the audit timeline.
 - **Hospital** — doctor record view, create a claim, generate the proof in the browser, submit it.
+- **Lab & Pharmacy** — read only the limited copy a patient shared with that simulated provider (W15).
 - **Emergency Responder** — invoke break-glass and read only the patient's emergency summary.
 - **Insurer** — issue policies, fund the payout pool, see verified claims and payouts with no medical data.
 - **Public Chain View** — shows exactly what an outsider can read on-chain, on the host laptop's screen.
@@ -132,6 +133,8 @@ Mention these clearly in both the pitch and the threat model.
 - Anyone reading the chain can see which patient wallet granted access to which doctor wallet, and when.
 - Public encrypted bundles list their readers' wallet addresses.
 - Old bundles stay on IPFS after a key rotation, so a revoked doctor can still open the old version with their old key.
+- Anyone with the off-chain provider directory can match public grants to a provider type, such as learning that a patient shared something with a pharmacy, but not what was shared (D-059).
+- A pharmacy may infer a condition from a prescription, because field filtering cannot hide what a medicine implies (D-058).
 
 ## Product Decisions
 

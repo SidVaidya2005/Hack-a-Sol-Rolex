@@ -29,6 +29,7 @@
 
 - **Host setup:** after a fresh clone, run `node scripts/generate-escrow-key.mjs` once on the host, then restart the app.
 - **Before the first W14 rehearsal:** restart the Hardhat node, run the seed, register keys again, approve the hospital, register the policy, add the emergency summary again, and run break-glass once through MetaMask with real Pinata. A chain deployed before PR #31 still lets the insurer appoint responders.
+- **W15 on `w15/cross-sharing`:** built and passing automated checks. It still needs a reseed and one MetaMask run with real Pinata before it can be ticked.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -47,9 +48,12 @@
 - [x] W12 Break-glass
 - [x] W13 Threat model and architecture diagram
 - [ ] W14 Rehearsal, backup video, and pitch
+- [ ] W15 Lab and pharmacy sharing
 
 ## Key Decisions
 
+- **D-059 — Keep the provider directory off-chain, built from the seed's deployment file and served by `GET /api/providers`.** Reason: an on-chain label such as a lab or pharmacy would turn public grants into medical hints. Accepted tradeoff: anyone with the directory can still match a public grant to a provider type, but not to its contents. Source: W15 plan, user-approved 2026-11-23.
+- **D-058 — Share with labs and pharmacies through separate limited-copy records rebuilt from a field allowlist, and leave the contracts and circuit unchanged.** Reason: one record holds the diagnosis, medication, and procedure together, so a normal grant would show a pharmacy the diagnosis. Accepted tradeoff: a first share takes four wallet confirmations because it reuses the tested add and grant paths, and providers are read-only in this version. Source: W15 plan, user-approved 2026-11-23.
 - **D-057 — Make the first wallet to pin a record ID its owner, and release an emergency summary only when that wallet is the on-chain patient.** Reason: `anchorRecord` is open, so a responder could otherwise anchor a pinned summary first and use break-glass with no event against the real patient. Keying on the record ID also stops a copied escrow key being pinned in another bundle. Accepted tradeoff: L4 holds owner markers, and a summary pinned before this change must be added again. Source: W13 code review, user-approved 2026-11-23.
 - **D-056 — Give `RecordAccess.setResponder` to a separate responder-admin wallet set at deployment, using `NotResponderAdmin(address caller)`, and use a throwaway seed key that is never saved.** Reason: an insurer that controls the responder list could appoint itself and read emergency summaries, and a saved key would sit in the wallet file operators import from. Accepted tradeoff: this changes a shared ABI error, requires a reseed, and adding a responder later needs another reseed. Source: W13 threat review and code review, user-approved 2026-11-23.
 - **D-055 — Store the emergency summary as a separate record wrapped to escrow, and release it once per on-chain break-glass event after a MetaMask `RadoEscrowRelease` signature.** Reason: the chain must not label record types, so an escrow-wrapped key is what separates a summary from a full record, and a per-event marker on disk keeps release single-use across restarts while each new access adds a timeline entry. Accepted tradeoff: a bundle's escrow reader reveals that it is a summary, though not its contents. Source: W12 plan, user-approved 2026-11-23.
@@ -58,8 +62,6 @@
 - **D-052 — Add a signed, encrypted `claim-decline` inbox message from the patient to the hospital.** Reason: without it, the Hospital keeps showing Awaiting patient after a decline. The signature stops anyone else from cancelling a claim. Accepted tradeoff: this adds one shared message type, so affected owners must be told. Source: W10 two-laptop test, user-approved 2026-11-23.
 - **D-051 — Test W10 with the Insurer in a separate Chrome profile on the host, but leave W10 unticked until a real third laptop runs it.** Reason: the team has two laptops now, and W10's Verify names separate Insurer, Patient, and Hospital laptops. Source: W10 plan, user-approved 2026-11-23.
 - **D-050 — Include minimal approve-hospital and register-policy actions on the Insurer screen in W10.** Reason: policy delivery cannot work until a hospital is approved and a policy is registered, and those actions are needed in the demo. Source: W10 plan, user-approved 2026-11-23.
-- **D-049 — Derive each policy salt from the Insurer's unlocked EdDSA seed and the patient wallet with keccak256 and the tag `rado/policy-salt/v1`.** Reason: private terms cannot be stored in readable form, and this lets the Insurer rebuild and resend them after a refresh. Accepted tradeoff: each patient has one demo policy per insurer key. Source: W10 plan, user-approved 2026-11-23.
-- **D-048 — Let patients choose a doctor from wallets registered on-chain.** Reason: this avoids copying addresses between laptops during the demo. Accepted tradeoff: the list shows short addresses without names, so the patient must confirm the right wallet. Source: W09 plan, user-approved 2026-11-23.
 ## Open Questions
 
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.

@@ -49,6 +49,7 @@
 
 ## Key Decisions
 
+- **D-052 — Add a signed, encrypted `claim-decline` inbox message from the patient to the hospital.** Reason: without it, the Hospital keeps showing Awaiting patient after a decline. The signature stops anyone else from cancelling a claim. Accepted tradeoff: this adds one shared message type, so affected owners must be told. Source: W10 two-laptop test, user-approved 2026-11-23.
 - **D-051 — Test W10 with the Insurer in a separate Chrome profile on the host, but leave W10 unticked until a real third laptop runs it.** Reason: the team has two laptops now, and W10's Verify names separate Insurer, Patient, and Hospital laptops. Source: W10 plan, user-approved 2026-11-23.
 - **D-050 — Include minimal approve-hospital and register-policy actions on the Insurer screen in W10.** Reason: policy delivery cannot work until a hospital is approved and a policy is registered, and those actions are needed in the demo. Source: W10 plan, user-approved 2026-11-23.
 - **D-049 — Derive each policy salt from the Insurer's unlocked EdDSA seed and the patient wallet with keccak256 and the tag `rado/policy-salt/v1`.** Reason: private terms cannot be stored in readable form, and this lets the Insurer rebuild and resend them after a refresh. Accepted tradeoff: each patient has one demo policy per insurer key. Source: W10 plan, user-approved 2026-11-23.
@@ -58,7 +59,6 @@
 - **D-045 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
 - **D-044 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
 - **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
-- **D-042 — Keep the documented inbox request digest, which does not sign `recipient`, `messageId`, or acknowledged IDs.** Reason: changing it would change a documented crypto rule, and AES-GCM AAD still stops an altered message from being read as genuine. Accepted tradeoff: a party able to alter a request in transit, including L4, could misroute a send or change which messages are deleted, but could not read them. Source: W06 plan, user-approved 2026-11-23.
 
 ## Open Questions
 

@@ -2,6 +2,7 @@ import { COVERED_TREE_DEPTH } from "../constants.ts";
 import {
   claimHashInputs,
   coveredLeafInputs,
+  declineHashInputs,
   hospitalLeafInputs,
   policyCommitmentInputs,
   requestHashInputs,
@@ -9,6 +10,7 @@ import {
 import type {
   ApprovedPolicyTerms,
   ClaimApprovalBody,
+  ClaimDeclineBody,
   ClaimRequestBody,
   EddsaPublicKey,
   InboxPlaintext,
@@ -136,6 +138,23 @@ export async function checkClaimApproval(
   return pass;
 }
 
+export async function checkClaimDecline(
+  body: ClaimDeclineBody,
+  context: Pick<SenderCheckContext, "senderEddsaKey" | "findClaimRequest">,
+): Promise<SenderCheckResult> {
+  const encounterId = BigInt(body.encounterId);
+  const request = await context.findClaimRequest(encounterId);
+  if (!request || BigInt(request.encounterId) !== encounterId) {
+    return fail("This decline does not match a claim you requested.");
+  }
+  if (!context.senderEddsaKey) return fail("This decline came from an unregistered wallet.");
+  const declineHash = await poseidonHash(declineHashInputs(encounterId));
+  if (!(await eddsaVerify(declineHash, body.patientSignature, context.senderEddsaKey))) {
+    return fail("The patient signature on this decline is not valid.");
+  }
+  return pass;
+}
+
 /** Run this before showing or acting on any decrypted message (Invariant 22). */
 export function checkInboxMessage(
   message: InboxPlaintext,
@@ -148,5 +167,7 @@ export function checkInboxMessage(
       return checkClaimRequest(message.body, context);
     case "claim-approval":
       return checkClaimApproval(message.body, context);
+    case "claim-decline":
+      return checkClaimDecline(message.body, context);
   }
 }

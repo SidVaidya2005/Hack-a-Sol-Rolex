@@ -87,7 +87,7 @@ async function main() {
     const config = { publicClient, walletClient, recordAccess, baseUrl: base };
     await createRecordService(config).ensureRegistered(keys);
     const exchange = createClaimExchange({ ...config, claimSettlement, keys });
-    return { address: account.address, keys, exchange };
+    return { address: account.address, keys, exchange, walletClient };
   }
 
   const insurer = await newUser(walletKeys.RADO_DEMO_INSURER_KEY);
@@ -294,6 +294,52 @@ async function main() {
       patientSignature: await eddsaSign(stranger.keys.eddsaSeed, 9n),
     }),
   );
+
+  // Declines
+  const declined = await hospital.exchange.requestClaim({
+    patient: patient.address,
+    procedureCode: 1001n,
+    claimAmount: 2_000_000n,
+  });
+  const declinedIncoming = (await patient.exchange.poll()).find(
+    (event) => event.kind === "request" && event.body.encounterId === declined.encounterId,
+  );
+  report("The patient receives the request to decline", Boolean(declinedIncoming));
+  await deliver(stranger, hospital, {
+    type: "claim-decline",
+    body: {
+      encounterId: declined.encounterId,
+      patientSignature: await eddsaSign(randomBytes(32), 5n),
+    },
+  });
+  report("A forged decline signature is rejected", (await rejectedBy(hospital)).length === 1);
+  const strangerDecline = createClaimExchange({
+    publicClient,
+    walletClient: stranger.walletClient,
+    recordAccess,
+    claimSettlement,
+    keys: stranger.keys,
+    baseUrl: base,
+  });
+  await strangerDecline.declineClaim(declined, hospital.address);
+  report(
+    "A validly signed decline from another wallet is rejected",
+    (await rejectedBy(hospital)).length === 1,
+  );
+  await patient.exchange.declineClaim(declined, hospital.address);
+  const declineEvents = await hospital.exchange.poll();
+  report(
+    "The hospital receives the patient's signed decline",
+    declineEvents.some(
+      (event) => event.kind === "decline" && event.encounterId === declined.encounterId,
+    ),
+  );
+  report(
+    "A declined request cannot be resent",
+    await refused(() => hospital.exchange.resendRequest(declined.encounterId)),
+  );
+  await patient.exchange.approveClaim(declined, hospital.address, terms);
+  report("An approval after a decline is rejected", (await rejectedBy(hospital)).length === 1);
 
   // Real approval and proof
   await patient.exchange.approveClaim(incoming.body, hospital.address, terms);

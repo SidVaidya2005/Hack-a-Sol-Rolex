@@ -47,6 +47,8 @@ import {
   utf8Decode,
   utf8Encode,
   verifyInboxRequest,
+  checkClaimDecline,
+  declineHashInputs,
 } from "../src/index.ts";
 import type {
   Address,
@@ -800,6 +802,47 @@ describe("sender checks", () => {
       pathElements[0] = "1";
       const forged = { ...claimApproval, coveredPath: { ...coveredPath, pathElements } };
       expectFail(await checkClaimApproval(forged, approvalContext), /not covered/);
+    });
+  });
+
+  describe("claim-decline", () => {
+    const declineSeed = new Uint8Array(32).fill(41);
+    const sign = async (seed: Uint8Array, encounterId = claimRequest.encounterId) =>
+      eddsaSign(seed, await poseidonHash(declineHashInputs(BigInt(encounterId))));
+    const declineContext = async () => ({
+      senderEddsaKey: await eddsaPublicKey(declineSeed),
+      findClaimRequest: (encounterId: bigint) =>
+        encounterId === BigInt(claimRequest.encounterId) ? claimRequest : null,
+    });
+
+    it("accepts a decline signed by the sender's registered key", async () => {
+      const body = {
+        encounterId: claimRequest.encounterId,
+        patientSignature: await sign(declineSeed),
+      };
+      assert.deepEqual(await checkClaimDecline(body, await declineContext()), { ok: true });
+    });
+
+    it("rejects a decline signed by another key", async () => {
+      const body = {
+        encounterId: claimRequest.encounterId,
+        patientSignature: await sign(ATTACKER_SEED),
+      };
+      expectFail(await checkClaimDecline(body, await declineContext()), /signature/);
+    });
+
+    it("rejects a signature moved to another claim", async () => {
+      const body = { encounterId: "123", patientSignature: await sign(declineSeed) };
+      const context = {
+        ...(await declineContext()),
+        findClaimRequest: () => ({ ...claimRequest, encounterId: "123" }),
+      };
+      expectFail(await checkClaimDecline(body, context), /signature/);
+    });
+
+    it("rejects a decline for a claim the hospital never requested", async () => {
+      const body = { encounterId: "999", patientSignature: await sign(declineSeed, "999") };
+      expectFail(await checkClaimDecline(body, await declineContext()), /does not match/);
     });
   });
 

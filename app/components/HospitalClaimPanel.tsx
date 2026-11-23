@@ -19,6 +19,7 @@ const STATUS: Record<
   approved: { label: "Patient approved", tone: "info" },
   proving: { label: "Proving…", tone: "info" },
   proved: { label: "Proof verified", tone: "success" },
+  declined: { label: "Declined by patient", tone: "warning" },
 };
 
 export function HospitalClaimPanel() {

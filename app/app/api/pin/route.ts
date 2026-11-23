@@ -1,4 +1,4 @@
-import { base64ToBytes, hashBundleBytes } from "@rado/shared";
+import { base64ToBytes, hashBundleBytes, parseBundle } from "@rado/shared";
 import type { Address, Hex32 } from "@rado/shared";
 import { isAddress, isHex, verifyTypedData } from "viem";
 
@@ -6,7 +6,7 @@ import { MAX_BUNDLE_BYTES, PIN_AUTH_MAX_TTL_SECONDS, pinTypedData } from "@/lib/
 import { registeredEddsaKey } from "@/lib/server/chain";
 import { consumeNonce } from "@/lib/server/file-store";
 import { asObject, handleRoute, HttpError, readJsonBody } from "@/lib/server/http";
-import { assertEncryptedBundle, pinBundle } from "@/lib/server/records";
+import { assertEncryptedBundle, claimRecordOwner, pinBundle } from "@/lib/server/records";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ const MAX_BODY_BYTES = Math.ceil((MAX_BUNDLE_BYTES * 4) / 3) + 4096;
 const NONCE_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 const SIGNATURE_PATTERN = /^0x[0-9a-fA-F]{130}$/;
 
-async function assertSigned(rawAuth: unknown, bundleHash: Hex32): Promise<void> {
+async function assertSigned(rawAuth: unknown, bundleHash: Hex32): Promise<Address> {
   const auth = asObject(rawAuth);
   const { wallet, nonce, expiresAt, signature } = auth;
   if (
@@ -59,6 +59,7 @@ async function assertSigned(rawAuth: unknown, bundleHash: Hex32): Promise<void> 
   if (!(await consumeNonce(nonce, expiry))) {
     throw new HttpError(401, "This request was already used.");
   }
+  return address;
 }
 
 export function POST(request: Request): Promise<Response> {
@@ -77,7 +78,9 @@ export function POST(request: Request): Promise<Response> {
     assertEncryptedBundle(bytes);
 
     const bundleHash = hashBundleBytes(bytes);
-    await assertSigned(body.auth, bundleHash);
+    const wallet = await assertSigned(body.auth, bundleHash);
+    // Claimed before upload, so the bundle is never public without a recorded owner.
+    await claimRecordOwner(parseBundle(bytes).recordId, wallet);
     const cid = await pinBundle(bytes);
     return Response.json({ cid, bundleHash });
   });

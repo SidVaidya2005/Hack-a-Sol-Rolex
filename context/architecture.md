@@ -150,10 +150,10 @@ All routes run on L4 and share the app's HTTPS origin.
 | ----- | ------- | -------------- |
 | `POST /api/rpc` | Same-origin proxy to Hardhat on `127.0.0.1:8545` | Allow only read methods and `eth_sendRawTransaction` |
 | `GET /api/contracts` | Return the public RecordAccess, ClaimSettlement, and MockUSD addresses (D-047) | Same origin, read-only |
-| `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check |
+| `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check, first signer owns the record ID |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
 | `GET /api/escrow/release` | Return the escrow public key for wrapping a summary | Same origin, read-only |
-| `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder's `RadoEscrowRelease` signature, escrow-wrapped record, single use per event across restarts (D-055) |
+| `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder's `RadoEscrowRelease` signature, escrow-wrapped record whose ID matches the event and whose first pin signer is the on-chain patient, single use per event across restarts (D-055) |
 | `POST /api/inbox` | Store one encrypted message | Registered sender and recipient, fresh request signature, size and pending limits |
 | `POST /api/inbox/list` | Return the caller's pending messages | Fresh recipient request signature |
 | `POST /api/inbox/ack` | Delete messages after successful decryption | Fresh recipient request signature |

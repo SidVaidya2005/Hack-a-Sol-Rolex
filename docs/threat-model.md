@@ -1,6 +1,6 @@
 # Rado Threat Model
 
-This page describes the system as built on the `w13/threat-model` branch. The diagram is [`threat-model.drawio`](threat-model.drawio): page 1 shows the architecture and data, and page 2 shows attacks and limitations.
+This page describes the system as built on `main`. The diagram is [`threat-model.drawio`](threat-model.drawio): page 1 shows the architecture and data, and page 2 shows attacks and limitations.
 
 Rado is a hackathon prototype. It uses synthetic patient data, mock tokens, a local chain, and demo-grade keys. It is not suitable for real patient data, real claims, or real funds.
 
@@ -60,8 +60,8 @@ Rado is a hackathon prototype. It uses synthetic patient data, mock tokens, a lo
 | A19 | Path traversal through a CID or message ID | Strict format checks before file access | `check-server-routes` |
 | A20 | Escrow release with no event, wrong wallet, or repeat | On-chain event, responder signature, single-use marker | E2E |
 | A21 | Escrow release of a full record | Only a bundle wrapped to escrow can be released | E2E |
-| A22 | Pointing a new record at another patient's summary, or anchoring a pinned summary first, to avoid the audit log | Escrow requires the bundle's record to match the event and its first pin signer to be the on-chain patient (D-057) | E2E. Fix must merge first |
-| A23 | Insurer appoints itself as a responder to read a summary | `setResponder` accepts only a separate responder-admin wallet (D-056) | Contract tests, E2E. Fix must merge first |
+| A22 | Pointing a new record at another patient's summary, or anchoring a pinned summary first, to avoid the audit log | Escrow requires the bundle's record to match the event and its first pin signer to be the on-chain patient (D-057) | E2E |
+| A23 | Insurer appoints itself as a responder to read a summary | `setResponder` accepts only a separate responder-admin wallet (D-056) | Contract tests, E2E |
 
 ## Known Limitations
 

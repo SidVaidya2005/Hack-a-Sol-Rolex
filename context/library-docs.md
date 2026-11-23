@@ -112,7 +112,7 @@ const callData = await groth16.exportSolidityCallData(proof, publicSignals);
 
 **Rules:** snarkjs returns public signals in declaration order and Circom outputs are public, so declare the six public inputs first, use no outputs, and assert the `publicSignals` order in a test. Only the T1 laptop needs the Circom compiler if the final `.wasm`, `.zkey`, and verifier are shared through the repo.
 
-TODO: verify snarkjs browser bundling under Next.js Turbopack in W10. If it fails, test `next dev --webpack`.
+**W10 result (2026-11-23):** snarkjs 0.7.6 bundles and proves in a module web worker under Next.js Turbopack, in both `next dev` and the production build, so `--webpack` is not needed. The worker passes the checked `.wasm` and `.zkey` bytes directly to `groth16.fullProve`.
 
 **Powers of Tau size:** power 15 (32,768), chosen from `Claim(8, 6)`'s 27,352 constraints. `circuits/scripts/trusted-setup.mjs` computes the power from the compiled circuit, so a circuit change cannot silently outgrow it.
 

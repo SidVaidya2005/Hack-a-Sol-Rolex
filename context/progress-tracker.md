@@ -22,7 +22,7 @@
 
 ## Current Status
 
-**Last completed:** W15 Lab and pharmacy sharing
+**Last completed:** W16 Patient document upload
 **Next:** W14 Rehearsal, backup video, and pitch
 
 **Left to do now:**
@@ -30,7 +30,6 @@
 - **Host setup:** after a fresh clone, run `node scripts/generate-escrow-key.mjs` once on the host, then restart the app.
 - **Before the first W14 rehearsal:** restart the Hardhat node, run the seed, register keys again, approve the hospital, register the policy, add the emergency summary again, and run break-glass once through MetaMask with real Pinata. A chain deployed before PR #31 still lets the insurer appoint responders.
 - **After W15 merges:** every host must reseed so the lab and pharmacy wallets exist. Until then, those wallets appear as Unlisted and a share gives them the full record.
-- **W16 on `w16/document-upload`:** built and passing automated and browser-viewer checks. It needs one MetaMask run with real Pinata before it can be ticked.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -50,7 +49,7 @@
 - [x] W13 Threat model and architecture diagram
 - [ ] W14 Rehearsal, backup video, and pitch
 - [x] W15 Lab and pharmacy sharing
-- [ ] W16 Patient document upload
+- [x] W16 Patient document upload
 
 ## Key Decisions
 

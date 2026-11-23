@@ -8,13 +8,37 @@ import { PinataSDK } from "pinata";
 
 import { MAX_BUNDLE_BYTES } from "../pin-auth";
 import { anchoredRecord } from "./chain";
-import { cacheRoot, readFileIfPresent, writeFileAtomic } from "./file-store";
+import { cacheRoot, readFileIfPresent, withLock, writeFileAtomic } from "./file-store";
 import { HttpError } from "./http";
 
 const CID_PATTERN = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{58,100})$/;
 const GATEWAY_HOST = /^[a-z0-9.-]+(:[0-9]+)?$/i;
 const GATEWAY_TIMEOUT_MS = 8_000;
 const recordsDirectory = path.join(cacheRoot, "records");
+const ownersDirectory = path.join(cacheRoot, "record-owners");
+const RECORD_ID_PATTERN = /^0x[0-9a-f]{64}$/;
+
+function ownerFile(recordId: string): string {
+  const id = recordId.toLowerCase();
+  if (!RECORD_ID_PATTERN.test(id)) throw new HttpError(400, "This record ID is not valid.");
+  return path.join(ownersDirectory, id.slice(2));
+}
+
+/** The first wallet to pin a record ID owns it, so a pinned bundle cannot be anchored by another. */
+export function claimRecordOwner(recordId: string, wallet: string): Promise<void> {
+  return withLock("record-owners", async () => {
+    const file = ownerFile(recordId);
+    const owner = (await readFileIfPresent(file))?.toString();
+    if (owner === undefined) await writeFileAtomic(file, wallet.toLowerCase());
+    else if (owner !== wallet.toLowerCase()) {
+      throw new HttpError(403, "This record belongs to another wallet.");
+    }
+  });
+}
+
+export async function recordOwner(recordId: string): Promise<string | null> {
+  return (await readFileIfPresent(ownerFile(recordId)))?.toString() ?? null;
+}
 
 export function assertCid(cid: string): void {
   if (!CID_PATTERN.test(cid)) throw new HttpError(400, "This record ID is not valid.");

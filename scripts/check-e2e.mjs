@@ -24,6 +24,7 @@ import { groth16 } from "snarkjs";
 import {
   createPublicClient,
   createWalletClient,
+  hexToBytes,
   http,
   parseAbi,
   parseEther,
@@ -38,6 +39,7 @@ import {
   decryptRecord,
   eddsaPublicKey,
   encodeBundle,
+  encryptRecord,
   hashBundleBytes,
   mockUsdAbi,
   PUBLIC_SIGNALS,
@@ -48,7 +50,8 @@ import {
   utf8Encode,
 } from "../packages/shared/src/index.ts";
 import { createClaimExchange } from "../app/lib/claim-exchange.ts";
-import { escrowReleaseTypedData } from "../app/lib/escrow-auth.ts";
+import { escrowReaderAddress, escrowReleaseTypedData } from "../app/lib/escrow-auth.ts";
+import { pinTypedData } from "../app/lib/pin-auth.ts";
 import {
   createRecordService,
   describeEmergencySummary,
@@ -285,12 +288,15 @@ async function main() {
 
   // Writes straight to this run's cache, so the test never uploads to Pinata.
   const recordsDir = join(workDir, "cache", "records");
-  const storeBundle = async (bundle) => {
+  const ownersDir = join(workDir, "cache", "record-owners");
+  const storeBundle = async (bundle, owner) => {
     const bytes = encodeBundle(bundle);
     const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     const cid = `Qm${Array.from(randomBytes(44), (byte) => alphabet[byte % 58]).join("")}`;
     mkdirSync(recordsDir, { recursive: true });
+    mkdirSync(ownersDir, { recursive: true });
     writeFileSync(join(recordsDir, `${cid}.json`), bytes);
+    writeFileSync(join(ownersDir, bundle.recordId.slice(2).toLowerCase()), owner.toLowerCase());
     return { bundleHash: hashBundleBytes(bytes), cid };
   };
 
@@ -309,7 +315,7 @@ async function main() {
       walletClient,
       recordAccess: contracts.recordAccess,
       baseUrl: base,
-      storeBundle,
+      storeBundle: (bundle) => storeBundle(bundle, account.address),
     };
     const service = createRecordService(config);
     await service.ensureRegistered(keys);
@@ -600,6 +606,118 @@ async function main() {
   report(
     "Break-glass on a full record releases nothing",
     refused(await requestRelease(responder, fullRecordId, await invoke(fullRecordId)), 403),
+  );
+
+  // A responder anchors their own record at the patient's summary CID, so the event avoids the patient.
+  const [, , summaryCid] = await publicClient.readContract({
+    address: contracts.recordAccess,
+    abi: accessAbi,
+    functionName: "recordOf",
+    args: [summaryId],
+  });
+  const aliasId = `0x${randomBytes(32).toString("hex")}`;
+  await publicClient.waitForTransactionReceipt({
+    hash: await responder.walletClient.writeContract({
+      address: contracts.recordAccess,
+      abi: accessAbi,
+      functionName: "anchorRecord",
+      args: [aliasId, `0x${randomBytes(32).toString("hex")}`, summaryCid],
+    }),
+  });
+  const aliasHash = await responder.walletClient.writeContract({
+    address: contracts.recordAccess,
+    abi: accessAbi,
+    functionName: "invokeBreakGlass",
+    args: [responder.address, aliasId],
+  });
+  const aliasReceipt = await publicClient.waitForTransactionReceipt({ hash: aliasHash });
+  const [aliasLog] = parseEventLogs({
+    abi: accessAbi,
+    logs: aliasReceipt.logs,
+    eventName: "BreakGlassInvoked",
+  });
+  report(
+    "A record pointing at another patient's summary releases nothing",
+    refused(
+      await requestRelease(responder, aliasId, {
+        transactionHash: aliasHash,
+        logIndex: aliasLog.logIndex,
+      }),
+      403,
+    ),
+  );
+
+  // A summary is pinned but not anchored yet, and a responder tries to anchor it first.
+  const { publicKey: escrowHex } = await (await fetch(`${base}/api/escrow/release`)).json();
+  const escrowPublicKey = hexToBytes(escrowHex);
+  const pendingId = `0x${randomBytes(32).toString("hex")}`;
+  const { bundle: pendingBundle } = await encryptRecord({
+    recordId: pendingId,
+    plaintext: utf8Encode(JSON.stringify(SAMPLE_EMERGENCY_SUMMARY)),
+    readers: [
+      { address: patient.address, x25519PublicKey: patient.keys.x25519PublicKey },
+      { address: escrowReaderAddress(escrowPublicKey), x25519PublicKey: escrowPublicKey },
+    ],
+  });
+  const pending = await storeBundle(pendingBundle, patient.address);
+  const pendingBytes = encodeBundle(pendingBundle);
+  const pinExpiresAt = Math.floor(Date.now() / 1000) + 120;
+  const pinNonce = `0x${randomBytes(32).toString("hex")}`;
+  const pinSignature = await responder.walletClient.signTypedData({
+    account: responder.walletClient.account,
+    ...pinTypedData({
+      wallet: responder.address,
+      bundleHash: pending.bundleHash,
+      nonce: pinNonce,
+      expiresAt: BigInt(pinExpiresAt),
+    }),
+  });
+  const stolenPin = await fetch(`${base}/api/pin`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      bundle: Buffer.from(pendingBytes).toString("base64"),
+      auth: {
+        wallet: responder.address,
+        nonce: pinNonce,
+        expiresAt: pinExpiresAt,
+        signature: pinSignature,
+      },
+    }),
+  });
+  report(
+    "Another wallet cannot pin a record ID that already has an owner",
+    stolenPin.status === 403,
+  );
+  await publicClient.waitForTransactionReceipt({
+    hash: await responder.walletClient.writeContract({
+      address: contracts.recordAccess,
+      abi: accessAbi,
+      functionName: "anchorRecord",
+      args: [pendingId, pending.bundleHash, pending.cid],
+    }),
+  });
+  const frontRunHash = await responder.walletClient.writeContract({
+    address: contracts.recordAccess,
+    abi: accessAbi,
+    functionName: "invokeBreakGlass",
+    args: [responder.address, pendingId],
+  });
+  const frontRunReceipt = await publicClient.waitForTransactionReceipt({ hash: frontRunHash });
+  const [frontRunLog] = parseEventLogs({
+    abi: accessAbi,
+    logs: frontRunReceipt.logs,
+    eventName: "BreakGlassInvoked",
+  });
+  report(
+    "Anchoring another patient's pinned summary first releases nothing",
+    refused(
+      await requestRelease(responder, pendingId, {
+        transactionHash: frontRunHash,
+        logIndex: frontRunLog.logIndex,
+      }),
+      403,
+    ),
   );
 
   const released = await requestRelease(responder, summaryId, event);

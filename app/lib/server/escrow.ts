@@ -20,7 +20,7 @@ import {
 } from "./chain";
 import { claimOnce } from "./file-store";
 import { asObject, HttpError } from "./http";
-import { loadVerifiedBundle } from "./records";
+import { loadVerifiedBundle, recordOwner } from "./records";
 
 const KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/;
 const HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
@@ -132,6 +132,14 @@ export async function releaseEmergencyKey(raw: unknown): Promise<WrappedRecordKe
 
   const escrow = escrowKeys();
   const bundle = parseBundle(await loadVerifiedBundle(record.cid));
+  // A record can anchor another record's CID, so the event must name the bundle's own record.
+  if (bundle.recordId.toLowerCase() !== recordId) {
+    throw new HttpError(403, "No matching emergency access event was found on-chain.");
+  }
+  // anchorRecord is open, so the on-chain patient must be the wallet that first pinned this record.
+  if ((await recordOwner(recordId)) !== record.patient.toLowerCase()) {
+    throw new HttpError(403, "No matching emergency access event was found on-chain.");
+  }
   const escrowCopy = bundle.wrappedKeys.find(
     (entry) => entry.reader.toLowerCase() === escrow.address,
   );

@@ -136,6 +136,7 @@ const REVERT_MESSAGES: Record<string, string> = {
   NotInsurer: "Only the insurer wallet can do this.",
   NotRecordPatient: "Only the patient can change access to this record.",
   NotResponder: "This wallet is not a registered emergency responder.",
+  NotResponderAdmin: "Only the responder admin wallet can do this.",
   NullifierAlreadyUsed: "This claim was already submitted.",
   PolicyAlreadyRegistered: "This policy is already registered.",
   RecordAlreadyExists: "This record already exists. Try again.",

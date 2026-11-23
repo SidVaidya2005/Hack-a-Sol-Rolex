@@ -107,8 +107,12 @@ export async function deployRado(
   publicClient: PublicClient,
   deployer: DeployWallet,
   insurer: Address,
+  responderAdmin: Address,
   verifier: VerifierChoice,
 ) {
+  if (insurer.toLowerCase() === responderAdmin.toLowerCase()) {
+    throw new Error("The insurer and responder admin must be different wallets (D-056).");
+  }
   const verifierAddress = await deploy(publicClient, deployer, verifier.artifact, []);
   const mockUsd = await deploy(
     publicClient,
@@ -120,7 +124,7 @@ export async function deployRado(
     publicClient,
     deployer,
     readArtifact(contractsDir, "RecordAccess.sol", "RecordAccess"),
-    [insurer],
+    [responderAdmin],
   );
   const claimSettlement = await deploy(
     publicClient,

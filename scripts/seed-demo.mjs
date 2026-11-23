@@ -89,7 +89,9 @@ async function main() {
   if (verifier.placeholder)
     console.warn("[seed] PLACEHOLDER VERIFIER. Never rehearse or demo this.");
 
-  for (const account of Object.values(accounts)) {
+  // Lives only in this process and is never saved, so no demo laptop can appoint a responder (D-056).
+  const responderAdmin = privateKeyToAccount(generatePrivateKey());
+  for (const account of [...Object.values(accounts), responderAdmin]) {
     await publicClient.request({
       method: "hardhat_setBalance",
       params: [account.address, `0x${parseEther("100").toString(16)}`],
@@ -101,6 +103,7 @@ async function main() {
     publicClient,
     walletFor(accounts.deployer),
     accounts.insurer.address,
+    responderAdmin.address,
     verifier,
   );
 
@@ -118,10 +121,14 @@ async function main() {
     addresses.claimSettlement,
     SAMPLE_POLICY.totalCap,
   ]);
-  await send(addresses.recordAccess, recordAccessAbi, "setResponder", [
-    accounts.responder.address,
-    true,
-  ]);
+  const responderHash = await walletFor(responderAdmin).writeContract({
+    address: addresses.recordAccess,
+    abi: parseAbi(recordAccessAbi),
+    functionName: "setResponder",
+    args: [accounts.responder.address, true],
+  });
+  const responderReceipt = await publicClient.waitForTransactionReceipt({ hash: responderHash });
+  if (responderReceipt.status !== "success") throw new Error("Seed step setResponder failed.");
 
   const pool = await publicClient.readContract({
     address: addresses.mockUsd,

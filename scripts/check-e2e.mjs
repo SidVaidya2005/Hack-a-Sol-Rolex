@@ -211,6 +211,7 @@ async function main() {
   };
   const deployerAccount = await newAccount();
   const insurerAccount = await newAccount();
+  const responderAdminAccount = await newAccount();
 
   const hre = await createHardhatRuntimeEnvironment(hardhatConfig, {}, contractsDir);
   await hre.tasks.getTask("build").run({ quiet: true });
@@ -221,6 +222,7 @@ async function main() {
     chainClient,
     walletOn(deployerAccount),
     insurerAccount.address,
+    responderAdminAccount.address,
     verifier,
   );
   const artifact = JSON.parse(
@@ -517,7 +519,22 @@ async function main() {
   const responder = await newUser(await newAccount());
   const outsider = await newUser(await newAccount());
   const doctor = await newUser(await newAccount());
-  const responderTx = await insurerWallet.writeContract({
+  report(
+    "The insurer cannot appoint itself as a responder",
+    await chainClient
+      .simulateContract({
+        account: insurerAccount,
+        address: addresses.recordAccess,
+        abi: accessAbi,
+        functionName: "setResponder",
+        args: [insurerAccount.address, true],
+      })
+      .then(
+        () => false,
+        (error) => String(error?.message).includes("NotResponderAdmin"),
+      ),
+  );
+  const responderTx = await walletOn(responderAdminAccount).writeContract({
     address: addresses.recordAccess,
     abi: accessAbi,
     functionName: "setResponder",

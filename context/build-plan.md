@@ -246,6 +246,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — Three laptops passed the W10 Verify flow through MetaMask over LAN HTTPS, as reported by the team: the Insurer on Laptop C delivered and resent policy terms, the Hospital on Laptop B sent a claim request, the Patient on Laptop A approved it, and Laptop B generated a valid proof in 0.9 seconds. An uncovered procedure was blocked on the Patient screen. The live chain confirmed all three wallets registered, one approved hospital, one registered policy, and no payout, and stored inbox data held no readable claim fields. Forged-message and retry rejections are covered by `scripts/check-claim-exchange.mjs`. Known gap at this point: a patient's decline updates only the Patient screen, so the Hospital keeps showing Awaiting patient. Decisions: D-049, D-050, D-051.
 
+**Decline follow-up:** 2026-11-23 — D-052 closed that gap. Through MetaMask across the three laptops, as reported by the team, the Patient declined an uncovered procedure and the Hospital changed to Declined by patient with no resend or proof action. Stored inbox data held no readable claim fields. Forged and wrong-wallet declines, and approvals after a decline, are covered by `scripts/check-claim-exchange.mjs`.
+
 ### W11 Settlement, insurer view, and end-to-end flow
 
 **Owner:** T2 and T3. Connect the contract's `submitClaim` function, token payout, Insurer screen, Public Chain View, and the scripted end-to-end (E2E) run.

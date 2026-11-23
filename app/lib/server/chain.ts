@@ -24,7 +24,7 @@ export function hardhatRpcUrl(): string {
 }
 
 /** Read on each call, so a fresh seed takes effect without restarting the app. */
-async function recordAccessAddress(): Promise<Address> {
+export async function recordAccessAddress(): Promise<Address> {
   const file = path.resolve(process.cwd(), "..", "contracts", "deployments", "localhost.json");
   let address: unknown;
   try {

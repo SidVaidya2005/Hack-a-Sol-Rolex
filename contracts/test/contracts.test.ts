@@ -50,8 +50,9 @@ async function settlementFixture() {
 }
 
 async function recordFixture() {
-  const [insurer, patient, doctor, responder, stranger] = await viem.getWalletClients();
-  const access = await viem.deployContract("RecordAccess", [insurer.account.address]);
+  const [insurer, patient, doctor, responder, stranger, responderAdmin] =
+    await viem.getWalletClients();
+  const access = await viem.deployContract("RecordAccess", [responderAdmin.account.address]);
   const id = keccak256(stringToHex("synthetic-record"));
   const hash = keccak256(stringToHex("bundle-1"));
   const newHash = keccak256(stringToHex("bundle-2"));
@@ -60,7 +61,19 @@ async function recordFixture() {
   }
   await access.write.anchorRecord([id, hash, "cid-1"], { account: patient.account });
   const future = BigInt(await networkHelpers.time.latest()) + 1_000n;
-  return { insurer, patient, doctor, responder, stranger, access, id, hash, newHash, future };
+  return {
+    insurer,
+    patient,
+    doctor,
+    responder,
+    stranger,
+    responderAdmin,
+    access,
+    id,
+    hash,
+    newHash,
+    future,
+  };
 }
 
 describe("MockUSD", () => {
@@ -415,13 +428,18 @@ describe("RecordAccess", () => {
   });
 
   it("restricts the responder registry and break-glass, and audits both", async () => {
-    const { access, patient, doctor, responder, stranger, id } =
+    const { access, insurer, patient, doctor, responder, stranger, responderAdmin, id } =
       await networkHelpers.loadFixture(recordFixture);
     const patientAddress = patient.account.address;
     await assertions.revertWithCustomError(
       access.write.setResponder([responder.account.address, true], { account: stranger.account }),
       access,
-      "NotInsurer",
+      "NotResponderAdmin",
+    );
+    await assertions.revertWithCustomError(
+      access.write.setResponder([insurer.account.address, true], { account: insurer.account }),
+      access,
+      "NotResponderAdmin",
     );
     await assertions.revertWithCustomError(
       access.write.invokeBreakGlass([patientAddress, id], { account: responder.account }),
@@ -429,11 +447,15 @@ describe("RecordAccess", () => {
       "NotResponder",
     );
     await assertions.emit(
-      access.write.setResponder([responder.account.address, true]),
+      access.write.setResponder([responder.account.address, true], {
+        account: responderAdmin.account,
+      }),
       access,
       "ResponderUpdated",
     );
-    await access.write.setResponder([stranger.account.address, true]);
+    await access.write.setResponder([stranger.account.address, true], {
+      account: responderAdmin.account,
+    });
     await assertions.revertWithCustomError(
       access.write.invokeBreakGlass([patientAddress, id], { account: stranger.account }),
       access,

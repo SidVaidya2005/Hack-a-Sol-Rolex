@@ -23,7 +23,15 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const walletFile = join(contractsDir, ".env.demo-wallets");
 const deploymentFile = join(contractsDir, "deployments", "localhost.json");
 const rpcUrl = "http://127.0.0.1:8545";
-const roles = ["deployer", "insurer", "patient", "hospital", "doctor", "responder"];
+const roles = [
+  "deployer",
+  "insurer",
+  "patient",
+  "hospital",
+  "doctor",
+  "responder",
+  "responderAdmin",
+];
 const publicHardhatMnemonic = "test test test test test test test test test test test junk";
 
 function keyName(role) {
@@ -101,6 +109,7 @@ async function main() {
     publicClient,
     walletFor(accounts.deployer),
     accounts.insurer.address,
+    accounts.responderAdmin.address,
     verifier,
   );
 
@@ -118,10 +127,14 @@ async function main() {
     addresses.claimSettlement,
     SAMPLE_POLICY.totalCap,
   ]);
-  await send(addresses.recordAccess, recordAccessAbi, "setResponder", [
-    accounts.responder.address,
-    true,
-  ]);
+  const responderHash = await walletFor(accounts.responderAdmin).writeContract({
+    address: addresses.recordAccess,
+    abi: parseAbi(recordAccessAbi),
+    functionName: "setResponder",
+    args: [accounts.responder.address, true],
+  });
+  const responderReceipt = await publicClient.waitForTransactionReceipt({ hash: responderHash });
+  if (responderReceipt.status !== "success") throw new Error("Seed step setResponder failed.");
 
   const pool = await publicClient.readContract({
     address: addresses.mockUsd,

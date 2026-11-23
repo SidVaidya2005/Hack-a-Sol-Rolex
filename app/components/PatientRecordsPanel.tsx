@@ -9,6 +9,7 @@ import {
   type PatientRecord,
   type RecordItem,
   type TimelineEntry,
+  type WalletPromptHandler,
 } from "../lib/record-service";
 import { Icon } from "./icons";
 import {
@@ -18,6 +19,7 @@ import {
   StatusMessage,
   UnlockGate,
   useRecordSession,
+  WalletPromptNotice,
 } from "./RecordSession";
 import { Badge, Panel } from "./ui";
 
@@ -34,7 +36,7 @@ function RecordRow({
   record: PatientRecord;
   wallets: Address[];
   busy: string;
-  onRun: (id: string, action: () => Promise<string>) => Promise<void>;
+  onRun: (id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) => Promise<void>;
 }) {
   const { session } = useRecordSession();
   const [opened, setOpened] = useState<RecordItem[] | null>(null);
@@ -97,9 +99,9 @@ function RecordRow({
                 className="button-pill-outline disabled:opacity-50"
                 disabled={locked}
                 onClick={() =>
-                  void onRun(`revoke-${recordId}-${reader}`, async () => {
+                  void onRun(`revoke-${recordId}-${reader}`, async (onPrompt) => {
                     if (!session) return "";
-                    await session.service.revoke(session.keys, recordId, reader);
+                    await session.service.revoke(session.keys, recordId, reader, onPrompt);
                     setOpened(null);
                     return "Access revoked and the record key rotated.";
                   })
@@ -163,13 +165,14 @@ function RecordRow({
           className="button-pill-outline h-11 whitespace-nowrap disabled:opacity-50"
           disabled={locked || !doctor}
           onClick={() =>
-            void onRun(`grant-${recordId}`, async () => {
+            void onRun(`grant-${recordId}`, async (onPrompt) => {
               if (!session || !doctor) return "";
               const expiresAt = await session.service.grant(
                 session.keys,
                 recordId as Hex32,
                 doctor as Address,
                 days,
+                onPrompt,
               );
               return `Access granted until ${formatExpiry(expiresAt)}.`;
             })
@@ -194,6 +197,7 @@ function PatientRecordsContent() {
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [wallets, setWallets] = useState<Address[]>([]);
   const [busy, setBusy] = useState("");
+  const [walletPrompt, setWalletPrompt] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
@@ -217,17 +221,18 @@ function PatientRecordsContent() {
     };
   }, [session, revision]);
 
-  async function run(id: string, action: () => Promise<string>) {
+  async function run(id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) {
     setBusy(id);
     setMessage(null);
     try {
-      const text = await action();
+      const text = await action(setWalletPrompt);
       if (text) setMessage({ ok: true, text });
       refresh();
     } catch (error) {
       setMessage({ ok: false, text: plainRecordError(error) });
     } finally {
       setBusy("");
+      setWalletPrompt("");
     }
   }
 
@@ -241,10 +246,11 @@ function PatientRecordsContent() {
             className="button-primary whitespace-nowrap disabled:opacity-50"
             disabled={Boolean(busy)}
             onClick={() =>
-              void run("add", async () => {
+              void run("add", async (onPrompt) => {
                 await session.service.addRecord(
                   session.keys,
                   utf8Encode(JSON.stringify(SAMPLE_RECORD)),
+                  onPrompt,
                 );
                 return "Synthetic record encrypted, stored, and anchored on-chain.";
               })
@@ -259,6 +265,7 @@ function PatientRecordsContent() {
     >
       {session ? (
         <>
+          <WalletPromptNotice text={walletPrompt} />
           <StatusMessage message={message} />
           {records.length ? (
             <div className="divide-y divide-rado-line">

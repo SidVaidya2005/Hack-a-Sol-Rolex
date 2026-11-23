@@ -33,6 +33,9 @@
   --color-rado-line: #d9d9dd;
   --color-rado-border: #e5e7eb;
   --color-rado-card-border: #f2f2f2;
+  --color-rado-hover: #e7e5df;
+  --color-rado-disabled: #eeece7;
+  --color-rado-primary-hover: #33333b;
 }
 
 * {
@@ -56,6 +59,9 @@ body {
   --color-rado-line: rgb(255 255 255 / 0.2);
   --color-rado-border: rgb(255 255 255 / 0.2);
   --color-rado-card-border: rgb(255 255 255 / 0.12);
+  --color-rado-hover: rgb(255 255 255 / 0.14);
+  --color-rado-disabled: rgb(255 255 255 / 0.14);
+  --color-rado-primary-hover: #dedee3;
   --color-rado-green: #c6e3d5;
   --color-rado-pale-green: rgb(198 227 213 / 0.14);
   --color-rado-green-light: rgb(198 227 213 / 0.35);
@@ -117,15 +123,16 @@ button:disabled {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.71;
-  transition: opacity 150ms ease;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
 }
 
-.button-primary:hover:not(:disabled) {
-  opacity: 0.84;
-}
-
+/* Solid colors keep disabled labels such as "Waiting for patient" readable. */
 .button-primary:disabled {
-  opacity: 0.55;
+  background: var(--color-rado-disabled);
+  color: var(--color-rado-slate);
+  opacity: 1;
 }
 
 .button-primary:focus-visible,
@@ -148,11 +155,9 @@ button:disabled {
   color: var(--color-rado-text);
   font-size: 0.875rem;
   font-weight: 400;
-  transition: border-color 150ms ease;
-}
-
-.button-secondary:hover {
-  border-color: var(--color-rado-ink);
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
 }
 
 .button-pill-outline {
@@ -171,11 +176,6 @@ button:disabled {
     color 150ms ease;
 }
 
-.button-pill-outline:hover {
-  background: var(--color-rado-ink);
-  color: var(--color-rado-on-ink);
-}
-
 .nav-link {
   display: inline-flex;
   align-items: center;
@@ -188,10 +188,6 @@ button:disabled {
   transition:
     color 150ms ease,
     background 150ms ease;
-}
-
-.nav-link:hover {
-  color: var(--color-rado-ink);
 }
 
 .nav-link[aria-pressed="true"],
@@ -209,6 +205,7 @@ button:disabled {
   color: var(--color-rado-text);
   font-size: 0.875rem;
   outline: none;
+  transition: border-color 150ms ease;
 }
 
 .field::placeholder {
@@ -323,9 +320,82 @@ button:disabled {
   }
 }
 
+/* "backwards" leaves no transform afterward, so sticky bars and the drawer are unaffected. */
+.page-fade {
+  animation: rado-page-fade 260ms ease-out backwards;
+}
+
+.page-rise {
+  animation: rado-page-rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes rado-page-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rado-page-rise {
+  from {
+    transform: translateY(8px);
+  }
+}
+
 @keyframes rado-pulse {
   50% {
     opacity: 0.3;
+  }
+}
+
+.button-primary [data-icon="arrow"],
+.button-pill-outline [data-icon="arrow"] {
+  transition: transform 150ms ease;
+}
+
+.button-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.button-secondary:disabled {
+  border-color: var(--color-rado-card-border);
+  color: var(--color-rado-muted);
+}
+
+.button-pill-outline:disabled {
+  border-color: var(--color-rado-line);
+  color: var(--color-rado-muted);
+  opacity: 1;
+}
+
+/* Touch screens skip these, so a tapped control does not stay highlighted. */
+@media (hover: hover) {
+  .nav-link:not([aria-current="page"], [aria-pressed="true"]):hover {
+    background: var(--color-rado-hover);
+    color: var(--color-rado-ink);
+  }
+
+  .button-primary:hover:not(:disabled, :active) {
+    background: var(--color-rado-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .button-secondary:hover:not(:disabled) {
+    border-color: var(--color-rado-ink);
+    color: var(--color-rado-ink);
+  }
+
+  .button-pill-outline:hover:not(:disabled) {
+    background: var(--color-rado-ink);
+    color: var(--color-rado-on-ink);
+  }
+
+  .button-primary:hover:not(:disabled) [data-icon="arrow"],
+  .button-pill-outline:hover:not(:disabled) [data-icon="arrow"] {
+    transform: translate(2px, -2px);
+  }
+
+  .field:hover:not(:disabled, :focus) {
+    border-color: var(--color-rado-muted);
   }
 }
 

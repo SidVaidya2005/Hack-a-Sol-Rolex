@@ -10,7 +10,7 @@ import { useClaimActions, useClaimState, usePrivateClaimDraft } from "./ClaimSim
 import { PatientClaimPanel } from "./PatientClaimPanel";
 import { AuditTimeline, PatientRecordsPanel } from "./PatientRecordsPanel";
 import { PrivacyLens } from "./PrivacyLens";
-import { Badge, Band, PageHeading, Panel, SampleNotice } from "./ui";
+import { Badge, Band, PageHeading, Panel } from "./ui";
 
 const sample = getPatientSampleData();
 
@@ -34,11 +34,8 @@ export function PatientScreen() {
         eyebrow="Patient workspace"
         title={`Welcome back, ${sample.name.replace(" Alpha", "")}.`}
         description="Your records, the people you trust, and a clear history of what happened."
+        status="records-live"
       />
-      <SampleNotice>
-        Records and access are real on the local chain and use synthetic data only. The claim
-        request is still a simulation.
-      </SampleNotice>
       {message ? (
         <p
           aria-live="polite"
@@ -58,13 +55,13 @@ export function PatientScreen() {
             title="Sample claim request"
             description={
               claimRequested
-                ? "Review the details before approving this sample request."
+                ? "Review the details before approving."
                 : "A hospital's request will appear here for your approval."
             }
             action={
               <Badge tone={claimApproved ? "success" : claimRequested ? "warning" : "neutral"}>
                 {claimApproved
-                  ? "Approved · sample"
+                  ? "Approved · simulated"
                   : claimRequested
                     ? "Needs your review"
                     : "No request yet"}
@@ -108,7 +105,7 @@ export function PatientScreen() {
                     }}
                     type="button"
                   >
-                    {claimApproved ? "Approved" : "Approve sample claim"}
+                    {claimApproved ? "Approved" : "Approve claim"}
                   </button>
                   {stage === "requested" ? (
                     <button
@@ -135,7 +132,7 @@ export function PatientScreen() {
           </Band>
           <AuditTimeline />
           {claimActivity.length ? (
-            <Panel title="Simulated claim activity" description="Not on-chain until W11.">
+            <Panel title="Simulated claim activity" description="Not on-chain yet.">
               <ul className="space-y-3">
                 {claimActivity.map((event, index) => (
                   <li

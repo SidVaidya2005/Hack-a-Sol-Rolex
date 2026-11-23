@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 import { formatAmount } from "../data/insurer-sample-data";
+import { formatClaimDay } from "../data/public-signal-labels";
 import type { SettledClaim } from "../lib/settlement";
-import { formatClaimDay, useChainLedger } from "../lib/use-chain-ledger";
+import { useChainLedger } from "../lib/use-chain-ledger";
 import { Icon } from "./icons";
 import { InsurerPolicyPanel } from "./InsurerPolicyPanel";
 import { shortId } from "./RecordSession";
@@ -68,7 +69,7 @@ export function InsurerScreen() {
         eyebrow="Insurer workspace"
         title="Coverage at a glance"
         description="Live policy funding and verified payouts, read from the local chain."
-        action={<Badge tone="success">Live chain data</Badge>}
+        status="live"
       />
       {error ? (
         <p className="status-error mb-8 rounded-lg border px-4 py-3 text-sm" role="alert">
@@ -76,7 +77,7 @@ export function InsurerScreen() {
         </p>
       ) : null}
       <InsurerPolicyPanel />
-      <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
+      <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard
           label="Pool balance"
           value={ledger ? formatAmount(ledger.poolBalance) : "Loading…"}
@@ -160,13 +161,13 @@ export function InsurerScreen() {
               <tbody>
                 {visibleClaims.map((row) => (
                   <tr
-                    className="border-b border-rado-line transition-colors last:border-0 hover:bg-rado-stone-wash"
+                    className="border-b border-rado-line transition-colors last:border-0 hover:bg-rado-hover"
                     key={row.id}
                   >
                     <td className="py-4">
                       <button
                         aria-label={`Open claim ${hexId(row.nullifier)} details`}
-                        className="nav-link !rounded !p-0 font-mono !text-xs !text-rado-ink underline underline-offset-4"
+                        className="nav-link !rounded !p-0 font-mono !text-xs !text-rado-ink underline underline-offset-4 hover:!bg-transparent hover:decoration-2"
                         onClick={() => setSelectedId(row.id)}
                         type="button"
                       >
@@ -206,10 +207,7 @@ export function InsurerScreen() {
               style={{ width: `${utilization}%` }}
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs text-rado-muted">
-            <span>{utilization}% of cap used</span>
-            <span>On-chain</span>
-          </div>
+          <p className="mt-2 text-xs text-rado-muted">{utilization}% used</p>
           <dl className="mt-6 divide-y divide-rado-line border-y border-rado-line">
             <div className="flex justify-between gap-4 py-3 text-sm">
               <dt className="text-rado-slate">Verification</dt>

@@ -4,24 +4,25 @@ import { PUBLIC_SIGNALS } from "@rado/shared";
 import { useEffect, useState } from "react";
 
 import { formatAmount } from "../data/insurer-sample-data";
+import { formatClaimDay, SIGNAL_LABELS } from "../data/public-signal-labels";
 import { useChainLedger } from "../lib/use-chain-ledger";
 import { Icon } from "./icons";
 import { shortId } from "./RecordSession";
 import { Badge, MetricCard, PageHeading, Panel } from "./ui";
 
 const EVENT_FILTERS = ["All", "Claims", "Access", "Policy"] as const;
-const EVENT_GROUPS: Record<string, (typeof EVENT_FILTERS)[number]> = {
-  ClaimSettled: "Claims",
-  PolicyRegistered: "Policy",
-  HospitalRootUpdated: "Policy",
-  KeysRegistered: "Access",
-  RecordAnchored: "Access",
-  AccessGranted: "Access",
-  AccessRevoked: "Access",
-  RecordKeyRotated: "Access",
-  RecordViewed: "Access",
-  BreakGlassInvoked: "Access",
-  ResponderUpdated: "Access",
+const EVENT_INFO: Record<string, { title: string; group: (typeof EVENT_FILTERS)[number] }> = {
+  ClaimSettled: { title: "Claim paid", group: "Claims" },
+  PolicyRegistered: { title: "Policy registered", group: "Policy" },
+  HospitalRootUpdated: { title: "Approved hospitals updated", group: "Policy" },
+  KeysRegistered: { title: "Wallet keys registered", group: "Access" },
+  RecordAnchored: { title: "Encrypted record added", group: "Access" },
+  AccessGranted: { title: "Doctor access granted", group: "Access" },
+  AccessRevoked: { title: "Doctor access revoked", group: "Access" },
+  RecordKeyRotated: { title: "Record key replaced", group: "Access" },
+  RecordViewed: { title: "Record viewed", group: "Access" },
+  BreakGlassInvoked: { title: "Emergency access used", group: "Access" },
+  ResponderUpdated: { title: "Responder updated", group: "Access" },
 };
 
 /** Shows only what an outsider can read from the chain. */
@@ -35,19 +36,21 @@ export function PublicChainScreen() {
   const latestClaim = ledger?.claims[0];
   const signalValues: Record<(typeof PUBLIC_SIGNALS)[number], string> | null = latestClaim
     ? {
-        claimAmount: latestClaim.claimAmount.toString(),
+        claimAmount: formatAmount(latestClaim.claimAmount),
         policyCommitment: latestClaim.policyCommitment.toString(),
         nullifier: latestClaim.nullifier.toString(),
         hospitalRoot: latestClaim.hospitalRoot.toString(),
-        claimDay: latestClaim.claimDay.toString(),
+        claimDay: formatClaimDay(latestClaim.claimDay),
         payoutAddress: latestClaim.payoutAddress,
       }
     : null;
   const search = filter.toLowerCase();
   const visibleEvents = events.filter(
     (event) =>
-      (group === "All" || EVENT_GROUPS[event.name] === group) &&
-      `${event.name} ${event.txHash}`.toLowerCase().includes(search),
+      (group === "All" || EVENT_INFO[event.name]?.group === group) &&
+      `${EVENT_INFO[event.name]?.title ?? ""} ${event.name} ${event.txHash}`
+        .toLowerCase()
+        .includes(search),
   );
 
   useEffect(() => {
@@ -71,14 +74,15 @@ export function PublicChainScreen() {
         eyebrow="Public chain view"
         title="The public record"
         description="Exactly what anyone can read from the local chain."
-        action={<Badge tone="success">Live chain data</Badge>}
+        status="live"
+        action={<Badge tone="success">Local network</Badge>}
       />
       {error ? (
         <p className="status-error mb-8 rounded-lg border px-4 py-3 text-sm" role="alert">
           {error}
         </p>
       ) : null}
-      <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
+      <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard label="Network" value="Rado Local" detail="Chain ID 31337" icon="chain" />
         <MetricCard
           label="Latest block"
@@ -107,7 +111,10 @@ export function PublicChainScreen() {
               >
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs text-rado-muted">0{index + 1}</span>
-                  <span className="font-mono text-sm text-rado-ink">{name}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm text-rado-ink">{SIGNAL_LABELS[name]}</span>
+                    <span className="block font-mono text-xs text-rado-muted">{name}</span>
+                  </span>
                 </div>
                 {signalValues ? (
                   <span
@@ -174,8 +181,8 @@ export function PublicChainScreen() {
                   <div className="border-b border-rado-line last:border-0" key={event.id}>
                     <button
                       aria-expanded={expanded}
-                      aria-label={`${event.name} at block ${block}`}
-                      className="flex w-full items-center gap-3 py-3 text-left"
+                      aria-label={`${EVENT_INFO[event.name]?.title ?? event.name} at block ${block}`}
+                      className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded px-2 py-3 text-left transition-colors hover:bg-rado-hover"
                       onClick={() => setExpandedId(expanded ? null : event.id)}
                       type="button"
                     >
@@ -185,9 +192,11 @@ export function PublicChainScreen() {
                         <Icon name="arrow" className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm text-rado-ink">{event.name}</span>
+                        <span className="block text-sm text-rado-ink">
+                          {EVENT_INFO[event.name]?.title ?? event.name}
+                        </span>
                         <span className="mt-0.5 block truncate font-mono text-xs text-rado-muted">
-                          {shortId(event.txHash)}
+                          {event.name} · {shortId(event.txHash)}
                         </span>
                       </span>
                       <span className="whitespace-nowrap font-mono text-xs text-rado-slate">

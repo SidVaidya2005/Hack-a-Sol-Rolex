@@ -51,10 +51,3 @@ export function useChainLedger() {
 
   return state;
 }
-
-export function formatClaimDay(day: bigint) {
-  return new Date(Number(day) * 86_400_000).toLocaleDateString("en-IN", {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  });
-}

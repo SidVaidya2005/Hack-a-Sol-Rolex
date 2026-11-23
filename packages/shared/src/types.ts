@@ -211,16 +211,27 @@ export interface FhirProcedure {
   performedDateTime: string;
 }
 
+export interface FhirServiceRequest {
+  resourceType: "ServiceRequest";
+  id: string;
+  status: "active" | "completed";
+  intent: "order";
+  subject: FhirReference;
+  code: FhirConcept;
+}
+
 export type FhirResource =
   | FhirPatient
   | FhirCondition
   | FhirAllergyIntolerance
   | FhirMedicationRequest
   | FhirObservation
-  | FhirProcedure;
+  | FhirProcedure
+  | FhirServiceRequest;
 
 export interface FhirBundle {
   resourceType: "Bundle";
   type: "collection";
+  meta?: { tag: { system: string; code: string }[] };
   entry: { resource: FhirResource }[];
 }

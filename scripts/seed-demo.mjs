@@ -23,7 +23,16 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const walletFile = join(contractsDir, ".env.demo-wallets");
 const deploymentFile = join(contractsDir, "deployments", "localhost.json");
 const rpcUrl = "http://127.0.0.1:8545";
-const roles = ["deployer", "insurer", "patient", "hospital", "doctor", "responder"];
+const roles = [
+  "deployer",
+  "insurer",
+  "patient",
+  "hospital",
+  "doctor",
+  "responder",
+  "lab",
+  "pharmacy",
+];
 const publicHardhatMnemonic = "test test test test test test test test test test test junk";
 
 function keyName(role) {

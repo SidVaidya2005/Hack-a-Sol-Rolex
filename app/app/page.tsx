@@ -8,6 +8,7 @@ import { ClaimStoryBar } from "../components/ClaimStoryBar";
 import { HospitalScreen } from "../components/HospitalScreen";
 import { InsurerScreen } from "../components/InsurerScreen";
 import { PatientScreen } from "../components/PatientScreen";
+import { ProviderScreen } from "../components/ProviderScreen";
 import { PublicChainScreen } from "../components/PublicChainScreen";
 import { RecordSessionProvider } from "../components/RecordSession";
 import { ResponderScreen } from "../components/ResponderScreen";
@@ -48,6 +49,7 @@ export default function Home() {
             <main className="page-rise mx-auto max-w-[1280px] px-4 py-8 sm:px-8">
               {activeRole === "patient" ? <PatientScreen /> : null}
               {activeRole === "hospital" ? <HospitalScreen /> : null}
+              {activeRole === "provider" ? <ProviderScreen /> : null}
               {activeRole === "responder" ? <ResponderScreen /> : null}
               {activeRole === "insurer" ? <InsurerScreen /> : null}
               {activeRole === "public" ? <PublicChainScreen /> : null}

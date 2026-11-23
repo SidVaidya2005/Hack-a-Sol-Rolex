@@ -1,5 +1,6 @@
 import {
   addRecordReader,
+  buildRecordSlice,
   bytesToBase64,
   decryptRecord,
   encodeBundle,
@@ -8,14 +9,18 @@ import {
   parseBundle,
   recordAccessAbi,
   rotateRecordKey,
+  SHARE_PROFILES,
+  sliceProfileOf,
   unwrapRecordKey,
   utf8Decode,
+  utf8Encode,
 } from "@rado/shared";
 import type {
   Address,
   EncryptedBundle,
   Hex32,
   RecordReader,
+  SliceProfile,
   UnlockedKeys,
   WrappedRecordKey,
 } from "@rado/shared";
@@ -43,6 +48,7 @@ import type {
 
 import { escrowReaderAddress, escrowReleaseTypedData } from "./escrow-auth.ts";
 import { pinTypedData } from "./pin-auth.ts";
+import { providersFromWallets, type Provider } from "./providers.ts";
 
 const abi = parseAbi(recordAccessAbi);
 const PIN_AUTH_TTL_SECONDS = 180;
@@ -209,9 +215,13 @@ export function describeRecord(bytes: Uint8Array): RecordItem[] {
       description:
         kind === "Patient"
           ? "Patient profile"
-          : (textOf(resource.code) ??
-            textOf(resource.medicationCodeableConcept) ??
-            "Health record item"),
+          : kind === "Observation" &&
+              textOf(resource.code) &&
+              typeof resource.valueString === "string"
+            ? `${textOf(resource.code)}: ${resource.valueString}`
+            : (textOf(resource.code) ??
+              textOf(resource.medicationCodeableConcept) ??
+              "Health record item"),
     };
   });
 }
@@ -268,6 +278,8 @@ export function createRecordService({
   const self = account.address;
   /** A confirmed event whose release did not finish, so a retry does not log a second one. */
   const pendingBreakGlass = new Map<Hex32, { transactionHash: Hex32; logIndex: number }>();
+  /** A record's contents never change, so its slice type is safe to remember in memory. */
+  const sliceProfileCache = new Map<string, SliceProfile | null>();
 
   async function confirmed(hash: Hex32): Promise<void> {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -410,6 +422,37 @@ export function createRecordService({
     return loaded;
   }
 
+  /** A new reader changes the bundle. A returning reader who still has a key does not. */
+  async function grantReader(
+    keys: UnlockedKeys,
+    recordId: Hex32,
+    reader: Address,
+    days: number,
+    onPrompt?: WalletPromptHandler,
+  ): Promise<bigint> {
+    if (sameAddress(reader, self)) throw new RecordError("You already have this record.");
+    const loaded = await loadOwnRecord(recordId);
+    const readerWithKey = await readerKey(reader);
+    let { bundleHash, cid }: { bundleHash: Hex32; cid: string } = loaded;
+    const needsUpload = !loaded.bundle.wrappedKeys.some((entry) =>
+      sameAddress(entry.reader, reader),
+    );
+    if (needsUpload) {
+      const recordKey = await ownRecordKey(loaded.bundle, keys);
+      const next = await addRecordReader(loaded.bundle, recordKey, readerWithKey);
+      onPrompt?.(UPLOAD_PROMPT);
+      ({ bundleHash, cid } = await pin(next));
+    }
+    const expiresAt = (await currentTime()) + BigInt(days * SECONDS_PER_DAY);
+    const { request } = await contract.simulate.grantAccess(
+      [recordId, reader, expiresAt, bundleHash, cid],
+      { account },
+    );
+    onPrompt?.(needsUpload ? CHAIN_PROMPT : SINGLE_CHAIN_PROMPT);
+    await confirmed(await walletClient.writeContract(request));
+    return expiresAt;
+  }
+
   return {
     self,
     loadBundle,
@@ -545,35 +588,101 @@ export function createRecordService({
       }
     },
 
-    /** A new reader changes the bundle. A returning reader who still has a key does not. */
-    async grant(
+    grant: grantReader,
+
+    /** Off-chain directory only. A failure leaves sharing usable with unlisted wallets. */
+    async listProviders(): Promise<Provider[]> {
+      try {
+        const response = await fetch(`${baseUrl}/api/providers`, { cache: "no-store" });
+        if (!response.ok) return [];
+        const body = (await response.json()) as { providers?: unknown };
+        if (!Array.isArray(body.providers)) return [];
+        const wallets = Object.fromEntries(
+          (body.providers as { kind?: unknown; wallet?: unknown }[]).map((item) => [
+            String(item?.kind),
+            item?.wallet,
+          ]),
+        );
+        return providersFromWallets(wallets);
+      } catch {
+        return [];
+      }
+    },
+
+    /**
+     * Copies only this provider's fields into a new record with its own key, then grants it.
+     * The source record and its key are never shared.
+     */
+    async shareSlice(
       keys: UnlockedKeys,
-      recordId: Hex32,
+      sourceId: Hex32,
       reader: Address,
+      profile: SliceProfile,
       days: number,
       onPrompt?: WalletPromptHandler,
-    ): Promise<bigint> {
+    ): Promise<{ recordId: Hex32; expiresAt: bigint }> {
       if (sameAddress(reader, self)) throw new RecordError("You already have this record.");
-      const loaded = await loadOwnRecord(recordId);
-      const readerWithKey = await readerKey(reader);
-      let { bundleHash, cid }: { bundleHash: Hex32; cid: string } = loaded;
-      const needsUpload = !loaded.bundle.wrappedKeys.some((entry) =>
-        sameAddress(entry.reader, reader),
-      );
-      if (needsUpload) {
-        const recordKey = await ownRecordKey(loaded.bundle, keys);
-        const next = await addRecordReader(loaded.bundle, recordKey, readerWithKey);
-        onPrompt?.(UPLOAD_PROMPT);
-        ({ bundleHash, cid } = await pin(next));
+      await readerKey(reader);
+      const loaded = await loadOwnRecord(sourceId);
+      let source: unknown;
+      try {
+        source = JSON.parse(
+          utf8Decode(await decryptRecord(loaded.bundle, self, keys.x25519SecretKey)),
+        );
+      } catch {
+        throw new RecordError("This record could not be read.");
       }
-      const expiresAt = (await currentTime()) + BigInt(days * SECONDS_PER_DAY);
-      const { request } = await contract.simulate.grantAccess(
-        [recordId, reader, expiresAt, bundleHash, cid],
-        { account },
+      if (sliceProfileOf(source)) throw new RecordError("This record is already a limited copy.");
+      let slice: ReturnType<typeof buildRecordSlice>;
+      try {
+        slice = buildRecordSlice(source, profile);
+      } catch {
+        throw new RecordError("This record could not be read.");
+      }
+      if (!slice) {
+        throw new RecordError(
+          `This record has nothing to share with a ${SHARE_PROFILES[profile].label.toLowerCase()}.`,
+        );
+      }
+
+      let step = 0;
+      const stepped: WalletPromptHandler = (text) => {
+        step += 1;
+        onPrompt?.(`Step ${step} of 4: ${text.replace(/^Step \d of \d: /, "")}`);
+      };
+      const recordId = await anchorNewRecord(
+        utf8Encode(JSON.stringify(slice)),
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
+        stepped,
       );
-      onPrompt?.(needsUpload ? CHAIN_PROMPT : SINGLE_CHAIN_PROMPT);
-      await confirmed(await walletClient.writeContract(request));
-      return expiresAt;
+      sliceProfileCache.set(recordId, profile);
+      try {
+        const expiresAt = await grantReader(keys, recordId, reader, days, stepped);
+        return { recordId, expiresAt };
+      } catch {
+        throw new RecordError(
+          "The limited copy was created but not shared. Use Grant access on it to finish.",
+        );
+      }
+    },
+
+    /** Decrypts only this patient's own records. A record that fails is left out and retried. */
+    async sliceProfiles(
+      keys: UnlockedKeys,
+      recordIds: Hex32[],
+    ): Promise<Map<string, SliceProfile | null>> {
+      await Promise.all(
+        recordIds
+          .filter((recordId) => !sliceProfileCache.has(recordId))
+          .map(async (recordId) => {
+            try {
+              const { bundle } = await loadOwnRecord(recordId);
+              const bytes = await decryptRecord(bundle, self, keys.x25519SecretKey);
+              sliceProfileCache.set(recordId, sliceProfileOf(JSON.parse(utf8Decode(bytes))));
+            } catch {}
+          }),
+      );
+      return new Map(sliceProfileCache);
     },
 
     /** New key, re-encrypt, re-wrap for active readers, pin, then one transaction (D-031). */
@@ -715,8 +824,8 @@ export function createRecordService({
       ]);
       const pending = [
         ...anchored.map((log) => ({ log, title: "Record added", actor: log.args.patient })),
-        ...granted.map((log) => ({ log, title: "Doctor access granted", actor: log.args.reader })),
-        ...revoked.map((log) => ({ log, title: "Doctor access revoked", actor: log.args.reader })),
+        ...granted.map((log) => ({ log, title: "Access granted", actor: log.args.reader })),
+        ...revoked.map((log) => ({ log, title: "Access revoked", actor: log.args.reader })),
         ...rotated.map((log) => ({ log, title: "Record key rotated", actor: log.args.patient })),
         ...viewed.map((log) => ({ log, title: "Record viewed", actor: log.args.reader })),
         ...emergency.map((log) => ({

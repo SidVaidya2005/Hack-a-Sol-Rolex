@@ -87,7 +87,8 @@ Use this table as a placement rule: before adding data, identify where it will l
 3. **Encrypt:** each record gets a random AES-256-GCM key and a fresh 96-bit IV for every encryption. The on-chain bundle hash is keccak256 of the exact pinned JSON bytes.
 4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM, with AAD `rado/wrap/v1 || recordId || reader` (D-041). The record ciphertext uses `recordId` as AAD. A grant adds a wrapped key, so `grantAccess` also updates the bundle hash and CID (D-031).
 5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
-6. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
+6. **Limited share:** for a lab or pharmacy, the patient's browser rebuilds an allowlisted copy as a new record with its own key, then grants that copy. The source record gains no provider key (D-058).
+7. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
 
 ## ZK Claim Circuit
 
@@ -152,6 +153,7 @@ All routes run on L4 and share the app's HTTPS origin.
 | ----- | ------- | -------------- |
 | `POST /api/rpc` | Same-origin proxy to Hardhat on `127.0.0.1:8545` | Allow only read methods and `eth_sendRawTransaction` |
 | `GET /api/contracts` | Return the public RecordAccess, ClaimSettlement, and MockUSD addresses (D-047) | Same origin, read-only |
+| `GET /api/providers` | Return the off-chain directory of hospital, doctor, lab, and pharmacy wallets (D-059) | Same origin, read-only, never lists patient or insurer wallets |
 | `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check, first signer owns the record ID |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
 | `GET /api/escrow/release` | Return the escrow public key for wrapping a summary | Same origin, read-only |
@@ -267,6 +269,8 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
 - **D-046 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
 - **D-047 — Give the browser contract addresses through a read-only `GET /api/contracts` route.** Reason: the addresses live in a git-ignored server file and are already public on-chain, and a route lets a fresh seed work without a rebuild. Source: W09 plan, user-approved 2026-11-23.
+- **D-048 — Let patients choose a doctor from wallets registered on-chain.** Reason: this avoids copying addresses between laptops during the demo. Accepted tradeoff: the list shows short addresses without names, so the patient must confirm the right wallet. Source: W09 plan, user-approved 2026-11-23.
+- **D-049 — Derive each policy salt from the Insurer's unlocked EdDSA seed and the patient wallet with keccak256 and the tag `rado/policy-salt/v1`.** Reason: private terms cannot be stored in readable form, and this lets the Insurer rebuild and resend them after a refresh. Accepted tradeoff: each patient has one demo policy per insurer key. Source: W10 plan, user-approved 2026-11-23.
 
 ## Code Standards
 

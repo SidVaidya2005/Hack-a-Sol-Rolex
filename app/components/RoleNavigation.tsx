@@ -3,12 +3,13 @@
 import { Icon, type IconName } from "./icons";
 
 export const ROLES: readonly {
-  id: "patient" | "hospital" | "responder" | "insurer" | "public";
+  id: "patient" | "hospital" | "provider" | "responder" | "insurer" | "public";
   label: string;
   icon: IconName;
 }[] = [
   { id: "patient", label: "Patient", icon: "heart" },
   { id: "hospital", label: "Hospital", icon: "building" },
+  { id: "provider", label: "Lab & pharmacy", icon: "pill" },
   { id: "responder", label: "Responder", icon: "asterisk" },
   { id: "insurer", label: "Insurer", icon: "shield" },
   { id: "public", label: "Public chain", icon: "chain" },

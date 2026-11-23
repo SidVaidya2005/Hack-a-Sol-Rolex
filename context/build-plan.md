@@ -295,6 +295,18 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** complete two clean rehearsals from a fresh seed. Expected: one rehearsal also succeeds with Pinata unreachable, and the backup video plays on the presenting laptop.
 
+### W15 Lab and pharmacy sharing
+
+**Owner:** team. Branch: `w15/cross-sharing`. Let a patient share a limited copy of a record with a simulated lab or pharmacy, with expiry and independent revocation. Real integrations stay out of scope, and providers are read-only in this version.
+
+**Verify:** from a fresh seed, through MetaMask with real Pinata, the patient shares one record with the pharmacy and the lab. Expected: the pharmacy sees only identity, prescriptions, and allergies; the lab sees only identity, test orders, and results; neither can open the other's copy or the source record; and revoking the pharmacy leaves the lab working.
+
+**Plan:** `packages/shared/src/record-slices.ts` rebuilds each copy from named fields. `shareSlice` in `app/lib/record-service.ts` encrypts it as a new record and grants it through the existing paths. The slice marker exists only inside the ciphertext. No contract, ABI, or circuit change. The seed adds `lab` and `pharmacy` wallets. Decisions: D-058, D-059.
+
+**Built, not yet verified through MetaMask:** 2026-11-23. On Windows with Node 26, all 46 E2E checks passed, including 12 new sharing checks. The 68 shared and 35 contract tests, typecheck, lint, format check, and production build also passed. On a separate temporary chain, the updated seed created the `lab` and `pharmacy` wallets, `GET /api/providers` listed only provider wallets, and all 36 `scripts/check-patient-records.mjs` checks passed with bundles stored in a local cache. The screens through MetaMask and a real Pinata upload had not been run at this point.
+
+**Result:** 2026-11-23 — The W15 flow passed through MetaMask over the LAN from a fresh seed, as reported by the team, with LA as the host and Patient and LB running the provider wallets. The live chain confirmed separate pharmacy and lab copies, each granted, opened with a logged view, and revoked with a key rotation, and the 51 cached bundles hold no readable record text. The lab was granted after the pharmacy revokes, so the chain does not show a lab view following a pharmacy revoke. That independence, and the refusal of each provider opening the other's copy or the source record, are covered by `npm run e2e`, which has run only on Windows. Decisions: D-058, D-059.
+
 ## Workflow Decisions
 
 - **D-021 — Use four track branches merged through quick PRs.** Reason: this keeps `main` safe to demo while four people work in parallel. Source: setup interview. Superseded by D-037: one branch per track prevented dependent items from merging separately.

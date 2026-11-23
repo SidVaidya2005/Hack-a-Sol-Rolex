@@ -18,13 +18,22 @@ import { Badge, Panel } from "./ui";
 const POLL_MS = 5_000;
 const STATUS_TONE = { Active: "success", Expired: "neutral", Revoked: "warning" } as const;
 
+type PanelText = { title: string; description: string; unlockPurpose: string; className: string };
+
+const DOCTOR_TEXT: PanelText = {
+  title: "Doctor record view",
+  description: "Records patients shared with this wallet. Each view is logged on-chain first.",
+  unlockPurpose: "Sign once in your doctor wallet so patients can share records with you.",
+  className: "mt-14",
+};
+
 /** Keyed by wallet, so decrypted data never survives a wallet change or lock. */
-export function DoctorRecordsPanel() {
+export function DoctorRecordsPanel({ text = DOCTOR_TEXT }: { text?: PanelText }) {
   const { session } = useRecordSession();
-  return <DoctorRecordsContent key={session?.address ?? "locked"} />;
+  return <DoctorRecordsContent key={session?.address ?? "locked"} text={text} />;
 }
 
-function DoctorRecordsContent() {
+function DoctorRecordsContent({ text }: { text: PanelText }) {
   const { session, revision, refresh } = useRecordSession();
   const [records, setRecords] = useState<SharedRecord[]>([]);
   const [opened, setOpened] = useState<{ recordId: Hex32; items: RecordItem[] } | null>(null);
@@ -71,11 +80,7 @@ function DoctorRecordsContent() {
   }
 
   return (
-    <Panel
-      className="mt-14"
-      title="Doctor record view"
-      description="Records patients shared with this wallet. Each view is logged on-chain first."
-    >
+    <Panel className={text.className} title={text.title} description={text.description}>
       {session ? (
         <>
           <WalletPromptNotice text={walletPrompt} />
@@ -126,7 +131,7 @@ function DoctorRecordsContent() {
           )}
         </>
       ) : (
-        <UnlockGate purpose="Sign once in your doctor wallet so patients can share records with you." />
+        <UnlockGate purpose={text.unlockPurpose} />
       )}
     </Panel>
   );

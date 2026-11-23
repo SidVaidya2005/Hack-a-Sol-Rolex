@@ -271,9 +271,9 @@ async function main() {
   const titles = new Set(timeline.map((entry) => entry.title));
   for (const title of [
     "Record added",
-    "Doctor access granted",
+    "Access granted",
     "Record viewed",
-    "Doctor access revoked",
+    "Access revoked",
     "Record key rotated",
   ]) {
     report(`The timeline shows "${title}"`, titles.has(title));

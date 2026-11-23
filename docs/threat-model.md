@@ -90,3 +90,8 @@ Rado is a hackathon prototype. It uses synthetic patient data, mock tokens, a lo
 15. L4 serves the app's code. A malicious host could ship modified code that reads data in users' browsers, so "L4 cannot read" assumes it serves the honest app.
 16. L4 runs the local chain. Its operator could reset it, and its audit trail lasts only as long as that node's state.
 17. If a patient rotates a key during an emergency release, the responder's retry can log a second access for one actual release. This over-reports access and does not hide it.
+
+**Added by W15, awaiting team review:**
+
+18. Anyone with the off-chain provider directory can match a public grant to a provider type, such as a pharmacy, but cannot read what was shared (D-059).
+19. A pharmacy may infer a condition from a prescription, because field filtering cannot hide what a medicine implies (D-058).

@@ -13,7 +13,7 @@ export type DataMode = "simulated" | "records-live" | "policies-live" | "live";
 
 const DATA_MODE_LABELS: Record<DataMode, string> = {
   simulated: "Simulated",
-  "records-live": "Records and claim exchange live · Payout simulated",
+  "records-live": "Records, claims, and payouts live · Walkthrough simulated",
   "policies-live": "Policies live · Payouts simulated",
   live: "Live",
 };

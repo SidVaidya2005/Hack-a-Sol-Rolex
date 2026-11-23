@@ -15,6 +15,7 @@ import {
   type RecordAccount,
   type RecordService,
 } from "../lib/record-service";
+import { createSettlement, type Settlement } from "../lib/settlement";
 import { Icon } from "./icons";
 import { useWalletActions } from "./WalletConnection";
 
@@ -24,6 +25,7 @@ type Session = {
   keys: UnlockedKeys;
   service: RecordService;
   exchange: ClaimExchange;
+  settlement: Settlement;
 };
 
 type RecordSessionValue = {
@@ -68,8 +70,9 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
       const body = (await response.json().catch(() => null)) as {
         recordAccess?: Address;
         claimSettlement?: Address;
+        mockUsd?: Address;
       } | null;
-      if (!response.ok || !body?.recordAccess || !body.claimSettlement) {
+      if (!response.ok || !body?.recordAccess || !body.claimSettlement || !body.mockUsd) {
         setError("The Rado contracts are not available yet.");
         return;
       }
@@ -91,7 +94,13 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
         claimSettlement: body.claimSettlement,
         keys,
       });
-      setSession({ address, keys, service, exchange });
+      const settlement = createSettlement({
+        publicClient: clients.publicClient,
+        walletClient: clients.walletClient,
+        claimSettlement: body.claimSettlement,
+        mockUsd: body.mockUsd,
+      });
+      setSession({ address, keys, service, exchange, settlement });
     } catch (caught) {
       setError(plainRecordError(caught));
     } finally {

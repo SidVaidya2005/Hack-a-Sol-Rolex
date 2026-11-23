@@ -24,8 +24,13 @@ export function hardhatRpcUrl(): string {
 }
 
 /** Read on each call, so a fresh seed takes effect without restarting the app. */
-async function deployedAddress(name: "recordAccess" | "claimSettlement"): Promise<Address> {
-  const file = path.resolve(process.cwd(), "..", "contracts", "deployments", "localhost.json");
+async function deployedAddress(
+  name: "recordAccess" | "claimSettlement" | "mockUsd",
+): Promise<Address> {
+  // The E2E script runs on its own chain, so it must not read the demo deployment.
+  const file = process.env.RADO_E2E_DIR
+    ? path.join(process.env.RADO_E2E_DIR, "localhost.json")
+    : path.resolve(process.cwd(), "..", "contracts", "deployments", "localhost.json");
   let address: unknown;
   try {
     const deployment = JSON.parse(await readFile(file, "utf8")) as {
@@ -43,6 +48,7 @@ async function deployedAddress(name: "recordAccess" | "claimSettlement"): Promis
 
 export const recordAccessAddress = () => deployedAddress("recordAccess");
 export const claimSettlementAddress = () => deployedAddress("claimSettlement");
+export const mockUsdAddress = () => deployedAddress("mockUsd");
 
 async function readRecordAccess<T>(
   read: (client: ReturnType<typeof createPublicClient>, address: Address) => Promise<T>,

@@ -17,6 +17,13 @@ export function PatientClaimPanel() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function approve(encounterId: string) {
+    if (!terms) {
+      setMessage({
+        ok: false,
+        text: "Your policy has not arrived. On the Insurer laptop, click Issue or resend policy, then approve again.",
+      });
+      return;
+    }
     setBusy(encounterId);
     setMessage(null);
     try {
@@ -98,19 +105,19 @@ export function PatientClaimPanel() {
                     </p>
                     {status === "pending" && !terms ? (
                       <p className="mt-2 text-xs text-rado-slate">
-                        Ask the insurer to send your policy before approving.
+                        Waiting for your policy. Ask the insurer to click Issue or resend policy.
                       </p>
                     ) : null}
                     {status === "pending" && problem ? (
                       <p className="status-warning mt-3 rounded-lg border px-3 py-2 text-xs">
-                        {problem} You can decline this request.
+                        {problem} This claim cannot be approved, so please decline it.
                       </p>
                     ) : null}
                     {status === "pending" ? (
                       <div className="mt-3 flex flex-wrap gap-3">
                         <button
                           className="button-primary disabled:opacity-50"
-                          disabled={Boolean(busy) || !terms || Boolean(problem)}
+                          disabled={Boolean(busy)}
                           onClick={() => void approve(body.encounterId)}
                           type="button"
                         >

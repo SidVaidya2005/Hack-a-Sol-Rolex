@@ -97,14 +97,27 @@ export class RecordError extends Error {}
 
 const REVERT_MESSAGES: Record<string, string> = {
   AccessNotActive: "This wallet does not have active access to this record.",
+  ClaimBeforePolicyStart: "This claim is dated before the policy started.",
+  ClaimDayInFuture: "This claim is dated in the future.",
+  ClaimTooOld: "This claim is more than 30 days old.",
   InvalidExpiry: "Choose an expiry in the future.",
+  InvalidPayoutAddress: "This claim has an invalid payout address.",
+  InvalidProof: "The contract rejected this proof.",
   KeysNotRegistered: "That wallet has not unlocked Rado yet.",
   NotInsurer: "Only the insurer wallet can do this.",
   NotRecordPatient: "Only the patient can change access to this record.",
+  NullifierAlreadyUsed: "This claim was already submitted.",
   PolicyAlreadyRegistered: "This policy is already registered.",
   RecordAlreadyExists: "This record already exists. Try again.",
+  StaleHospitalRoot: "The approved hospital list changed. Generate a new proof.",
+  TotalCapExceeded: "This claim is above the policy's remaining total cap.",
+  UnknownPolicy: "This policy is not registered.",
   UnknownRecord: "This record could not be found.",
+  ZeroAmount: "The claim amount must be above zero.",
 };
+
+/** OpenZeppelin's `ERC20InsufficientBalance`, which is not part of the shared ABI. */
+const POOL_EMPTY_SELECTOR = "0xe450d38c";
 
 export function plainRecordError(error: unknown): string {
   if (error instanceof RecordError) return error.message;
@@ -119,6 +132,9 @@ export function plainRecordError(error: unknown): string {
     if (reverted instanceof ContractFunctionRevertedError) {
       const name = reverted.data?.errorName;
       if (name && REVERT_MESSAGES[name]) return REVERT_MESSAGES[name];
+      if (reverted.signature === POOL_EMPTY_SELECTOR) {
+        return "The insurer pool does not have enough funds.";
+      }
     }
   }
   return "This could not be completed. Try again.";

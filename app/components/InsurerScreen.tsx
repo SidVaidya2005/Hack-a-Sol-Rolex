@@ -1,62 +1,58 @@
 "use client";
 
-import { SAMPLE_HOSPITALS } from "@rado/shared";
 import { useEffect, useRef, useState } from "react";
 
-import { formatAmount, getInsurerSampleData } from "../data/insurer-sample-data";
-import { usePublicClaim } from "./ClaimSimulationProvider";
+import { formatAmount } from "../data/insurer-sample-data";
+import { formatClaimDay } from "../data/public-signal-labels";
+import type { SettledClaim } from "../lib/settlement";
+import { useChainLedger } from "../lib/use-chain-ledger";
 import { Icon } from "./icons";
 import { InsurerPolicyPanel } from "./InsurerPolicyPanel";
+import { shortId } from "./RecordSession";
 import { Badge, Band, MetricCard, PageHeading, Panel } from "./ui";
 
-const sample = getInsurerSampleData();
+const order = (a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0);
 const SORTS = {
   newest: {
     label: "Newest first",
-    compare: (a: ClaimRow, b: ClaimRow) => Date.parse(b.date) - Date.parse(a.date),
+    compare: (a: SettledClaim, b: SettledClaim) => order(b.blockNumber, a.blockNumber),
   },
   oldest: {
     label: "Oldest first",
-    compare: (a: ClaimRow, b: ClaimRow) => Date.parse(a.date) - Date.parse(b.date),
+    compare: (a: SettledClaim, b: SettledClaim) => order(a.blockNumber, b.blockNumber),
   },
   highest: {
     label: "Highest payout",
-    compare: (a: ClaimRow, b: ClaimRow) => Number(b.amountUnits - a.amountUnits),
+    compare: (a: SettledClaim, b: SettledClaim) => order(b.claimAmount, a.claimAmount),
   },
   lowest: {
     label: "Lowest payout",
-    compare: (a: ClaimRow, b: ClaimRow) => Number(a.amountUnits - b.amountUnits),
+    compare: (a: SettledClaim, b: SettledClaim) => order(a.claimAmount, b.claimAmount),
   },
 };
 
-type ClaimRow = (typeof sample.claims)[number];
 type SortId = keyof typeof SORTS;
 
+const hexId = (value: bigint) => shortId(`0x${value.toString(16).padStart(64, "0")}`);
+
+/** Reads only public chain data. It has no access to private claim state. */
 export function InsurerScreen() {
-  const [message, setMessage] = useState("");
+  const { ledger, error } = useChainLedger();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortId>("newest");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const drawerRef = useRef<HTMLDialogElement>(null);
-  const claim = usePublicClaim();
-  const payout = claim.settled ? claim.amount : 0n;
-  const utilization = Number(((sample.usedCapUnits + payout) * 100n) / sample.capUnits);
-  const claims: ClaimRow[] = claim.settled
-    ? [
-        {
-          id: claim.claimId,
-          policy: claim.policy,
-          amount: formatAmount(claim.amount),
-          amountUnits: claim.amount,
-          date: claim.date,
-          state: "Verified · simulated",
-        },
-        ...sample.claims,
-      ]
-    : sample.claims;
+  const claims = ledger?.claims ?? [];
+  const totalCap = ledger?.totalCap ?? 0n;
+  const totalPaid = ledger?.totalPaid ?? 0n;
+  const utilization = totalCap > 0n ? Number((totalPaid * 100n) / totalCap) : 0;
   const search = query.trim().toLowerCase();
   const visibleClaims = claims
-    .filter((row) => `${row.id} ${row.policy}`.toLowerCase().includes(search))
+    .filter((row) =>
+      `${hexId(row.nullifier)} ${hexId(row.policyCommitment)} ${row.payoutAddress}`
+        .toLowerCase()
+        .includes(search),
+    )
     .sort(SORTS[sort].compare);
   const selected = claims.find((row) => row.id === selectedId);
 
@@ -72,39 +68,31 @@ export function InsurerScreen() {
       <PageHeading
         eyebrow="Insurer workspace"
         title="Coverage at a glance"
-        description="Review policy funding and verified claim payouts from one clear view."
-        status="policies-live"
-        action={
-          <button
-            className="button-primary"
-            onClick={() =>
-              setMessage("Sample only: no policy was issued and no transaction was sent.")
-            }
-            type="button"
-          >
-            <Icon name="plus" className="size-4" /> Issue sample policy
-          </button>
-        }
+        description="Live policy funding and verified payouts, read from the local chain."
+        status="live"
       />
-      {message ? (
-        <p
-          aria-live="polite"
-          className="status-success motion-reveal mb-8 rounded-lg border px-4 py-3 text-sm"
-        >
-          {message}
+      {error ? (
+        <p className="status-error mb-8 rounded-lg border px-4 py-3 text-sm" role="alert">
+          {error}
         </p>
       ) : null}
       <InsurerPolicyPanel />
-      <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+      <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard
           label="Pool balance"
-          value={formatAmount(sample.balanceUnits - payout)}
-          detail="Available for payouts"
+          value={ledger ? formatAmount(ledger.poolBalance) : "Loading…"}
+          detail="Demo tokens available"
           icon="coin"
         />
         <MetricCard
-          label="Paid this month"
-          value={formatAmount(sample.paidUnits + payout)}
+          label="Policies issued"
+          value={ledger ? ledger.policies.length.toString() : "Loading…"}
+          detail="Registered on-chain"
+          icon="file"
+        />
+        <MetricCard
+          label="Total paid"
+          value={ledger ? formatAmount(totalPaid) : "Loading…"}
           detail="Verified payouts"
           icon="arrow"
         />
@@ -137,7 +125,7 @@ export function InsurerScreen() {
                 className="field"
                 id="claim-search"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Filter by claim or policy"
+                placeholder="Filter by claim, policy, or payee"
                 value={query}
               />
             </div>
@@ -173,31 +161,33 @@ export function InsurerScreen() {
               <tbody>
                 {visibleClaims.map((row) => (
                   <tr
-                    className={`border-b border-rado-line transition-colors last:border-0 hover:bg-rado-hover ${row.id === claim.claimId ? "motion-reveal" : ""}`}
+                    className="border-b border-rado-line transition-colors last:border-0 hover:bg-rado-hover"
                     key={row.id}
                   >
                     <td className="py-4">
                       <button
-                        aria-label={`Open ${row.id} details`}
+                        aria-label={`Open claim ${hexId(row.nullifier)} details`}
                         className="nav-link !rounded !p-0 font-mono !text-xs !text-rado-ink underline underline-offset-4 hover:!bg-transparent hover:decoration-2"
                         onClick={() => setSelectedId(row.id)}
                         type="button"
                       >
-                        {row.id}
+                        {hexId(row.nullifier)}
                       </button>
                     </td>
-                    <td className="py-4 font-mono text-xs text-rado-slate">{row.policy}</td>
-                    <td className="py-4 text-xs text-rado-slate">{row.date}</td>
-                    <td className="py-4 text-sm text-rado-ink">{row.amount}</td>
+                    <td className="py-4 font-mono text-xs text-rado-slate">
+                      {hexId(row.policyCommitment)}
+                    </td>
+                    <td className="py-4 text-xs text-rado-slate">{formatClaimDay(row.claimDay)}</td>
+                    <td className="py-4 text-sm text-rado-ink">{formatAmount(row.claimAmount)}</td>
                     <td className="py-4">
-                      <Badge tone="success">{row.state}</Badge>
+                      <Badge tone="success">Verified · paid</Badge>
                     </td>
                   </tr>
                 ))}
                 {visibleClaims.length ? null : (
                   <tr>
                     <td className="py-6 text-center text-sm text-rado-slate" colSpan={5}>
-                      No claims match that filter.
+                      {claims.length ? "No claims match that filter." : "No claims settled yet."}
                     </td>
                   </tr>
                 )}
@@ -208,8 +198,8 @@ export function InsurerScreen() {
         <Band
           className="min-w-0"
           eyebrow="Coverage pool"
-          title={sample.policyCap}
-          description="Total cap"
+          title={formatAmount(totalCap)}
+          description="Total cap across registered policies"
         >
           <div className="h-1.5 overflow-hidden rounded-full bg-rado-card-border">
             <div
@@ -228,10 +218,8 @@ export function InsurerScreen() {
               <dd className="text-right text-rado-ink">Automated</dd>
             </div>
             <div className="flex justify-between gap-4 py-3 text-sm">
-              <dt className="text-rado-slate">Payout status</dt>
-              <dd className="text-right text-rado-green">
-                {claim.settled ? "Simulated payout complete" : "Awaiting claim"}
-              </dd>
+              <dt className="text-rado-slate">Claims paid</dt>
+              <dd className="text-right text-rado-green">{claims.length}</dd>
             </div>
           </dl>
         </Band>
@@ -250,7 +238,7 @@ export function InsurerScreen() {
                   Claim details
                 </p>
                 <h2 className="mt-3 font-mono text-2xl text-rado-ink" id="claim-drawer-title">
-                  {selected.id}
+                  {hexId(selected.nullifier)}
                 </h2>
               </div>
               <button
@@ -262,14 +250,15 @@ export function InsurerScreen() {
               </button>
             </div>
             <div className="mt-5">
-              <Badge tone="success">{selected.state}</Badge>
+              <Badge tone="success">Verified · paid</Badge>
             </div>
             <dl className="mt-6 divide-y divide-rado-line border-y border-rado-line">
               {[
-                ["Policy", selected.policy],
-                ["Payout", selected.amount],
-                ["Claim date", selected.date],
-                ["Paid to", SAMPLE_HOSPITALS[0].name],
+                ["Policy", hexId(selected.policyCommitment)],
+                ["Payout", formatAmount(selected.claimAmount)],
+                ["Claim date", formatClaimDay(selected.claimDay)],
+                ["Paid to", shortId(selected.payoutAddress)],
+                ["Block", selected.blockNumber.toString()],
                 ["Verification", "Zero-knowledge proof"],
               ].map(([label, value]) => (
                 <div className="flex justify-between gap-4 py-3 text-sm" key={label}>
@@ -282,9 +271,7 @@ export function InsurerScreen() {
               <Icon name="lock" className="mt-1 size-4" />
               Private health details are not part of this claim view.
             </p>
-            <p className="mt-auto pt-6 text-xs text-rado-muted">
-              Sample data. No real claim or payment exists.
-            </p>
+            <p className="mt-auto pt-6 text-xs text-rado-muted">Demo tokens with no real value.</p>
           </div>
         ) : null}
       </dialog>

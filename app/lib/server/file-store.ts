@@ -7,7 +7,9 @@ import path from "node:path";
 const NONCE_FILE = /^[0-9a-f]{64}$/;
 const NONCE_PRUNE_MS = 30_000;
 
-export const cacheRoot = path.join(process.cwd(), ".cache");
+export const cacheRoot = process.env.RADO_E2E_DIR
+  ? path.join(process.env.RADO_E2E_DIR, "cache")
+  : path.join(process.cwd(), ".cache");
 
 /** Next.js can load a module once per route, so shared state lives on globalThis. */
 const shared = globalThis as typeof globalThis & {

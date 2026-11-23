@@ -149,7 +149,7 @@ All routes run on L4 and share the app's HTTPS origin.
 | Route | Purpose | Required guard |
 | ----- | ------- | -------------- |
 | `POST /api/rpc` | Same-origin proxy to Hardhat on `127.0.0.1:8545` | Allow only read methods and `eth_sendRawTransaction` |
-| `GET /api/contracts` | Return the public RecordAccess and ClaimSettlement addresses (D-047) | Same origin, read-only |
+| `GET /api/contracts` | Return the public RecordAccess, ClaimSettlement, and MockUSD addresses (D-047) | Same origin, read-only |
 | `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
 | `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder signature, single use |
@@ -310,5 +310,6 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 | `DEMO_HOST_IP` | `allowedDevOrigins` in Next.js config | Server config |
 | `NEXT_PUBLIC_CHAIN_ID` | Wallet config | Public |
 | `RADO_ALLOW_PLACEHOLDER` | Local development deployment only | Development flag |
+| `RADO_E2E_DIR` | Set only by `scripts/check-e2e.mjs` for its own deployment, cache, and build folder | Test flag |
 
 **Dependencies:** check the package against `context/library-docs.md` and add it there before installing anything new.

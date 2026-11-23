@@ -1,0 +1,156 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="rado-architecture" name="Architecture and data">
+    <mxGraphModel dx="1600" dy="1060" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1620" pageHeight="1060" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Rado: architecture and privacy threat model" style="text;html=1;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="900" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Where each kind of data lives, who can read it, and which guard protects it. Demo only: synthetic data, mock tokens, local chain 31337." style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontColor=#5A626E;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="1120" height="26" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zoneBrowsers" value="Trust boundary: each user's browser. Readable data stays in memory" style="swimlane;startSize=30;html=1;fontSize=15;fontStyle=1;fillColor=#E7F6EC;strokeColor=#1E7F3E;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1120" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="patient" value="&lt;b&gt;Patient · L1&lt;/b&gt;&lt;br&gt;&lt;br&gt;Derived keys&lt;br&gt;Decrypted records&lt;br&gt;Policy terms&lt;br&gt;&lt;br&gt;&lt;i&gt;Encrypts before upload&lt;/i&gt;" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=14;fillColor=#FFFFFF;strokeColor=#8BCB9F;" vertex="1" parent="zoneBrowsers">
+          <mxGeometry x="20" y="45" width="250" height="185" as="geometry"/>
+        </mxCell>
+        <mxCell id="hospital" value="&lt;b&gt;Hospital and Doctor · L2&lt;/b&gt;&lt;br&gt;&lt;br&gt;Claim witness, proof inputs&lt;br&gt;Record after a logged view&lt;br&gt;&lt;br&gt;&lt;i&gt;Proof runs in a web worker&lt;/i&gt;" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=14;fillColor=#FFFFFF;strokeColor=#8BCB9F;" vertex="1" parent="zoneBrowsers">
+          <mxGeometry x="295" y="45" width="250" height="185" as="geometry"/>
+        </mxCell>
+        <mxCell id="responder" value="&lt;b&gt;Emergency Responder · L2&lt;/b&gt;&lt;br&gt;&lt;br&gt;Emergency summary only&lt;br&gt;&lt;br&gt;&lt;i&gt;Access is logged on-chain first&lt;/i&gt;" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=14;fillColor=#FFFFFF;strokeColor=#8BCB9F;" vertex="1" parent="zoneBrowsers">
+          <mxGeometry x="570" y="45" width="250" height="185" as="geometry"/>
+        </mxCell>
+        <mxCell id="insurer" value="&lt;b&gt;Insurer · L3&lt;/b&gt;&lt;br&gt;&lt;br&gt;Private policy terms&lt;br&gt;Verified claims and payouts&lt;br&gt;&lt;br&gt;&lt;i&gt;No diagnosis, record, or claimed procedure&lt;/i&gt;" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=14;fillColor=#FFFFFF;strokeColor=#8BCB9F;" vertex="1" parent="zoneBrowsers">
+          <mxGeometry x="845" y="45" width="250" height="185" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend" value="&lt;b&gt;Legend&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#1E7F3E&quot;&gt;&lt;b&gt;Green&lt;/b&gt;&lt;/font&gt;: readable data, in browser memory&lt;br&gt;&lt;font color=&quot;#B26A00&quot;&gt;&lt;b&gt;Orange&lt;/b&gt;&lt;/font&gt;: host sees ciphertext and metadata&lt;br&gt;&lt;font color=&quot;#6B4FC8&quot;&gt;&lt;b&gt;Purple&lt;/b&gt;&lt;/font&gt;: public on-chain data&lt;br&gt;&lt;font color=&quot;#5A626E&quot;&gt;&lt;b&gt;Gray&lt;/b&gt;&lt;/font&gt;: outside parties&lt;br&gt;&lt;br&gt;Dashed border: trust boundary&lt;br&gt;Arrow label: what crosses it" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fontSize=14;align=left;spacingLeft=12;fillColor=#FFF9DB;strokeColor=#E9D58A;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="90" width="360" height="250" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zoneHost" value="Trust boundary: L4 host. Cannot read records or inbox messages. Trusted for emergency summaries only" style="swimlane;startSize=30;html=1;fontSize=15;fontStyle=1;fillColor=#FFF0E5;strokeColor=#B26A00;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="390" width="1120" height="375" as="geometry"/>
+        </mxCell>
+        <mxCell id="gateway" value="&lt;b&gt;Next.js app over LAN HTTPS&lt;/b&gt; · same origin for all role screens and server routes" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fontSize=14;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="20" y="40" width="1075" height="44" as="geometry"/>
+        </mxCell>
+        <mxCell id="routeRpc" value="&lt;b&gt;/api/rpc, /api/contracts&lt;/b&gt;&lt;br&gt;Read methods and signed transactions only. Admin methods blocked" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="20" y="120" width="250" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="routeInbox" value="&lt;b&gt;/api/inbox, list, ack&lt;/b&gt;&lt;br&gt;Fresh signed requests. Only the recipient can list or acknowledge" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="295" y="120" width="250" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="routeEscrow" value="&lt;b&gt;/api/escrow/release&lt;/b&gt;&lt;br&gt;Needs a matching on-chain event, responder signature, escrow-wrapped summary. Single use" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="570" y="120" width="250" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="routeRecords" value="&lt;b&gt;/api/pin, /api/records&lt;/b&gt;&lt;br&gt;Pin needs a registered wallet signature. Reads must match the on-chain hash" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="845" y="120" width="250" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="storeInbox" value="&lt;b&gt;Inbox store&lt;/b&gt;&lt;br&gt;Ciphertext, sender, recipient, message ID, timestamps. Deleted on ack or after 24 hours" style="shape=cylinder3;boundedLbl=1;size=10;whiteSpace=wrap;html=1;fontSize=12;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="295" y="255" width="250" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="storeSecrets" value="&lt;b&gt;Server secrets and markers&lt;/b&gt;&lt;br&gt;PINATA_JWT, ESCROW_PRIVATE_KEY, used-event markers. Summary key in memory briefly" style="shape=cylinder3;boundedLbl=1;size=10;whiteSpace=wrap;html=1;fontSize=12;fillColor=#FDECEC;strokeColor=#C9302C;" vertex="1" parent="zoneHost">
+          <mxGeometry x="570" y="255" width="250" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="storeCache" value="&lt;b&gt;Encrypted bundle cache&lt;/b&gt;&lt;br&gt;Ciphertext, IV, one wrapped key per reader. Keeps the demo working offline" style="shape=cylinder3;boundedLbl=1;size=10;whiteSpace=wrap;html=1;fontSize=12;fillColor=#FFFFFF;strokeColor=#F0B48A;" vertex="1" parent="zoneHost">
+          <mxGeometry x="845" y="255" width="250" height="105" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zoneChain" value="Public data: local Hardhat chain, hosted on L4. Never holds medical data" style="swimlane;startSize=30;html=1;fontSize=15;fontStyle=1;fillColor=#F3EEFF;strokeColor=#6B4FC8;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="1120" height="210" as="geometry"/>
+        </mxCell>
+        <mxCell id="contractAccess" value="&lt;b&gt;RecordAccess&lt;/b&gt;&lt;br&gt;Record hash, CID, public keys, grants, expiry, responders, access audit events" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#B9A6F0;" vertex="1" parent="zoneChain">
+          <mxGeometry x="20" y="45" width="250" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="contractSettlement" value="&lt;b&gt;ClaimSettlement&lt;/b&gt;&lt;br&gt;Policy commitment, start day, total cap, hospital root and leaves, nullifiers, claim events" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#B9A6F0;" vertex="1" parent="zoneChain">
+          <mxGeometry x="295" y="45" width="250" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="contractVerifier" value="&lt;b&gt;Groth16Verifier&lt;/b&gt;&lt;br&gt;Checks the proof against six public values: amount, policy, nullifier, hospital root, day, payout" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#B9A6F0;" vertex="1" parent="zoneChain">
+          <mxGeometry x="570" y="45" width="250" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="contractToken" value="&lt;b&gt;MockUSD&lt;/b&gt;&lt;br&gt;Demo-only insurer pool and hospital payouts. No real value" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#B9A6F0;" vertex="1" parent="zoneChain">
+          <mxGeometry x="845" y="45" width="250" height="145" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="zoneOutside" value="Outside parties" style="swimlane;startSize=30;html=1;fontSize=15;fontStyle=1;fillColor=#F2F4F7;strokeColor=#5A626E;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="390" width="360" height="630" as="geometry"/>
+        </mxCell>
+        <mxCell id="pinata" value="&lt;b&gt;Pinata / public IPFS&lt;/b&gt;&lt;br&gt;Encrypted bundles only. Reader addresses are visible, and old rotated bundles remain available" style="shape=cylinder3;boundedLbl=1;size=10;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#B8C0CC;" vertex="1" parent="zoneOutside">
+          <mxGeometry x="20" y="100" width="320" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="publicView" value="&lt;b&gt;Outsider / Public Chain View&lt;/b&gt;&lt;br&gt;&lt;i&gt;Shown on the L4 screen&lt;/i&gt;&lt;br&gt;Can read claim amounts, policy fingerprints, nullifiers, hospital root, day, payout, and which wallets granted access to which" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fontSize=13;fillColor=#FFFFFF;strokeColor=#B8C0CC;" vertex="1" parent="zoneOutside">
+          <mxGeometry x="20" y="450" width="320" height="140" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" value="encrypted bundles, inbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;strokeColor=#5A626E;fontColor=#5A626E;exitX=0.5;exitY=1;entryX=0.1163;entryY=0;" edge="1" parent="1" source="patient" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="inbox ciphertext, proof tx" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;strokeColor=#5A626E;fontColor=#5A626E;exitX=0.5;exitY=1;entryX=0.3721;entryY=0;" edge="1" parent="1" source="hospital" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="signed release request" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;strokeColor=#5A626E;fontColor=#5A626E;exitX=0.5;exitY=1;entryX=0.6279;entryY=0;" edge="1" parent="1" source="responder" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="policy tx, inbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;strokeColor=#5A626E;fontColor=#5A626E;exitX=0.5;exitY=1;entryX=0.8837;entryY=0;" edge="1" parent="1" source="insurer" target="gateway">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;exitX=0.1163;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="zoneHost" source="gateway" target="routeRpc">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;exitX=0.3721;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="zoneHost" source="gateway" target="routeInbox">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;exitX=0.6279;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="zoneHost" source="gateway" target="routeEscrow">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;exitX=0.8837;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="zoneHost" source="gateway" target="routeRecords">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;" edge="1" parent="zoneHost" source="routeInbox" target="storeInbox">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;" edge="1" parent="zoneHost" source="routeEscrow" target="storeSecrets">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#8A94A6;" edge="1" parent="zoneHost" source="routeRecords" target="storeCache">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" value="allowed RPC only" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;strokeColor=#5A626E;fontColor=#5A626E;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="routeRpc" target="contractAccess">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13" value="ciphertext only" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;strokeColor=#5A626E;fontColor=#5A626E;exitX=1;exitY=0.5;entryX=0;entryY=0.5;entryPerimeter=0;" edge="1" parent="1" source="routeRecords" target="pinata">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e14" value="public reads" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#5A626E;fontColor=#5A626E;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="publicView" target="zoneChain">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="rado-threats" name="Attacks and limitations">
+    <mxGraphModel dx="1600" dy="1060" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1620" pageHeight="1060" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="t-title" value="Rado: attacks handled and known limitations" style="text;html=1;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1100" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="t-claims" value="&lt;b&gt;Claim attacks stopped&lt;/b&gt;&lt;br&gt;&lt;br&gt;A1 Unapproved hospital: hospital Merkle proof&lt;br&gt;A2 Expired policy: circuit expiry check&lt;br&gt;A3 Uncovered procedure: coverage Merkle proof&lt;br&gt;A4 Over per-claim limit: circuit comparison&lt;br&gt;A5 Draining a policy: contract total cap&lt;br&gt;A6 Forged approval: two EdDSA signatures&lt;br&gt;A7 Replay: one-time nullifier&lt;br&gt;A8 Changed amount, day, payout: claimHash&lt;br&gt;A9 Backdated or future claim: contract day checks&lt;br&gt;A10 Oversized payout: 160-bit check&lt;br&gt;A11 Fake admin: insurer or responder-admin wallet only" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fontSize=14;align=left;verticalAlign=top;spacing=14;fillColor=#E7F6EC;strokeColor=#1E7F3E;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="500" height="430" as="geometry"/>
+        </mxCell>
+        <mxCell id="t-data" value="&lt;b&gt;Data and access attacks stopped&lt;/b&gt;&lt;br&gt;&lt;br&gt;A12 Revoked doctor opens current record: key rotation&lt;br&gt;A13 Tampered bundle: on-chain hash check&lt;br&gt;A14 Moved wrapped key: AES-GCM AAD&lt;br&gt;A15 Altered inbox message: AES-GCM AAD&lt;br&gt;A16 Forged inbox message: client sender checks&lt;br&gt;A17 Replayed inbox request: signature and nonce&lt;br&gt;A18 LAN call to Hardhat admin: RPC allowlist&lt;br&gt;A19 Path traversal: strict ID format checks&lt;br&gt;A20 Release with no event, wrong wallet, or repeat: on-chain event, signature, single-use marker&lt;br&gt;A21 Release of a full record: escrow-wrapped summaries only&lt;br&gt;A22 Aliasing or first-anchoring a summary: bundle must match the event and its first pin signer&lt;br&gt;A23 Insurer appoints itself responder: separate responder-admin wallet" style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fontSize=14;align=left;verticalAlign=top;spacing=14;fillColor=#E7F6EC;strokeColor=#1E7F3E;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="500" height="490" as="geometry"/>
+        </mxCell>
+        <mxCell id="t-known" value="&lt;b&gt;Known limitations&lt;/b&gt;&lt;br&gt;&lt;br&gt;1. A claim amount can hint at the treatment type.&lt;br&gt;2. The insurer sees the paid hospital and can link claims under one policy commitment.&lt;br&gt;3. A doctor can keep anything already decrypted. Expiry is enforced by the contract and app until the patient rotates the key.&lt;br&gt;4. A modified client could skip on-chain view logging.&lt;br&gt;5. L4 escrow is trusted for emergency summaries and briefly holds a summary key in memory.&lt;br&gt;6. A bundle's escrow reader reveals that it is an emergency summary, but not its contents.&lt;br&gt;7. L4 sees who messaged whom and when.&lt;br&gt;8. Inbox request signatures omit recipient, message ID, and acknowledged IDs, so L4 could misroute or delete messages but not read them (D-042).&lt;br&gt;9. The trusted setup and all wallets are demo-grade.&lt;br&gt;10. The chain shows which patient wallet granted access to which doctor wallet, and when.&lt;br&gt;11. Public bundles list reader wallet addresses.&lt;br&gt;12. Old bundles stay on IPFS after rotation, so a revoked doctor can open the old version with their old key." style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fontSize=14;align=left;verticalAlign=top;spacing=14;fillColor=#FFF0E5;strokeColor=#B26A00;" vertex="1" parent="1">
+          <mxGeometry x="570" y="70" width="990" height="550" as="geometry"/>
+        </mxCell>
+        <mxCell id="t-review" value="&lt;b&gt;Found during W13, awaiting team review&lt;/b&gt;&lt;br&gt;&lt;br&gt;13. A separate wallet approves responders (D-056). In the demo, whoever runs the seed chooses the responder, and the admin key is discarded afterward. A dishonest seed operator could appoint the wrong wallet, but the access would appear in the patient's timeline.&lt;br&gt;14. A proof shows the patient and hospital agreed on a claim, not that treatment happened. If they collude, they can claim up to the policy's limits.&lt;br&gt;15. L4 serves the app's code. A malicious host could ship modified code that reads data in users' browsers.&lt;br&gt;16. L4 runs the local chain. Its operator could reset it, and its audit trail lasts only as long as that node's state.&lt;br&gt;17. If a patient rotates a key during an emergency release, a retry can log a second access for one release. This over-reports access and does not hide it." style="rounded=1;arcSize=3;whiteSpace=wrap;html=1;fontSize=14;align=left;verticalAlign=top;spacing=14;fillColor=#FDECEC;strokeColor=#C9302C;" vertex="1" parent="1">
+          <mxGeometry x="570" y="640" width="990" height="370" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -9,12 +9,44 @@ function shortAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-export function WalletConnection() {
-  const account = useAccount();
+/** Shared by the header and the setup steps, so both connect and switch the same way. */
+export function useWalletActions() {
   const connect = useConnect();
-  const disconnect = useDisconnect();
   const switchChain = useSwitchChain();
   const connector = connect.connectors[0];
+
+  return {
+    hasConnector: Boolean(connector),
+    connectWallet: () => {
+      if (connector) connect.mutate({ connector });
+    },
+    connecting: connect.isPending,
+    connectFailed: connect.isError,
+    switchNetwork: () =>
+      switchChain.mutate({
+        chainId: radoChain.id,
+        // Wallets run outside this page, so they need the full URL when adding the network.
+        addEthereumChainParameter: {
+          rpcUrls: [new URL("/api/rpc", window.location.origin).href],
+        },
+      }),
+    switching: switchChain.isPending,
+    switchFailed: switchChain.isError,
+  };
+}
+
+export function WalletConnection() {
+  const account = useAccount();
+  const disconnect = useDisconnect();
+  const {
+    hasConnector,
+    connectWallet,
+    connecting,
+    connectFailed,
+    switchNetwork,
+    switching,
+    switchFailed,
+  } = useWalletActions();
 
   if (account.isConnected && account.address) {
     return (
@@ -31,19 +63,11 @@ export function WalletConnection() {
         {account.chainId !== radoChain.id ? (
           <button
             className="button-pill-outline disabled:opacity-50"
-            disabled={switchChain.isPending}
-            onClick={() =>
-              switchChain.mutate({
-                chainId: radoChain.id,
-                // Wallets run outside this page, so they need the full URL when adding the network.
-                addEthereumChainParameter: {
-                  rpcUrls: [new URL("/api/rpc", window.location.origin).href],
-                },
-              })
-            }
+            disabled={switching}
+            onClick={switchNetwork}
             type="button"
           >
-            {switchChain.isPending ? "Switching…" : "Switch network"}
+            {switching ? "Switching…" : "Switch network"}
           </button>
         ) : null}
         <button
@@ -54,7 +78,7 @@ export function WalletConnection() {
         >
           Disconnect
         </button>
-        {switchChain.isError ? (
+        {switchFailed ? (
           <p className="w-full text-right text-xs text-rado-error">
             Could not switch networks. Try again in your wallet.
           </p>
@@ -67,14 +91,14 @@ export function WalletConnection() {
     <div className="flex flex-col items-end gap-1">
       <button
         className="button-primary !px-4 !py-1.5"
-        disabled={!connector || connect.isPending}
-        onClick={() => connector && connect.mutate({ connector })}
+        disabled={!hasConnector || connecting}
+        onClick={connectWallet}
         type="button"
       >
         <Icon name="wallet" className="size-4" />
-        {!connector ? "Wallet unavailable" : connect.isPending ? "Connecting…" : "Connect wallet"}
+        {!hasConnector ? "Wallet unavailable" : connecting ? "Connecting…" : "Connect wallet"}
       </button>
-      {connect.isError ? (
+      {connectFailed ? (
         <p className="max-w-52 text-right text-xs text-rado-error">
           Wallet connection failed. Check your wallet and try again.
         </p>

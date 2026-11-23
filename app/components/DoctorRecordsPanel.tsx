@@ -11,6 +11,7 @@ import {
   StatusMessage,
   UnlockGate,
   useRecordSession,
+  WalletPromptNotice,
 } from "./RecordSession";
 import { Badge, Panel } from "./ui";
 
@@ -28,6 +29,7 @@ function DoctorRecordsContent() {
   const [records, setRecords] = useState<SharedRecord[]>([]);
   const [opened, setOpened] = useState<{ recordId: Hex32; items: RecordItem[] } | null>(null);
   const [busy, setBusy] = useState("");
+  const [walletPrompt, setWalletPrompt] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ function DoctorRecordsContent() {
     setMessage(null);
     setOpened(null);
     try {
-      const items = await session.service.open(session.keys, recordId);
+      const items = await session.service.open(session.keys, recordId, setWalletPrompt);
       setOpened({ recordId, items });
       setMessage({ ok: true, text: "This view was logged on-chain before the record opened." });
       refresh();
@@ -64,6 +66,7 @@ function DoctorRecordsContent() {
       setMessage({ ok: false, text: plainRecordError(error) });
     } finally {
       setBusy("");
+      setWalletPrompt("");
     }
   }
 
@@ -75,6 +78,7 @@ function DoctorRecordsContent() {
     >
       {session ? (
         <>
+          <WalletPromptNotice text={walletPrompt} />
           <StatusMessage message={message} />
           {records.length ? (
             <div className="divide-y divide-rado-line">

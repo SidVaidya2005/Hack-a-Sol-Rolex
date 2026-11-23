@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatAmount, getInsurerSampleData } from "../data/insurer-sample-data";
 import { usePublicClaim } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
-import { Badge, Band, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
+import { Badge, Band, MetricCard, PageHeading, Panel } from "./ui";
 
 const sample = getInsurerSampleData();
 const SORTS = {
@@ -72,6 +72,7 @@ export function InsurerScreen() {
         eyebrow="Insurer workspace"
         title="Coverage at a glance"
         description="Review policy funding and verified claim payouts from one clear view."
+        status="simulated"
         action={
           <button
             className="button-primary"
@@ -84,9 +85,6 @@ export function InsurerScreen() {
           </button>
         }
       />
-      <SampleNotice>
-        Values are illustrative. No policy was issued and no funds were moved.
-      </SampleNotice>
       {message ? (
         <p
           aria-live="polite"
@@ -95,18 +93,17 @@ export function InsurerScreen() {
           {message}
         </p>
       ) : null}
-      <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
+      <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-2">
         <MetricCard
           label="Pool balance"
           value={formatAmount(sample.balanceUnits - payout)}
-          detail="Sample funds available"
+          detail="Available for payouts"
           icon="coin"
         />
-        <MetricCard label="Policies issued" value="1,284" detail="Sample register" icon="file" />
         <MetricCard
           label="Paid this month"
           value={formatAmount(sample.paidUnits + payout)}
-          detail="Sample verified payouts"
+          detail="Verified payouts"
           icon="arrow"
         />
       </div>
@@ -174,13 +171,13 @@ export function InsurerScreen() {
               <tbody>
                 {visibleClaims.map((row) => (
                   <tr
-                    className={`border-b border-rado-line transition-colors last:border-0 hover:bg-rado-stone-wash ${row.id === claim.claimId ? "motion-reveal" : ""}`}
+                    className={`border-b border-rado-line transition-colors last:border-0 hover:bg-rado-hover ${row.id === claim.claimId ? "motion-reveal" : ""}`}
                     key={row.id}
                   >
                     <td className="py-4">
                       <button
                         aria-label={`Open ${row.id} details`}
-                        className="nav-link !rounded !p-0 font-mono !text-xs !text-rado-ink underline underline-offset-4"
+                        className="nav-link !rounded !p-0 font-mono !text-xs !text-rado-ink underline underline-offset-4 hover:!bg-transparent hover:decoration-2"
                         onClick={() => setSelectedId(row.id)}
                         type="button"
                       >
@@ -210,7 +207,7 @@ export function InsurerScreen() {
           className="min-w-0"
           eyebrow="Coverage pool"
           title={sample.policyCap}
-          description="Sample total cap"
+          description="Total cap"
         >
           <div className="h-1.5 overflow-hidden rounded-full bg-rado-card-border">
             <div
@@ -218,10 +215,7 @@ export function InsurerScreen() {
               style={{ width: `${utilization}%` }}
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs text-rado-muted">
-            <span>{utilization}% sample utilization</span>
-            <span>Sample</span>
-          </div>
+          <p className="mt-2 text-xs text-rado-muted">{utilization}% used</p>
           <dl className="mt-6 divide-y divide-rado-line border-y border-rado-line">
             <div className="flex justify-between gap-4 py-3 text-sm">
               <dt className="text-rado-slate">Verification</dt>

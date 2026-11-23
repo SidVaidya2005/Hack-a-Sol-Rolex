@@ -28,6 +28,7 @@ export function Icon({ name, className = "size-5" }: { name: IconName; className
     <svg
       aria-hidden="true"
       className={`shrink-0 ${className}`}
+      data-icon={name}
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"

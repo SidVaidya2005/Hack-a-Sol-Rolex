@@ -4,26 +4,49 @@ import { useEffect, useState } from "react";
 
 import { formatAmount } from "../data/insurer-sample-data";
 import { getPublicChainSampleData } from "../data/public-chain-sample-data";
+import { formatClaimDay, SIGNAL_LABELS } from "../data/public-signal-labels";
 import { usePublicClaim } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
-import { Badge, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
+import { Badge, MetricCard, PageHeading, Panel } from "./ui";
 
 const sample = getPublicChainSampleData();
 const policyCap = formatAmount(BigInt(sample.policyCap));
 const EVENT_FILTERS = ["All", "Claims", "Access", "Policy"] as const;
-const EVENT_INFO: Record<string, { group: (typeof EVENT_FILTERS)[number]; shows: string }> = {
+const EVENT_INFO: Record<
+  string,
+  { title: string; group: (typeof EVENT_FILTERS)[number]; shows: string }
+> = {
   ClaimSettled: {
+    title: "Claim paid",
     group: "Claims",
-    shows: "Amount, policy commitment, nullifier, hospital root, claim day, and payout address.",
+    shows:
+      "Amount, policy fingerprint, one-time claim marker, approved hospitals fingerprint, claim date, and payout address.",
   },
-  PolicyRegistered: { group: "Policy", shows: "Policy commitment, start day, and total cap." },
+  PolicyRegistered: {
+    title: "Policy registered",
+    group: "Policy",
+    shows: "Policy fingerprint, start date, and total cap.",
+  },
   AccessGranted: {
+    title: "Doctor access granted",
     group: "Access",
-    shows: "Patient address, doctor address, expiry, and updated bundle hash.",
+    shows: "Patient address, doctor address, expiry, and the encrypted file's fingerprint.",
   },
-  AccessRevoked: { group: "Access", shows: "Patient address and removed doctor address." },
-  RecordKeyRotated: { group: "Access", shows: "New encrypted bundle hash and content ID." },
-  RecordViewed: { group: "Access", shows: "Record reference, viewer address, and time." },
+  AccessRevoked: {
+    title: "Doctor access revoked",
+    group: "Access",
+    shows: "Patient address and removed doctor address.",
+  },
+  RecordKeyRotated: {
+    title: "Record key replaced",
+    group: "Access",
+    shows: "The new encrypted file's fingerprint and storage ID.",
+  },
+  RecordViewed: {
+    title: "Record viewed",
+    group: "Access",
+    shows: "Record reference, viewer address, and time.",
+  },
 };
 
 export function PublicChainScreen() {
@@ -36,7 +59,9 @@ export function PublicChainScreen() {
   const visibleEvents = events.filter(
     (event) =>
       (group === "All" || EVENT_INFO[event.name]?.group === group) &&
-      `${event.name} ${event.id}`.toLowerCase().includes(filter.toLowerCase()),
+      `${EVENT_INFO[event.name]?.title ?? ""} ${event.name} ${event.id}`
+        .toLowerCase()
+        .includes(filter.toLowerCase()),
   );
 
   useEffect(() => {
@@ -60,20 +85,18 @@ export function PublicChainScreen() {
         eyebrow="Public chain view"
         title="The public record"
         description="Explore what anyone can verify on the local chain."
+        status="simulated"
         action={<Badge tone="success">Local network</Badge>}
       />
-      <SampleNotice>
-        Public values below are synthetic and do not come from a live chain.
-      </SampleNotice>
-      <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
+      <div className="mb-10 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard label="Network" value="Rado Local" detail="Chain ID 31337" icon="chain" />
         <MetricCard
           label="Latest block"
           value={claim.latestBlock}
-          detail="Sample block height"
+          detail="Block height"
           icon="blocks"
         />
-        <MetricCard label="Policy cap" value={policyCap} detail="Public sample value" icon="coin" />
+        <MetricCard label="Policy cap" value={policyCap} detail="Public value" icon="coin" />
       </div>
       <div className="grid items-start gap-10 xl:grid-cols-[1.2fr_1fr] xl:gap-16">
         <Panel
@@ -89,11 +112,20 @@ export function PublicChainScreen() {
               >
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs text-rado-muted">0{index + 1}</span>
-                  <span className="font-mono text-sm text-rado-ink">{signal.name}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm text-rado-ink">
+                      {SIGNAL_LABELS[signal.name]}
+                    </span>
+                    <span className="block font-mono text-xs text-rado-muted">{signal.name}</span>
+                  </span>
                 </div>
                 {claim.settled ? (
                   <span className="motion-reveal overflow-hidden text-ellipsis font-mono text-xs text-rado-blue sm:text-right">
-                    {signal.name === "claimAmount" ? claim.amount.toString() : signal.value}
+                    {signal.name === "claimAmount"
+                      ? formatAmount(claim.amount)
+                      : signal.name === "claimDay"
+                        ? formatClaimDay(signal.value)
+                        : signal.value}
                   </span>
                 ) : (
                   <span className="font-mono text-xs text-rado-muted sm:text-right">
@@ -155,8 +187,8 @@ export function PublicChainScreen() {
                   >
                     <button
                       aria-expanded={expanded}
-                      aria-label={`${event.name} at block ${event.block}`}
-                      className="flex w-full items-center gap-3 py-3 text-left"
+                      aria-label={`${EVENT_INFO[event.name]?.title ?? event.name} at block ${event.block}`}
+                      className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded px-2 py-3 text-left transition-colors hover:bg-rado-hover"
                       onClick={() => setExpandedId(expanded ? null : event.id)}
                       type="button"
                     >
@@ -166,9 +198,11 @@ export function PublicChainScreen() {
                         <Icon name="arrow" className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm text-rado-ink">{event.name}</span>
+                        <span className="block text-sm text-rado-ink">
+                          {EVENT_INFO[event.name]?.title ?? event.name}
+                        </span>
                         <span className="mt-0.5 block truncate font-mono text-xs text-rado-muted">
-                          {event.id}
+                          {event.name} · {event.id}
                         </span>
                       </span>
                       <span className="whitespace-nowrap font-mono text-xs text-rado-slate">
@@ -218,8 +252,7 @@ export function PublicChainScreen() {
         <div>
           <p className="text-base text-rado-ink">Transparent by design</p>
           <p className="mt-1 text-sm text-rado-slate">
-            Private files remain off-chain. This sample explorer shows only public values and
-            events.
+            Private files remain off-chain. Only public values and events appear here.
           </p>
         </div>
         <span className="font-mono text-xs text-rado-muted">Rado Local · 31337</span>

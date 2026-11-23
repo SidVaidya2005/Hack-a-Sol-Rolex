@@ -83,6 +83,15 @@ export interface RecordServiceConfig {
   baseUrl?: string;
 }
 
+/** Called just before each wallet popup, so the screen can say what the popup is for. */
+export type WalletPromptHandler = (text: string) => void;
+
+const UPLOAD_PROMPT = "Step 1 of 2: approve the encrypted upload in your wallet.";
+const CHAIN_PROMPT = "Step 2 of 2: confirm the on-chain update in your wallet.";
+const SINGLE_CHAIN_PROMPT = "Confirm the on-chain update in your wallet.";
+const VIEW_PROMPT = "Confirm the on-chain view log in your wallet.";
+const REGISTER_PROMPT = "Approve registering your public keys in your wallet.";
+
 /** An error whose message is already safe and plain enough to show a user. */
 export class RecordError extends Error {}
 
@@ -265,7 +274,7 @@ export function createRecordService({
     self,
     loadBundle,
 
-    async ensureRegistered(keys: UnlockedKeys): Promise<void> {
+    async ensureRegistered(keys: UnlockedKeys, onPrompt?: WalletPromptHandler): Promise<void> {
       const [Ax, Ay, x25519PublicKey, registered] = await contract.read.keysOf([self]);
       const current =
         registered &&
@@ -281,21 +290,28 @@ export function createRecordService({
         ],
         { account },
       );
+      onPrompt?.(REGISTER_PROMPT);
       await confirmed(await walletClient.writeContract(request));
     },
 
     /** Encrypts in the browser, then pins, then anchors. The patient is always a reader. */
-    async addRecord(keys: UnlockedKeys, plaintext: Uint8Array): Promise<Hex32> {
+    async addRecord(
+      keys: UnlockedKeys,
+      plaintext: Uint8Array,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<Hex32> {
       const recordId = randomHex32();
       const { bundle } = await encryptRecord({
         recordId,
         plaintext,
         readers: [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
       });
+      onPrompt?.(UPLOAD_PROMPT);
       const { bundleHash, cid } = await pin(bundle);
       const { request } = await contract.simulate.anchorRecord([recordId, bundleHash, cid], {
         account,
       });
+      onPrompt?.(CHAIN_PROMPT);
       await confirmed(await walletClient.writeContract(request));
       return recordId;
     },
@@ -306,14 +322,19 @@ export function createRecordService({
       recordId: Hex32,
       reader: Address,
       days: number,
+      onPrompt?: WalletPromptHandler,
     ): Promise<bigint> {
       if (sameAddress(reader, self)) throw new RecordError("You already have this record.");
       const loaded = await loadOwnRecord(recordId);
       const readerWithKey = await readerKey(reader);
       let { bundleHash, cid }: { bundleHash: Hex32; cid: string } = loaded;
-      if (!loaded.bundle.wrappedKeys.some((entry) => sameAddress(entry.reader, reader))) {
+      const needsUpload = !loaded.bundle.wrappedKeys.some((entry) =>
+        sameAddress(entry.reader, reader),
+      );
+      if (needsUpload) {
         const recordKey = await ownRecordKey(loaded.bundle, keys);
         const next = await addRecordReader(loaded.bundle, recordKey, readerWithKey);
+        onPrompt?.(UPLOAD_PROMPT);
         ({ bundleHash, cid } = await pin(next));
       }
       const expiresAt = (await currentTime()) + BigInt(days * SECONDS_PER_DAY);
@@ -321,12 +342,18 @@ export function createRecordService({
         [recordId, reader, expiresAt, bundleHash, cid],
         { account },
       );
+      onPrompt?.(needsUpload ? CHAIN_PROMPT : SINGLE_CHAIN_PROMPT);
       await confirmed(await walletClient.writeContract(request));
       return expiresAt;
     },
 
     /** New key, re-encrypt, re-wrap for active readers, pin, then one transaction (D-031). */
-    async revoke(keys: UnlockedKeys, recordId: Hex32, reader: Address): Promise<void> {
+    async revoke(
+      keys: UnlockedKeys,
+      recordId: Hex32,
+      reader: Address,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<void> {
       const loaded = await loadOwnRecord(recordId);
       if ((await contract.read.accessExpiry([recordId, reader])) === 0n) {
         throw new RecordError("This wallet does not have access to revoke.");
@@ -350,20 +377,27 @@ export function createRecordService({
         recordKey,
         remainingReaders: remaining,
       });
+      onPrompt?.(UPLOAD_PROMPT);
       const { bundleHash, cid } = await pin(bundle);
       const { request } = await contract.simulate.revokeAndRotate(
         [recordId, reader, bundleHash, cid],
         { account },
       );
+      onPrompt?.(CHAIN_PROMPT);
       await confirmed(await walletClient.writeContract(request));
     },
 
     /** A reader's view is logged on-chain and confirmed before anything is decrypted. */
-    async open(keys: UnlockedKeys, recordId: Hex32): Promise<RecordItem[]> {
+    async open(
+      keys: UnlockedKeys,
+      recordId: Hex32,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<RecordItem[]> {
       const [patient] = await contract.read.recordOf([recordId]);
       if (patient === zeroAddress) throw new RecordError("This record could not be found.");
       if (!sameAddress(patient, self)) {
         const { request } = await contract.simulate.logView([recordId], { account });
+        onPrompt?.(VIEW_PROMPT);
         await confirmed(await walletClient.writeContract(request));
       }
       const { bundle } = await loadBundle(recordId);

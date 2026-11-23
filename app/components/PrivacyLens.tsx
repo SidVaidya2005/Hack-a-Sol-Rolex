@@ -5,12 +5,21 @@ import { useState } from "react";
 
 import { formatAmount } from "../data/insurer-sample-data";
 import { getPublicChainSampleData } from "../data/public-chain-sample-data";
+import { formatClaimDay, SIGNAL_LABELS } from "../data/public-signal-labels";
 import { usePublicClaim } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
 import { Panel } from "./ui";
 
 const VIEWERS = ["Patient", "Hospital", "Insurer", "Public"] as const;
 type Viewer = (typeof VIEWERS)[number];
+
+/** Shown before approval, because this lens also renders on the Hospital screen (D-045). */
+const LIMIT_BEFORE_APPROVAL: Record<Viewer, string> = {
+  Patient: "Known to patient",
+  Hospital: "After patient approval",
+  Insurer: "Known to insurer",
+  Public: "Hidden",
+};
 
 const signals = Object.fromEntries(
   getPublicChainSampleData().signals.map(({ name, value }) => [name, value]),
@@ -34,6 +43,7 @@ export function PrivacyLens({
 
   const fields: {
     label: string;
+    technical?: string;
     value: string;
     visibleTo: readonly Viewer[];
     afterSettlement?: boolean;
@@ -42,30 +52,39 @@ export function PrivacyLens({
     { label: "Visit reference", value: visit, visibleTo: ["Patient", "Hospital"] },
     {
       label: "Per-claim limit",
-      value: limitKnown ? formatAmount(SAMPLE_POLICY.perClaimLimit) : "Private until approval",
+      value: limitKnown ? formatAmount(SAMPLE_POLICY.perClaimLimit) : LIMIT_BEFORE_APPROVAL[viewer],
       visibleTo: ["Patient", "Hospital", "Insurer"],
     },
     {
-      label: "Claim amount",
+      label: SIGNAL_LABELS.claimAmount,
+      technical: "claimAmount",
       value: formatAmount(amount),
       visibleTo: VIEWERS,
       afterSettlement: true,
     },
     {
-      label: "Claim day",
-      value: String(signals.claimDay),
+      label: SIGNAL_LABELS.claimDay,
+      technical: "claimDay",
+      value: formatClaimDay(signals.claimDay),
       visibleTo: VIEWERS,
       afterSettlement: true,
     },
     {
-      label: "Payout address",
+      label: SIGNAL_LABELS.payoutAddress,
+      technical: "payoutAddress",
       value: String(signals.payoutAddress),
       visibleTo: VIEWERS,
       afterSettlement: true,
     },
-    { label: "Policy commitment", value: String(signals.policyCommitment), visibleTo: VIEWERS },
     {
-      label: "Nullifier",
+      label: SIGNAL_LABELS.policyCommitment,
+      technical: "policyCommitment",
+      value: String(signals.policyCommitment),
+      visibleTo: VIEWERS,
+    },
+    {
+      label: SIGNAL_LABELS.nullifier,
+      technical: "nullifier",
       value: String(signals.nullifier),
       visibleTo: VIEWERS,
       afterSettlement: true,
@@ -105,7 +124,14 @@ export function PrivacyLens({
                 className="motion-reveal flex min-w-0 items-center justify-between gap-4 border-t border-rado-line py-3"
                 key={field.label}
               >
-                <dt className="shrink-0 text-sm text-rado-slate">{field.label}</dt>
+                <dt className="shrink-0 text-sm text-rado-slate">
+                  {field.label}
+                  {field.technical ? (
+                    <span className="block font-mono text-xs text-rado-muted">
+                      {field.technical}
+                    </span>
+                  ) : null}
+                </dt>
                 {!visible ? (
                   <dd className="redacted">
                     <Icon name="lock" className="size-3.5" />

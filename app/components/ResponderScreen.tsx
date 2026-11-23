@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { getResponderSampleData } from "../data/responder-sample-data";
 import { Icon } from "./icons";
-import { Badge, Band, EmptyState, PageHeading, Panel, SampleNotice } from "./ui";
+import { Badge, Band, EmptyState, PageHeading, Panel } from "./ui";
 
 const sample = getResponderSampleData();
 
@@ -18,12 +18,9 @@ export function ResponderScreen() {
         eyebrow="Emergency responder"
         title="Emergency access"
         description="Request access to the emergency summary when a patient cannot act."
+        status="simulated"
         action={<Badge tone="info">Responder role</Badge>}
       />
-      <SampleNotice>
-        Requesting access below only reveals sample data. No event was sent to the chain and no key
-        was released.
-      </SampleNotice>
       <div className="grid items-start gap-10 xl:grid-cols-[1fr_1.1fr] xl:gap-16">
         <Band
           eyebrow="Break-glass"
@@ -49,7 +46,7 @@ export function ResponderScreen() {
           <textarea
             className="field mt-2 min-h-24 resize-y"
             id="emergency-reason"
-            placeholder="Add a short reason for this sample request"
+            placeholder="Add a short reason for this request"
           />
           <button
             className="button-primary mt-4 w-full justify-center"
@@ -70,7 +67,7 @@ export function ResponderScreen() {
         <div className="grid gap-10">
           <Panel
             title="Emergency summary"
-            description="Only the limited summary is shown in this sample flow."
+            description="Only the limited summary is shown."
             action={
               <Badge tone={requested ? "success" : "neutral"}>
                 {requested ? "Sample preview open" : "Locked"}
@@ -96,7 +93,7 @@ export function ResponderScreen() {
               <EmptyState
                 icon="lock"
                 title="Summary is locked"
-                description="Start a sample request to preview the limited information available in an emergency."
+                description="Start a request to preview the limited information available in an emergency."
               />
             )}
           </Panel>

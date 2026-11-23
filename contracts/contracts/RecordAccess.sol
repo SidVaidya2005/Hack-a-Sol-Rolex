@@ -41,18 +41,19 @@ contract RecordAccess {
     error InvalidExpiry(uint64 expiresAt);
     error AccessNotActive(bytes32 recordId, address reader);
     error NotResponder(address caller);
-    error NotInsurer(address caller);
+    error NotResponderAdmin(address caller);
 
-    address private immutable _insurer;
+    /// @dev Separate from the insurer, so an insurer cannot appoint itself to read summaries (D-056).
+    address private immutable _responderAdmin;
 
     mapping(address wallet => Keys) private _keys;
     mapping(bytes32 recordId => Record) private _records;
     mapping(bytes32 recordId => mapping(address reader => uint64)) private _expiry;
     mapping(address responder => bool) private _responders;
 
-    constructor(address insurer_) {
-        if (insurer_ == address(0)) revert NotInsurer(insurer_);
-        _insurer = insurer_;
+    constructor(address responderAdmin_) {
+        if (responderAdmin_ == address(0)) revert NotResponderAdmin(responderAdmin_);
+        _responderAdmin = responderAdmin_;
     }
 
     function registerKeys(uint256 eddsaAx, uint256 eddsaAy, bytes32 x25519PublicKey) external {
@@ -111,7 +112,7 @@ contract RecordAccess {
     }
 
     function setResponder(address responder, bool allowed) external {
-        if (msg.sender != _insurer) revert NotInsurer(msg.sender);
+        if (msg.sender != _responderAdmin) revert NotResponderAdmin(msg.sender);
         _responders[responder] = allowed;
         emit ResponderUpdated(responder, allowed);
     }

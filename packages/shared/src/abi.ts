@@ -44,7 +44,7 @@ export const recordAccessAbi = [
   "error InvalidExpiry(uint64 expiresAt)",
   "error AccessNotActive(bytes32 recordId, address reader)",
   "error NotResponder(address caller)",
-  "error NotInsurer(address caller)",
+  "error NotResponderAdmin(address caller)",
 ] as const;
 
 export const claimSettlementAbi = [

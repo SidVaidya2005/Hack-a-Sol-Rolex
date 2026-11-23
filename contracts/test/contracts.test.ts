@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { keccak256, stringToHex, zeroHash } from "viem";
+import { keccak256, stringToHex, zeroAddress, zeroHash } from "viem";
 import { MAX_CLAIM_AGE_DAYS, SECONDS_PER_DAY } from "@rado/shared";
-import { contractsDir, resolveVerifier } from "../scripts/deploy.ts";
+import { contractsDir, deployRado, resolveVerifier } from "../scripts/deploy.ts";
 
 const { viem, networkHelpers } = await network.create();
 const { assertions } = viem;
@@ -50,8 +50,9 @@ async function settlementFixture() {
 }
 
 async function recordFixture() {
-  const [insurer, patient, doctor, responder, stranger] = await viem.getWalletClients();
-  const access = await viem.deployContract("RecordAccess", [insurer.account.address]);
+  const [insurer, patient, doctor, responder, stranger, responderAdmin] =
+    await viem.getWalletClients();
+  const access = await viem.deployContract("RecordAccess", [responderAdmin.account.address]);
   const id = keccak256(stringToHex("synthetic-record"));
   const hash = keccak256(stringToHex("bundle-1"));
   const newHash = keccak256(stringToHex("bundle-2"));
@@ -60,7 +61,19 @@ async function recordFixture() {
   }
   await access.write.anchorRecord([id, hash, "cid-1"], { account: patient.account });
   const future = BigInt(await networkHelpers.time.latest()) + 1_000n;
-  return { insurer, patient, doctor, responder, stranger, access, id, hash, newHash, future };
+  return {
+    insurer,
+    patient,
+    doctor,
+    responder,
+    stranger,
+    responderAdmin,
+    access,
+    id,
+    hash,
+    newHash,
+    future,
+  };
 }
 
 describe("MockUSD", () => {
@@ -273,6 +286,19 @@ describe("submitClaim", () => {
 });
 
 describe("RecordAccess", () => {
+  it("refuses a zero responder admin", async () => {
+    await assert.rejects(viem.deployContract("RecordAccess", [zeroAddress]), /NotResponderAdmin/);
+  });
+
+  it("refuses to deploy with the insurer as responder admin", async () => {
+    const [insurer] = await viem.getWalletClients();
+    const wallet = insurer.account.address;
+    await assert.rejects(
+      deployRado(null as never, null as never, wallet, wallet, null as never),
+      /must be different wallets/,
+    );
+  });
+
   it("audits key registration and anchoring", async () => {
     const { access, stranger, id, hash } = await networkHelpers.loadFixture(recordFixture);
     await assertions.emit(
@@ -415,13 +441,18 @@ describe("RecordAccess", () => {
   });
 
   it("restricts the responder registry and break-glass, and audits both", async () => {
-    const { access, patient, doctor, responder, stranger, id } =
+    const { access, insurer, patient, doctor, responder, stranger, responderAdmin, id } =
       await networkHelpers.loadFixture(recordFixture);
     const patientAddress = patient.account.address;
     await assertions.revertWithCustomError(
       access.write.setResponder([responder.account.address, true], { account: stranger.account }),
       access,
-      "NotInsurer",
+      "NotResponderAdmin",
+    );
+    await assertions.revertWithCustomError(
+      access.write.setResponder([insurer.account.address, true], { account: insurer.account }),
+      access,
+      "NotResponderAdmin",
     );
     await assertions.revertWithCustomError(
       access.write.invokeBreakGlass([patientAddress, id], { account: responder.account }),
@@ -429,11 +460,15 @@ describe("RecordAccess", () => {
       "NotResponder",
     );
     await assertions.emit(
-      access.write.setResponder([responder.account.address, true]),
+      access.write.setResponder([responder.account.address, true], {
+        account: responderAdmin.account,
+      }),
       access,
       "ResponderUpdated",
     );
-    await access.write.setResponder([stranger.account.address, true]);
+    await access.write.setResponder([stranger.account.address, true], {
+      account: responderAdmin.account,
+    });
     await assertions.revertWithCustomError(
       access.write.invokeBreakGlass([patientAddress, id], { account: stranger.account }),
       access,

@@ -285,6 +285,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify:** compare the diagram with `context/architecture.md`. Expected: every data location and listed limitation appears.
 
+**Security fixes found during W13:** 2026-11-23. Checking the code for the threat model found three ways around the emergency-access rules. Escrow now requires the bundle to belong to the event's record and its first pin signer to be the on-chain patient (D-057), which stops a responder from reading a summary with no event against its patient. Responder approval moved from the insurer to a separate wallet whose seed key is never saved (D-056), because an insurer could otherwise appoint itself. The E2E covers each attack and the contract tests cover the new guards. The updated flow still needs a reseed and one MetaMask break-glass run.
+
 ### W14 Rehearsal, backup video, and pitch
 
 **Owner:** all. Run the four-laptop setup on venue Wi-Fi, test the hotspot fallback, record a full backup run, and prepare the pitch.

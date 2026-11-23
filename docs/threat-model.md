@@ -101,3 +101,11 @@ Rado is a hackathon prototype. It uses synthetic patient data, mock tokens, a lo
 20. An uploaded document is shared whole, so a provider can read everything in that file. Category limits are app-level and a modified client could bypass them (D-061).
 21. The PDF viewer parses untrusted files on a page that holds unlocked keys, and the app has no Content Security Policy. File checks, a pinned PDF.js version, and disabled annotations reduce this risk but do not remove it (D-061).
 22. A document's encrypted size is visible to anyone who can fetch its bundle, and Rado cannot detect a real medical document (D-060).
+
+**Added by W17, awaiting team review:**
+
+23. The profile's reader rule is app-level. An insurer could approve a second wallet it controls as a hospital, and a patient who shared with that wallet would expose their profile (D-064).
+24. A hospital can keep or pass on profile details it has already read, including to an insurer, outside Rado.
+25. A saved role choice is only a browser label. It grants no access, and contracts still enforce each action (D-063).
+26. Hospitals, doctors, and responders can read a patient's name without an on-chain view log, the card cannot be revoked, and its bundle lists those reader wallets (D-065).
+27. Any LAN device can give an empty wallet worthless local ETH, up to 100 wallets per app run (D-066).

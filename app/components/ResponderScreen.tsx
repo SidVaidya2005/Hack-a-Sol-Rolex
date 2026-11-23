@@ -27,6 +27,7 @@ function ResponderContent() {
   const { session, refresh } = useRecordSession();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [patients, setPatients] = useState<EmergencySummaryRecord[]>([]);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,12 +39,14 @@ function ResponderContent() {
     if (!session) return;
     setLoading(true);
     try {
-      const [isResponder, nextPatients] = await Promise.all([
+      const [isResponder, nextPatients, nextNames] = await Promise.all([
         session.service.isResponder(),
         session.service.listEmergencyPatients(),
+        session.service.patientNames(session.keys),
       ]);
       setAllowed(isResponder);
       setPatients(nextPatients);
+      setNames(nextNames);
     } catch (error) {
       setMessage({ ok: false, text: plainRecordError(error) });
     } finally {
@@ -58,6 +61,12 @@ function ResponderContent() {
   }, [load]);
 
   const target = patients.find(({ patient }) => patient === selected) ?? patients[0] ?? null;
+  const labelFor = (wallet: string) => {
+    const name = names.get(wallet.toLowerCase());
+    return name ? `${name} - ${shortId(wallet)}` : shortId(wallet);
+  };
+  const withSummary = new Set(patients.map(({ patient }) => patient.toLowerCase()));
+  const withoutSummary = [...names.keys()].filter((wallet) => !withSummary.has(wallet));
 
   async function openSummary() {
     if (!session || !target) return;
@@ -119,7 +128,7 @@ function ResponderContent() {
               </label>
               <select
                 className="field mt-2"
-                disabled={!patients.length || busy}
+                disabled={(!patients.length && !withoutSummary.length) || busy}
                 id="emergency-patient"
                 onChange={(event) => {
                   setSelected(event.target.value);
@@ -128,17 +137,21 @@ function ResponderContent() {
                 }}
                 value={target?.patient ?? ""}
               >
-                {patients.length ? (
-                  patients.map(({ patient }) => (
-                    <option key={patient} value={patient}>
-                      {shortId(patient)}
-                    </option>
-                  ))
-                ) : (
+                {!patients.length ? (
                   <option value="">
                     {loading ? "Loading…" : "No patient has added a summary"}
                   </option>
-                )}
+                ) : null}
+                {patients.map(({ patient }) => (
+                  <option key={patient} value={patient}>
+                    {labelFor(patient)}
+                  </option>
+                ))}
+                {withoutSummary.map((wallet) => (
+                  <option disabled key={wallet} value={wallet}>
+                    {labelFor(wallet)} (no emergency summary)
+                  </option>
+                ))}
               </select>
               <button
                 className="button-primary mt-4 w-full justify-center disabled:opacity-50"

@@ -40,8 +40,10 @@ import type {
   UnlockedKeys,
 } from "@rado/shared";
 import {
+  BaseError,
   bytesToHex,
   concat,
+  ContractFunctionRevertedError,
   hexToBigInt,
   hexToBytes,
   keccak256,
@@ -380,6 +382,35 @@ export function createClaimExchange({
       const key = await registeredKey(wallet);
       if (!key) return false;
       return (await approvedLeaves()).includes(await leafOf(key.eddsa));
+    },
+
+    /**
+     * The insurer address is private in the contract, so this simulates an insurer-only call.
+     * Nothing is sent. Any error other than `NotInsurer` is rethrown instead of guessed at.
+     */
+    async walletIsInsurer(wallet: Address): Promise<boolean> {
+      try {
+        await publicClient.simulateContract({
+          address: claimSettlement,
+          abi: settlementAbi,
+          functionName: "updateHospitalRoot",
+          args: [0n, []],
+          account: wallet,
+        });
+        return true;
+      } catch (error) {
+        const reverted =
+          error instanceof BaseError
+            ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+            : null;
+        if (
+          reverted instanceof ContractFunctionRevertedError &&
+          reverted.data?.errorName === "NotInsurer"
+        ) {
+          return false;
+        }
+        throw error;
+      }
     },
 
     /** Insurer only. Emits the full approved list so hospitals can rebuild their path. */

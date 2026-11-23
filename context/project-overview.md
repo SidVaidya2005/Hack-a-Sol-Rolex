@@ -31,6 +31,7 @@ Today, hospitals often have to show insurers diagnoses, prescriptions, and treat
 
 ## Screens
 
+- **Sign in and sign up** — wallet only. New wallets choose Patient or Hospital; assigned roles are detected (D-063).
 - **Patient** — view records, upload demo PDF, PNG, or JPG documents, grant or revoke doctor access, approve a specific claim, read the audit timeline.
 - **Hospital** — doctor record view, create a claim, generate the proof in the browser, submit it.
 - **Lab & Pharmacy** — read only the limited copy a patient shared with that simulated provider (W15).

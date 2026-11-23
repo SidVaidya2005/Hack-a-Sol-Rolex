@@ -30,7 +30,7 @@ export function HospitalClaimPanel() {
 }
 
 function HospitalClaimContent() {
-  const { session } = useRecordSession();
+  const { session, revision } = useRecordSession();
   const {
     outgoing,
     rejected,
@@ -42,6 +42,7 @@ function HospitalClaimContent() {
     replayClaim,
   } = useClaimExchange();
   const [wallets, setWallets] = useState<Address[]>([]);
+  const [patientNames, setPatientNames] = useState<Map<string, string>>(new Map());
   const [approved, setApproved] = useState<boolean | null>(null);
   const [patientChoice, setPatientChoice] = useState("");
   const [procedure, setProcedure] = useState(PROCEDURE_OPTIONS[1]?.code ?? "");
@@ -58,11 +59,13 @@ function HospitalClaimContent() {
       Promise.all([
         session.service.listRegisteredWallets(),
         session.exchange.hospitalIsApproved(session.address),
+        session.service.patientNames(session.keys),
       ])
-        .then(([nextWallets, nextApproved]) => {
+        .then(([nextWallets, nextApproved, nextNames]) => {
           if (!current) return;
           setWallets(nextWallets);
           setApproved(nextApproved);
+          setPatientNames(nextNames);
         })
         .catch(() => undefined);
     void load();
@@ -71,7 +74,7 @@ function HospitalClaimContent() {
       current = false;
       clearInterval(timer);
     };
-  }, [session]);
+  }, [session, revision]);
 
   async function run(id: string, success: string, action: () => Promise<void>) {
     setBusy(id);
@@ -127,7 +130,9 @@ function HospitalClaimContent() {
                 {wallets.length ? (
                   wallets.map((wallet) => (
                     <option key={wallet} value={wallet}>
-                      {shortId(wallet)}
+                      {patientNames.has(wallet.toLowerCase())
+                        ? `${patientNames.get(wallet.toLowerCase())} - ${shortId(wallet)}`
+                        : shortId(wallet)}
                     </option>
                   ))
                 ) : (

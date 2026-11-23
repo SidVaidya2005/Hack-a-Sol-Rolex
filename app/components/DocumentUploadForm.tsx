@@ -25,13 +25,12 @@ export function DocumentUploadForm({
   const { session } = useRecordSession();
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState<DocumentCategory>("lab-report");
-  const [confirmed, setConfirmed] = useState(false);
   const [inputKey, setInputKey] = useState(0);
   const tooLarge = Boolean(file && file.size > MAX_DOCUMENT_BYTES);
   const uploading = busy === "upload-document";
 
   async function upload() {
-    if (!session || !file || !confirmed || tooLarge) return;
+    if (!session || !file || tooLarge) return;
     const chosen = file;
     await onRun("upload-document", async (onPrompt) => {
       let bytes: Uint8Array;
@@ -46,7 +45,6 @@ export function DocumentUploadForm({
         onPrompt,
       );
       setFile(null);
-      setConfirmed(false);
       setInputKey((value) => value + 1);
       return "Document encrypted, stored, and anchored on-chain.";
     });
@@ -107,19 +105,10 @@ export function DocumentUploadForm({
           This file is larger than the 750 KB limit.
         </p>
       ) : null}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-xs text-rado-ink">
-          <input
-            checked={confirmed}
-            disabled={uploading}
-            onChange={(event) => setConfirmed(event.target.checked)}
-            type="checkbox"
-          />
-          This is a made-up demo file with no real patient information.
-        </label>
+      <div className="mt-3 flex justify-end">
         <button
           className="button-primary whitespace-nowrap disabled:opacity-50"
-          disabled={Boolean(busy) || !session || !file || !confirmed || tooLarge}
+          disabled={Boolean(busy) || !session || !file || tooLarge}
           onClick={() => void upload()}
           type="button"
         >

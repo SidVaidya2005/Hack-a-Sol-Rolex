@@ -227,6 +227,10 @@ An item can **start** before its dependencies are finished by building against a
 
 - **D-038 — Apply `context/DESIGN.md` to role screens with a top nav, one dark focal band per screen, a fully dark Public Chain View, repo-owned SVG icons, and self-hosted Space Grotesk, Inter, and IBM Plex Mono.** Reason: this follows the agreed design while giving each screen one clear focus and making the outsider's view visibly distinct, with no new dependency or browser font requests. Accepted tradeoff: the first build needs internet to download fonts. Source: W08 design plan, user-approved 2026-11-23.
 
+**Decision moved from Key Decisions:**
+
+- **D-053 — Show one data status per screen, and keep "simulated" wording on every proof, payment, and attack outcome.** Reason: repeated sample labels made the product feel fake, while removing the outcome labels would imply a real proof or payment happened (D-044). Accepted tradeoff: W10 and W11 must change each screen's status as its data becomes real. Source: W08 UI polish, user-approved 2026-11-23.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.
@@ -272,6 +276,10 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — Four laptops passed the W11 Verify flow on merged `main` from a fresh seed, through MetaMask over LAN HTTPS, as reported by the team: the Insurer on Laptop C, the Hospital on Laptop B, the Patient and host on Laptop A, and the Public Chain View on the Mac. The live chain confirmed a real verifier deployment, one registered policy, one settled claim of ₹1,250 paid to the Hospital wallet, its nullifier recorded, the Hospital balance at ₹1,250, and the pool down from ₹20,000 to ₹18,750. The team reported the Try replay rejection. The Mac was a browser-only role, so `npm run e2e` has run only on Windows. Decision: D-054.
 
+**Decision moved from Key Decisions:**
+
+- **D-054 — Show only live chain data on the Insurer and Public Chain screens, and leave the labeled sample walkthrough on the Patient and Hospital screens.** Reason: fake rows beside real payouts would undermine the privacy demo, and keeping the walkthrough keeps W11 small. Source: W11 plan, user-approved 2026-11-23. W17 keeps this walkthrough behind "Explore all demo screens".
+
 ### W12 Break-glass
 
 **Owner:** T2 and T4. Add responder registration, the limited emergency summary, `/api/escrow/release`, and the audit timeline entry. This is the first feature to drop if time is short.
@@ -283,6 +291,10 @@ An item can **start** before its dependencies are finished by building against a
 **Built, not yet verified through MetaMask:** 2026-11-23. On Windows with Node 26, all 30 E2E checks passed, including the 17 W11 checks and 13 break-glass checks: release of exactly the summary, refusal with no event, an unrelated transaction, an unregistered wallet, a full record, and a repeat before and after a real server restart, plus the timeline, a rotation that keeps emergency access, and no readable text in stored bundles. The E2E stores bundles in its own cache and does not use Pinata. The 28 circuit, 33 contract, and 60 shared tests, typecheck, and the production build also passed. The Responder and Patient screens had not run through MetaMask at this point.
 
 **Result:** 2026-11-23 — The W12 flow passed through MetaMask over LAN HTTPS, as reported by the team, with the Patient on Laptop A and the Responder and Doctor as accounts in one MetaMask on Laptop B. The live chain confirmed a registered responder, one `BreakGlassInvoked` event for the Patient's summary, and one single-use release marker. The same run closed the W08 record check: add record, grant, logged doctor view, and revoke with rotation, leaving that record on key version 2 with no doctor access. Current cached bundles hold no readable summary or record text. The four refusals are covered by `npm run e2e`, which has run only on Windows, and were not repeated by hand. Decision: D-055.
+
+**Decision moved from Key Decisions:**
+
+- **D-055 — Store the emergency summary as a separate record wrapped to escrow, and release it once per on-chain break-glass event after a MetaMask `RadoEscrowRelease` signature.** Reason: the chain must not label record types, so an escrow-wrapped key is what separates a summary from a full record, and a per-event marker on disk keeps release single-use across restarts while each new access adds a timeline entry. Accepted tradeoff: a bundle's escrow reader reveals that it is a summary, though not its contents. Source: W12 plan, user-approved 2026-11-23.
 
 ### W13 Threat model and architecture diagram
 
@@ -327,6 +339,16 @@ An item can **start** before its dependencies are finished by building against a
 **Retired decision:**
 
 - **D-062 — Extract document data in the viewer's browser with PDF.js text or self-hosted Tesseract OCR, and never upload or save it.** Reason: the user asked for local OCR with no extracted data on a server. Source: user request, W16, 2026-11-24. Retired the same day because the user asked to remove OCR, so D-060 stands and the viewer shows only the original file.
+
+### W17 Wallet sign-up, roles, and patient profile
+
+**Owner:** team. Branch: `w17/onboarding`. Add a sign-in and sign-up page that uses only a wallet, a first-time role step, and an encrypted patient profile that hospitals and doctors can read only after the patient shares it. Email, passwords, OAuth, and profile editing are out of scope.
+
+**Verify:** from a fresh seed, through MetaMask with real Pinata, a new wallet signs up as a patient and saves a profile, and a seeded insurer, hospital, doctor, lab, pharmacy, and responder each skip setup and land on their own workspace. Expected: the patient can share the profile with the hospital but is not offered the insurer, lab, or pharmacy; the hospital's view is logged; revoking ends it; and the Insurer and Public Chain screens show no profile details. A full claim still settles.
+
+**Plan:** `app/lib/account-role.ts` lets assigned roles override a saved choice. `walletIsInsurer` simulates an insurer-only call, because the contract keeps that address private. `packages/shared/src/patient-profile.ts` defines the validated payload, and `record-service.ts` stores it as a normal encrypted record. A name-only encrypted card lets hospitals, doctors, and responders list patients by name, and `POST /api/faucet` gives new wallets local gas. The earlier all-role screens stay behind "Explore all demo screens". No contract, ABI, circuit, or reseed change. Decisions: D-063 to D-066.
+
+**Built, not yet verified through MetaMask:** 2026-11-24. On Windows with Node 26, all 96 E2E checks passed, including 31 new ones, and the 91 shared tests, typecheck, lint with the existing warning, format check, and production build also passed. The sign-in page rendered correctly in headless Chrome at desktop and phone widths. The role and profile screens, a real wallet, a real Pinata upload, and the flow across two laptops have not been run.
 
 ## Workflow Decisions
 

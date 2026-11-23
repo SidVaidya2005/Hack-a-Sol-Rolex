@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { plainRecordError, type OpenedRecord, type SharedRecord } from "../lib/record-service";
 import { DocumentViewer } from "./DocumentViewer";
+import { ProfileDetails } from "./PatientProfilePanel";
 import {
   formatExpiry,
   RecordItems,
@@ -37,6 +38,7 @@ export function DoctorRecordsPanel({ text = DOCTOR_TEXT }: { text?: PanelText })
 function DoctorRecordsContent({ text }: { text: PanelText }) {
   const { session, revision, refresh } = useRecordSession();
   const [records, setRecords] = useState<SharedRecord[]>([]);
+  const [patientNames, setPatientNames] = useState<Map<string, string>>(new Map());
   const [opened, setOpened] = useState<{ recordId: Hex32; content: OpenedRecord } | null>(null);
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
@@ -46,10 +48,11 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
     if (!session) return;
     let current = true;
     const load = () =>
-      session.service
-        .listSharedRecords()
-        .then((next) => {
-          if (current) setRecords(next);
+      Promise.all([session.service.listSharedRecords(), session.service.patientNames(session.keys)])
+        .then(([next, nextNames]) => {
+          if (!current) return;
+          setRecords(next);
+          setPatientNames(nextNames);
         })
         .catch(() => {
           if (current) setMessage({ ok: false, text: "Could not load shared records." });
@@ -98,7 +101,9 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
                           Encrypted record {shortId(recordId)}
                         </p>
                         <p className="mt-0.5 text-xs text-rado-slate">
-                          Patient {shortId(patient)}
+                          {patientNames.has(patient.toLowerCase())
+                            ? `${patientNames.get(patient.toLowerCase())} - ${shortId(patient)}`
+                            : `Patient ${shortId(patient)}`}
                           {status === "Revoked"
                             ? " · Access removed"
                             : ` · ${status === "Active" ? "Expires" : "Ended"} ${formatExpiry(expiresAt)}`}
@@ -122,6 +127,9 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
                     </div>
                     {isOpen && opened.content.kind === "record" ? (
                       <RecordItems items={opened.content.items} />
+                    ) : null}
+                    {isOpen && opened.content.kind === "profile" ? (
+                      <ProfileDetails profile={opened.content.profile} />
                     ) : null}
                     {isOpen && opened.content.kind === "document" ? (
                       <DocumentViewer

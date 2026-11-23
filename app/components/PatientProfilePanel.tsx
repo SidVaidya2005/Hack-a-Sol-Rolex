@@ -1,0 +1,300 @@
+"use client";
+
+import { BLOOD_GROUPS } from "@rado/shared";
+import type { BloodGroup, PatientProfile } from "@rado/shared";
+import { useEffect, useState } from "react";
+
+import { plainRecordError } from "../lib/record-service";
+import { StatusMessage, useRecordSession, WalletPromptNotice } from "./RecordSession";
+import { Badge, Panel } from "./ui";
+
+const EMPTY_PROFILE: PatientProfile = {
+  fullName: "",
+  dateOfBirth: "",
+  bloodGroup: "Unknown",
+  allergies: "",
+  emergencyContact: "",
+};
+
+const SAMPLE_PROFILE: PatientProfile = {
+  fullName: "Demo Patient Alpha",
+  dateOfBirth: "1990-01-15",
+  bloodGroup: "O+",
+  allergies: "Sample allergy",
+  emergencyContact: "Demo Contact, 00000 00000",
+};
+
+export function ProfileDetails({ profile }: { profile: PatientProfile }) {
+  const rows = [
+    ["Name", profile.fullName],
+    ["Date of birth", profile.dateOfBirth],
+    ["Blood group", profile.bloodGroup],
+    ["Allergies", profile.allergies || "None listed"],
+    ["Emergency contact", profile.emergencyContact || "None listed"],
+  ];
+  return (
+    <dl className="motion-reveal mt-3 divide-y divide-rado-line rounded-lg border border-rado-line px-4">
+      {rows.map(([label, value]) => (
+        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-3" key={label}>
+          <dt className="text-sm text-rado-slate">{label}</dt>
+          <dd className="min-w-0 break-words text-right text-sm text-rado-ink">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Holds typed details only in React state until they are encrypted in this browser. */
+export function ProfileForm({ onSaved, onSkip }: { onSaved: () => void; onSkip?: () => void }) {
+  const { session, refresh } = useRecordSession();
+  const [form, setForm] = useState<PatientProfile>(EMPTY_PROFILE);
+  const [busy, setBusy] = useState(false);
+  const [walletPrompt, setWalletPrompt] = useState("");
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const update = (field: keyof PatientProfile, value: string) =>
+    setForm((current) => ({ ...current, [field]: value }));
+
+  async function save() {
+    if (!session) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await session.service.addProfile(session.keys, form, setWalletPrompt);
+      refresh();
+      onSaved();
+    } catch (error) {
+      setMessage({ ok: false, text: plainRecordError(error) });
+    } finally {
+      setBusy(false);
+      setWalletPrompt("");
+    }
+  }
+
+  return (
+    <div>
+      <WalletPromptNotice text={walletPrompt} />
+      <StatusMessage message={message} />
+      <p className="mb-4 text-xs leading-5 text-rado-slate">
+        <strong className="font-normal text-rado-error">Demo details only.</strong> Do not enter
+        real personal information.{" "}
+        <button
+          className="underline disabled:opacity-50"
+          disabled={busy}
+          onClick={() => setForm(SAMPLE_PROFILE)}
+          type="button"
+        >
+          Use sample details
+        </button>
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-xs text-rado-slate" htmlFor="profile-name">
+            Full name
+          </label>
+          <input
+            className="field"
+            disabled={busy}
+            id="profile-name"
+            maxLength={80}
+            onChange={(event) => update("fullName", event.target.value)}
+            value={form.fullName}
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs text-rado-slate" htmlFor="profile-birth">
+            Date of birth
+          </label>
+          <input
+            className="field"
+            disabled={busy}
+            id="profile-birth"
+            onChange={(event) => update("dateOfBirth", event.target.value)}
+            type="date"
+            value={form.dateOfBirth}
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs text-rado-slate" htmlFor="profile-blood">
+            Blood group
+          </label>
+          <select
+            className="field"
+            disabled={busy}
+            id="profile-blood"
+            onChange={(event) => update("bloodGroup", event.target.value as BloodGroup)}
+            value={form.bloodGroup}
+          >
+            {BLOOD_GROUPS.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs text-rado-slate" htmlFor="profile-contact">
+            Emergency contact (optional)
+          </label>
+          <input
+            className="field"
+            disabled={busy}
+            id="profile-contact"
+            maxLength={120}
+            onChange={(event) => update("emergencyContact", event.target.value)}
+            value={form.emergencyContact}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block text-xs text-rado-slate" htmlFor="profile-allergies">
+            Allergies (optional)
+          </label>
+          <input
+            className="field"
+            disabled={busy}
+            id="profile-allergies"
+            maxLength={200}
+            onChange={(event) => update("allergies", event.target.value)}
+            value={form.allergies}
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-4">
+        {onSkip ? (
+          <button className="button-secondary" disabled={busy} onClick={onSkip} type="button">
+            Skip for now
+          </button>
+        ) : null}
+        <button
+          className="button-primary disabled:opacity-50"
+          disabled={busy || !form.fullName.trim() || !form.dateOfBirth}
+          onClick={() => void save()}
+          type="button"
+        >
+          {busy ? "Encrypting…" : "Encrypt and save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Reads the patient's own profile. Decrypted details stay in this component's memory. */
+export function usePatientProfile() {
+  const { session, revision } = useRecordSession();
+  const [result, setResult] = useState<{
+    address: string;
+    profile: PatientProfile | null;
+    failed: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    let current = true;
+    session.service
+      .findProfile(session.keys)
+      .then((found) => {
+        if (current) {
+          setResult({ address: session.address, profile: found?.profile ?? null, failed: false });
+        }
+      })
+      .catch(() => {
+        if (current) setResult({ address: session.address, profile: null, failed: true });
+      });
+    return () => {
+      current = false;
+    };
+  }, [session, revision]);
+
+  const own = result?.address === session?.address ? result : null;
+  return { loaded: Boolean(own), profile: own?.profile ?? null, failed: own?.failed ?? false };
+}
+
+/** Lets a patient reach hospitals and responders that joined after their last name card. */
+function ShareNameNotice() {
+  const { session, revision, refresh } = useRecordSession();
+  const [gap, setGap] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [walletPrompt, setWalletPrompt] = useState("");
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    let current = true;
+    const load = () =>
+      session.service
+        .nameCardGap(session.keys)
+        .then((next) => {
+          if (current) setGap(next);
+        })
+        .catch(() => undefined);
+    void load();
+    const timer = setInterval(() => void load(), 5_000);
+    return () => {
+      current = false;
+      clearInterval(timer);
+    };
+  }, [session, revision]);
+
+  async function share() {
+    if (!session) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await session.service.shareName(session.keys, setWalletPrompt);
+      setGap(0);
+      setMessage({ ok: true, text: "Your name is visible to hospitals, doctors, and responders." });
+      refresh();
+    } catch (error) {
+      setMessage({ ok: false, text: plainRecordError(error) });
+    } finally {
+      setBusy(false);
+      setWalletPrompt("");
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <WalletPromptNotice text={walletPrompt} />
+      <StatusMessage message={message} />
+      {gap > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-rado-stone-wash px-4 py-3">
+          <p className="min-w-48 flex-1 text-xs leading-5 text-rado-slate">
+            {gap === 1 ? "1 care wallet" : `${gap} care wallets`} cannot see your name yet. Only
+            your name is shared, never with insurers, labs, or pharmacies.
+          </p>
+          <button
+            className="button-pill-outline whitespace-nowrap disabled:opacity-50"
+            disabled={busy}
+            onClick={() => void share()}
+            type="button"
+          >
+            {busy ? "Sharing…" : "Share my name"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function PatientProfilePanel() {
+  const { loaded, profile, failed } = usePatientProfile();
+  return (
+    <Panel
+      title="Your profile"
+      description="Encrypted in this browser. Share it from Your records with an approved hospital or doctor."
+      action={<Badge tone="success">Hidden from insurer</Badge>}
+    >
+      {failed ? (
+        <p className="text-sm text-rado-error">Could not load your profile.</p>
+      ) : !loaded ? (
+        <p className="text-sm text-rado-slate">Loading your profile…</p>
+      ) : profile ? (
+        <>
+          <ProfileDetails profile={profile} />
+          <ShareNameNotice />
+        </>
+      ) : (
+        <ProfileForm onSaved={() => undefined} />
+      )}
+    </Panel>
+  );
+}

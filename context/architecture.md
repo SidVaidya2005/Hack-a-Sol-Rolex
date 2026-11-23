@@ -89,7 +89,8 @@ Use this table as a placement rule: before adding data, identify where it will l
 5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
 6. **Limited share:** for a lab or pharmacy, the patient's browser rebuilds an allowlisted copy as a new record with its own key, then grants that copy. The source record gains no provider key (D-058).
 7. **Patient document:** the file, name, type, and category are one encrypted record payload. It is shared whole, only with its category's provider types (D-060, D-061).
-8. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
+8. **Patient profile:** name, birth date, blood group, allergies, and emergency contact are one encrypted record, shared only with a hospital or doctor (D-064). A separate name-only card is wrapped to hospitals, doctors, and responders (D-065).
+9. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
 
 ## ZK Claim Circuit
 
@@ -155,6 +156,7 @@ All routes run on L4 and share the app's HTTPS origin.
 | `POST /api/rpc` | Same-origin proxy to Hardhat on `127.0.0.1:8545` | Allow only read methods and `eth_sendRawTransaction` |
 | `GET /api/contracts` | Return the public RecordAccess, ClaimSettlement, and MockUSD addresses (D-047) | Same origin, read-only |
 | `GET /api/providers` | Return the off-chain directory of hospital, doctor, lab, and pharmacy wallets (D-059) | Same origin, read-only, never lists patient or insurer wallets |
+| `POST /api/faucet` | Give an empty wallet 1 local ETH for sign-up (D-066) | Same origin, chain 31337, zero balance only, 100 wallets per run |
 | `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check, first signer owns the record ID |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
 | `GET /api/escrow/release` | Return the escrow public key for wrapping a summary | Same origin, read-only |

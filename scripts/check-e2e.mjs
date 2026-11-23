@@ -51,6 +51,7 @@ import {
   SAMPLE_RECORD,
   utf8Encode,
 } from "../packages/shared/src/index.ts";
+import { resolveAccountRole } from "../app/lib/account-role.ts";
 import { createClaimExchange } from "../app/lib/claim-exchange.ts";
 import { escrowReaderAddress, escrowReleaseTypedData } from "../app/lib/escrow-auth.ts";
 import { MAX_BUNDLE_BYTES, pinTypedData } from "../app/lib/pin-auth.ts";
@@ -321,18 +322,19 @@ async function main() {
       baseUrl: base,
       storeBundle: (bundle) => storeBundle(bundle, account.address),
     };
-    const service = createRecordService(config);
+    const exchange = createClaimExchange({
+      ...config,
+      claimSettlement: contracts.claimSettlement,
+      keys,
+    });
+    const service = createRecordService({ ...config, profileAccess: exchange });
     await service.ensureRegistered(keys);
     return {
       address: account.address,
       keys,
       service,
       walletClient,
-      exchange: createClaimExchange({
-        ...config,
-        claimSettlement: contracts.claimSettlement,
-        keys,
-      }),
+      exchange,
       settlement: createSettlement({
         publicClient,
         walletClient,
@@ -1063,6 +1065,225 @@ async function main() {
     reloadedDocument.kind === "document" &&
       sameBytes(reloadedDocument.document.bytes, fullSizeBytes),
   );
+
+  // W17 wallet sign-up, roles, and the encrypted patient profile
+  report(
+    "The insurer wallet is detected from the chain",
+    (await patient.exchange.walletIsInsurer(insurer.address)) === true,
+  );
+  report(
+    "Other wallets are not detected as the insurer",
+    (await insurer.exchange.walletIsInsurer(patient.address)) === false &&
+      (await insurer.exchange.walletIsInsurer(hospital.address)) === false,
+  );
+  const noRoleFacts = {
+    isInsurer: false,
+    isResponder: false,
+    providerKind: undefined,
+    isApprovedHospital: false,
+    hasPatientRecords: false,
+    savedRole: null,
+  };
+  report(
+    "A saved role choice cannot override an assigned role",
+    resolveAccountRole({ ...noRoleFacts, isInsurer: true, savedRole: "patient" }) === "insurer" &&
+      resolveAccountRole({ ...noRoleFacts, isResponder: true, savedRole: "hospital" }) ===
+        "responder" &&
+      resolveAccountRole({ ...noRoleFacts, providerKind: "lab", savedRole: "hospital" }) ===
+        "provider",
+  );
+  report(
+    "A new wallet must choose, and a wallet with records is a patient",
+    resolveAccountRole(noRoleFacts) === null &&
+      resolveAccountRole({ ...noRoleFacts, hasPatientRecords: true }) === "patient",
+  );
+  const profileMarker = `RadoW17Marker${randomBytes(6).toString("hex")}`;
+  const profileInput = {
+    fullName: profileMarker,
+    dateOfBirth: "1990-01-15",
+    bloodGroup: "O+",
+    allergies: "Sample allergy",
+    emergencyContact: "Demo Contact",
+  };
+  // The worst case: the insurer approves its own wallet as a hospital to reach the profile.
+  await insurer.exchange.approveHospital(insurer.address);
+  const profileId = await patient.service.addProfile(patient.keys, profileInput);
+  const foundProfile = await createRecordService({
+    publicClient,
+    walletClient: patient.walletClient,
+    recordAccess: contracts.recordAccess,
+    baseUrl: base,
+  }).findProfile(patient.keys);
+  report(
+    "A fresh session finds and decrypts the patient's profile",
+    foundProfile?.recordId === profileId && foundProfile.profile.fullName === profileMarker,
+  );
+  report(
+    "A patient cannot create a second profile",
+    (await rejectionOf(() => patient.service.addProfile(patient.keys, profileInput))) ===
+      "You already have a profile.",
+  );
+  const profileRefusal = "Your profile can be shared only with an approved hospital or doctor.";
+  const blockBeforeProfileRefusal = await publicClient.getBlockNumber();
+  for (const [label, wallet] of [
+    ["insurer, even self-approved as a hospital,", insurer.address],
+    ["lab", lab.address],
+    ["pharmacy", pharmacy.address],
+    ["responder", responder.address],
+    ["unlisted wallet", outsider.address],
+  ]) {
+    report(
+      `The ${label} cannot be granted the profile`,
+      (await rejectionOf(() => patient.service.grant(patient.keys, profileId, wallet, 1))) ===
+        profileRefusal,
+    );
+  }
+  report(
+    "Refused profile shares send no transaction",
+    (await publicClient.getBlockNumber()) === blockBeforeProfileRefusal,
+  );
+  const offeredReaders = await patient.service.profileReaders([
+    insurer.address,
+    hospital.address,
+    doctor.address,
+    lab.address,
+    pharmacy.address,
+    outsider.address,
+  ]);
+  report(
+    "The share list offers only the approved hospital and the doctor",
+    offeredReaders.size === 2 &&
+      offeredReaders.has(hospital.address.toLowerCase()) &&
+      offeredReaders.has(doctor.address.toLowerCase()),
+  );
+  report(
+    "A profile cannot be turned into a limited copy",
+    (await rejectionOf(() =>
+      patient.service.shareSlice(patient.keys, profileId, lab.address, "lab", 1),
+    )) === "Your profile can be shared only with a hospital or doctor.",
+  );
+  report(
+    "A hospital without a grant cannot open the profile",
+    (await rejectionOf(() => hospital.service.openRecord(hospital.keys, profileId))) !== null,
+  );
+  await patient.service.grant(patient.keys, profileId, hospital.address, 1);
+  const hospitalProfile = await hospital.service.openRecord(hospital.keys, profileId);
+  report(
+    "The approved hospital reads the profile",
+    hospitalProfile.kind === "profile" && hospitalProfile.profile.fullName === profileMarker,
+  );
+  report(
+    "The name card reaches the hospital, doctor, and responder",
+    (
+      await Promise.all(
+        [hospital, doctor, responder].map((user) => user.service.patientNames(user.keys)),
+      )
+    ).every((names) => names.get(patient.address.toLowerCase()) === profileMarker),
+  );
+  report(
+    "The insurer, lab, and pharmacy cannot read the name card",
+    (
+      await Promise.all(
+        [insurer, lab, pharmacy].map((user) => user.service.patientNames(user.keys)),
+      )
+    ).every((names) => names.size === 0),
+  );
+  report(
+    "Reading names logs no record view",
+    !(await patient.service.timeline()).some(
+      (entry) =>
+        entry.title === "Record viewed" &&
+        entry.recordId === profileId &&
+        entry.actor?.toLowerCase() === doctor.address.toLowerCase(),
+    ),
+  );
+  report(
+    "The name card is hidden from the patient's shareable records",
+    [
+      ...(
+        await patient.service.recordInfos(
+          patient.keys,
+          (await patient.service.listPatientRecords()).map(({ recordId }) => recordId),
+        )
+      ).values(),
+    ].filter((info) => info.isNameCard).length === 1,
+  );
+  report(
+    "A patient with a current name card has no missing readers",
+    (await patient.service.nameCardGap(patient.keys)) === 0,
+  );
+  const newWallet = privateKeyToAccount(generatePrivateKey());
+  const newWalletClient = createWalletClient({ account: newWallet, chain: hardhat, transport });
+  const newWalletService = createRecordService({
+    publicClient,
+    walletClient: newWalletClient,
+    recordAccess: contracts.recordAccess,
+    baseUrl: base,
+  });
+  const newKeySeed = randomBytes(32);
+  const newX25519 = x25519.keygen();
+  const newKeys = {
+    eddsaSeed: newKeySeed,
+    eddsaPublicKey: await eddsaPublicKey(newKeySeed),
+    x25519SecretKey: newX25519.secretKey,
+    x25519PublicKey: newX25519.publicKey,
+  };
+  report(
+    "A new empty wallet cannot register before funding",
+    (await rejectionOf(() => newWalletService.ensureRegistered(newKeys))) !== null,
+  );
+  await newWalletService.ensureFunded();
+  await newWalletService.ensureRegistered(newKeys);
+  const [, , , newWalletRegistered] = await publicClient.readContract({
+    address: contracts.recordAccess,
+    abi: parseAbi(recordAccessAbi),
+    functionName: "keysOf",
+    args: [newWallet.address],
+  });
+  report("A new wallet is funded and registers through sign-up", newWalletRegistered === true);
+  const fundedBalance = await publicClient.getBalance({ address: newWallet.address });
+  await fetch(`${base}/api/faucet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ wallet: newWallet.address }),
+  });
+  report(
+    "The faucet does not top up a wallet that already has funds",
+    (await publicClient.getBalance({ address: newWallet.address })) === fundedBalance,
+  );
+  report(
+    "The faucet refuses another website",
+    (
+      await fetch(`${base}/api/faucet`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "https://evil.example" },
+        body: JSON.stringify({ wallet: outsider.address }),
+      })
+    ).status === 403,
+  );
+  report(
+    "The hospital's profile view is logged on-chain",
+    (await patient.service.timeline()).some(
+      (entry) =>
+        entry.recordId === profileId &&
+        entry.title === "Record viewed" &&
+        entry.actor?.toLowerCase() === hospital.address.toLowerCase(),
+    ),
+  );
+  report(
+    "The insurer cannot open the profile",
+    (await rejectionOf(() => insurer.service.openRecord(insurer.keys, profileId))) !== null,
+  );
+  await patient.service.revoke(patient.keys, profileId, hospital.address);
+  report(
+    "Revoking the hospital ends its profile access",
+    (await rejectionOf(() => hospital.service.openRecord(hospital.keys, profileId))) !== null,
+  );
+  report(
+    "Break-glass cannot release a patient profile",
+    refused(await requestRelease(responder, profileId, await invoke(profileId)), 403),
+  );
+
   const chainLogs = await chainClient.getLogs({
     address: addresses.recordAccess,
     fromBlock: 0n,
@@ -1071,6 +1292,11 @@ async function main() {
   report(
     "The document's name and contents never appear on-chain",
     !chainLogs.some((log) => log.data.toLowerCase().includes(markerHex)),
+  );
+  const profileHex = Buffer.from(profileMarker).toString("hex");
+  report(
+    "The patient's profile never appears on-chain",
+    !chainLogs.some((log) => log.data.toLowerCase().includes(profileHex)),
   );
 
   const storedRecords = readdirSync(recordsDir)
@@ -1087,6 +1313,11 @@ async function main() {
     !storedRecords.includes(documentMarker) &&
       !storedRecords.includes(Buffer.from(documentMarker).toString("base64").slice(0, 16)) &&
       !/RADODOC1|application\/pdf|%PDF/.test(storedRecords),
+  );
+  report(
+    "Stored bundles hold no readable profile",
+    !storedRecords.includes(profileMarker) &&
+      !/RADOPRF1|RADONAM1|fullName|dateOfBirth|emergencyContact/.test(storedRecords),
   );
   await globalThis.curve_bn128?.terminate?.();
 }

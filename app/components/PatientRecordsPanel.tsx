@@ -3,6 +3,7 @@
 import {
   canShareDocument,
   DOCUMENT_CATEGORIES,
+  profileEmergencySummary,
   SAMPLE_CARE_RECORD,
   SAMPLE_EMERGENCY_SUMMARY,
   SHARE_PROFILES,
@@ -23,6 +24,7 @@ import {
 import { DocumentUploadForm } from "./DocumentUploadForm";
 import { DocumentViewer, formatDocumentSize } from "./DocumentViewer";
 import { Icon } from "./icons";
+import { ProfileDetails } from "./PatientProfilePanel";
 import {
   formatExpiry,
   RecordItems,
@@ -53,6 +55,7 @@ function RecordRow({
   info,
   wallets,
   providers,
+  profileReaders,
   busy,
   onRun,
 }: {
@@ -62,6 +65,7 @@ function RecordRow({
   info: RecordInfo | undefined;
   wallets: Address[];
   providers: Provider[];
+  profileReaders: Set<string>;
   busy: string;
   onRun: (id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) => Promise<void>;
 }) {
@@ -72,6 +76,12 @@ function RecordRow({
   const { recordId, grants, keyVersion } = record;
   const sliceProfile = info === undefined ? undefined : info.sliceProfile;
   const documentInfo = info?.document ?? null;
+  const isProfile = info?.isProfile ?? false;
+  const sharedWhole = Boolean(documentInfo) || isProfile;
+  const walletLabel = (wallet: string) =>
+    isProfile && !providerFor(wallet, providers)
+      ? `Approved hospital · ${shortId(wallet)}`
+      : providerLabel(wallet, providers);
   const active = new Set(
     grants.filter(({ status }) => status === "Active").map(({ reader }) => reader.toLowerCase()),
   );
@@ -84,6 +94,7 @@ function RecordRow({
         !documentInfo ||
         canShareDocument(documentInfo.category, providerFor(wallet, providers)?.kind),
     )
+    .filter((wallet) => !isProfile || profileReaders.has(wallet.toLowerCase()))
     .sort(
       (a, b) =>
         Number(Boolean(providerFor(b, providers))) - Number(Boolean(providerFor(a, providers))),
@@ -103,11 +114,13 @@ function RecordRow({
             {documentInfo
               ? documentInfo.name
               : `${
-                  emergency
-                    ? "Emergency summary"
-                    : sliceProfile
-                      ? `${SHARE_PROFILES[sliceProfile].label} copy`
-                      : "Encrypted record"
+                  isProfile
+                    ? "Patient profile"
+                    : emergency
+                      ? "Emergency summary"
+                      : sliceProfile
+                        ? `${SHARE_PROFILES[sliceProfile].label} copy`
+                        : "Encrypted record"
                 } ${shortId(recordId)}`}
           </p>
           <p className="mt-0.5 font-mono text-xs text-rado-slate">
@@ -136,6 +149,7 @@ function RecordRow({
         </button>
       </div>
       {opened?.kind === "record" ? <RecordItems items={opened.items} /> : null}
+      {opened?.kind === "profile" ? <ProfileDetails profile={opened.profile} /> : null}
       {opened?.kind === "document" ? (
         <DocumentViewer canDownload document={opened.document} onClose={() => setOpened(null)} />
       ) : null}
@@ -144,7 +158,7 @@ function RecordRow({
         {grants.map(({ reader, expiresAt, status }) => (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3" key={reader}>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-rado-ink">{providerLabel(reader, providers)}</p>
+              <p className="text-sm text-rado-ink">{walletLabel(reader)}</p>
               <p className="text-xs text-rado-slate">
                 {status === "Revoked"
                   ? "Access removed"
@@ -192,12 +206,12 @@ function RecordRow({
             {candidates.length ? (
               candidates.map((wallet) => (
                 <option key={wallet} value={wallet}>
-                  {providerLabel(wallet, providers)}
+                  {walletLabel(wallet)}
                 </option>
               ))
             ) : (
               <option value="">
-                {sliceProfile || documentInfo
+                {sliceProfile || sharedWhole
                   ? "No allowed provider has unlocked"
                   : "No other unlocked wallets"}
               </option>
@@ -230,7 +244,7 @@ function RecordRow({
           onClick={() =>
             void onRun(`grant-${recordId}`, async (onPrompt) => {
               if (!session || !target) return "";
-              if (!documentInfo && !sliceProfile && profile !== "hospital") {
+              if (!sharedWhole && !sliceProfile && profile !== "hospital") {
                 const { expiresAt } = await session.service.shareSlice(
                   session.keys,
                   recordId,
@@ -255,7 +269,7 @@ function RecordRow({
         >
           {busy === `grant-${recordId}`
             ? "Sharing…"
-            : !documentInfo && !sliceProfile && profile !== "hospital"
+            : !sharedWhole && !sliceProfile && profile !== "hospital"
               ? "Share limited copy"
               : "Grant access"}
         </button>
@@ -275,7 +289,23 @@ function RecordRow({
           </div>
         </div>
       ) : null}
-      {target && !documentInfo && sliceProfile !== undefined ? (
+      {target && isProfile ? (
+        <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
+          <div>
+            <p className="text-rado-ink">Will be shared</p>
+            <p className="mt-1 text-rado-slate">
+              Name, date of birth, blood group, allergies, and emergency contact
+            </p>
+          </div>
+          <div>
+            <p className="text-rado-ink">Stays private</p>
+            <p className="mt-1 text-rado-slate">
+              Your other records. Insurers, labs, and pharmacies cannot be given this profile.
+            </p>
+          </div>
+        </div>
+      ) : null}
+      {target && !sharedWhole && sliceProfile !== undefined ? (
         <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
           <div>
             <p className="text-rado-ink">Will be shared</p>
@@ -310,6 +340,7 @@ function PatientRecordsContent() {
   const [wallets, setWallets] = useState<Address[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [recordInfos, setRecordInfos] = useState<Map<string, RecordInfo>>(new Map());
+  const [profileReaders, setProfileReaders] = useState<Set<string>>(new Set());
   const [summaryIds, setSummaryIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
@@ -333,7 +364,12 @@ function PatientRecordsContent() {
             session.keys,
             nextRecords.map(({ recordId }) => recordId),
           );
-          if (current) setRecordInfos(nextInfos);
+          if (!current) return;
+          setRecordInfos(nextInfos);
+          if ([...nextInfos.values()].some(({ isProfile }) => isProfile)) {
+            const nextReaders = await session.service.profileReaders(nextWallets);
+            if (current) setProfileReaders(nextReaders);
+          }
         })
         .catch(() => {
           if (current) setMessage({ ok: false, text: "Could not load your records." });
@@ -360,6 +396,8 @@ function PatientRecordsContent() {
       current = false;
     };
   }, [session, revision]);
+
+  const visibleRecords = records.filter(({ recordId }) => !recordInfos.get(recordId)?.isNameCard);
 
   async function run(id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) {
     setBusy(id);
@@ -388,9 +426,13 @@ function PatientRecordsContent() {
               disabled={Boolean(busy) || summaryIds.size > 0}
               onClick={() =>
                 void run("add-summary", async (onPrompt) => {
+                  const found = await session.service.findProfile(session.keys);
+                  const summary = found
+                    ? profileEmergencySummary(found.profile)
+                    : SAMPLE_EMERGENCY_SUMMARY;
                   await session.service.addEmergencySummary(
                     session.keys,
-                    utf8Encode(JSON.stringify(SAMPLE_EMERGENCY_SUMMARY)),
+                    utf8Encode(JSON.stringify(summary)),
                     onPrompt,
                   );
                   return "Emergency summary encrypted. Only this summary can be released in an emergency.";
@@ -431,15 +473,16 @@ function PatientRecordsContent() {
           <WalletPromptNotice text={walletPrompt} />
           <StatusMessage message={message} />
           <DocumentUploadForm busy={busy} onRun={run} />
-          {records.length ? (
+          {visibleRecords.length ? (
             <div className="divide-y divide-rado-line">
-              {records.map((record) => (
+              {visibleRecords.map((record) => (
                 <RecordRow
                   busy={busy}
                   emergency={summaryIds.has(record.recordId)}
                   key={record.recordId}
                   onRun={run}
                   providers={providers}
+                  profileReaders={profileReaders}
                   info={recordInfos.get(record.recordId)}
                   record={record}
                   wallets={wallets}

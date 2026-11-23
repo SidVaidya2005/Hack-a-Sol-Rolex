@@ -117,6 +117,49 @@ export function isRegisteredResponder(wallet: Address): Promise<boolean> {
   );
 }
 
+const LOCAL_CHAIN_ID = 31337;
+/** Worthless local-chain ETH, enough for a new wallet's demo transactions. */
+const SIGN_UP_BALANCE = 10n ** 18n;
+const MAX_FUNDED_WALLETS = 100;
+const fundedWallets = new Set<string>();
+
+/** Tops up only an empty wallet on the local Hardhat chain, so sign-up can pay for gas. */
+export async function fundNewWallet(wallet: Address): Promise<void> {
+  const url = hardhatRpcUrl();
+  const client = createPublicClient({ transport: http(url, { retryCount: 0 }) });
+  let chainId: number;
+  let balance: bigint;
+  try {
+    [chainId, balance] = await Promise.all([
+      client.getChainId(),
+      client.getBalance({ address: wallet }),
+    ]);
+  } catch {
+    throw new HttpError(503, "The blockchain is not reachable.");
+  }
+  if (chainId !== LOCAL_CHAIN_ID) throw new HttpError(403, "Funding is local-chain only.");
+  if (balance > 0n) return;
+  const key = wallet.toLowerCase();
+  if (!fundedWallets.has(key) && fundedWallets.size >= MAX_FUNDED_WALLETS) {
+    throw new HttpError(429, "Too many new wallets. Restart the demo host.");
+  }
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "hardhat_setBalance",
+      params: [wallet, `0x${SIGN_UP_BALANCE.toString(16)}`],
+    }),
+  }).catch(() => null);
+  const body = (await response?.json().catch(() => null)) as { error?: unknown } | null;
+  if (!response?.ok || !body || body.error) {
+    throw new HttpError(503, "The blockchain is not reachable.");
+  }
+  fundedWallets.add(key);
+}
+
 /** Reads one log from a successful transaction on the deployed RecordAccess contract. */
 export async function breakGlassEvent(
   hash: Hex32,

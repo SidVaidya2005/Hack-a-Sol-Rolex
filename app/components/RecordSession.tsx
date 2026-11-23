@@ -87,13 +87,14 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
         walletClient: walletClient as unknown as WalletClient<Transport, Chain, RecordAccount>,
         recordAccess: body.recordAccess,
       };
-      const service = createRecordService(clients);
-      await service.ensureRegistered(keys, setUnlockPrompt);
       const exchange = createClaimExchange({
         ...clients,
         claimSettlement: body.claimSettlement,
         keys,
       });
+      const service = createRecordService({ ...clients, profileAccess: exchange });
+      await service.ensureFunded();
+      await service.ensureRegistered(keys, setUnlockPrompt);
       const settlement = createSettlement({
         publicClient: clients.publicClient,
         walletClient: clients.walletClient,

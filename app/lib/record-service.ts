@@ -3,16 +3,24 @@ import {
   buildRecordSlice,
   bytesToBase64,
   canShareDocument,
+  canShareProfile,
   decodeDocument,
+  decodeNameCard,
+  decodeProfile,
   decryptRecord,
   DOCUMENT_CATEGORIES,
   DocumentError,
   encodeBundle,
   encodeDocument,
+  encodeNameCard,
+  encodeProfile,
   encryptRecord,
   hashBundleBytes,
   isDocumentPayload,
+  isNameCardPayload,
+  isProfilePayload,
   parseBundle,
+  ProfileError,
   recordAccessAbi,
   rotateRecordKey,
   SHARE_PROFILES,
@@ -26,6 +34,7 @@ import type {
   DocumentCategory,
   EncryptedBundle,
   Hex32,
+  PatientProfile,
   RadoDocument,
   RadoDocumentInfo,
   RecordReader,
@@ -107,10 +116,21 @@ export interface RecordItem {
 export interface RecordInfo {
   sliceProfile: SliceProfile | null;
   document: RadoDocumentInfo | null;
+  isProfile: boolean;
+  /** A name-only record, hidden from the patient's record list. */
+  isNameCard?: boolean;
 }
 
 export type OpenedRecord =
-  { kind: "record"; items: RecordItem[] } | { kind: "document"; document: RadoDocument };
+  | { kind: "record"; items: RecordItem[] }
+  | { kind: "document"; document: RadoDocument }
+  | { kind: "profile"; profile: PatientProfile };
+
+/** Chain checks for profile sharing, supplied by the claim exchange. */
+export interface ProfileAccessChecks {
+  hospitalIsApproved: (wallet: Address) => Promise<boolean>;
+  walletIsInsurer: (wallet: Address) => Promise<boolean>;
+}
 
 export interface RecordServiceConfig {
   publicClient: PublicClient;
@@ -120,6 +140,8 @@ export interface RecordServiceConfig {
   baseUrl?: string;
   /** Set only by the E2E script, so a test run never uploads to Pinata. */
   storeBundle?: (bundle: EncryptedBundle) => Promise<{ bundleHash: Hex32; cid: string }>;
+  /** Without these, a profile can go only to hospitals and doctors in the directory. */
+  profileAccess?: ProfileAccessChecks;
 }
 
 export interface EmergencySummaryRecord {
@@ -291,6 +313,7 @@ export function createRecordService({
   recordAccess,
   baseUrl = "",
   storeBundle,
+  profileAccess,
 }: RecordServiceConfig) {
   const contract = getContract({
     address: recordAccess,
@@ -303,6 +326,8 @@ export function createRecordService({
   /** A confirmed event whose release did not finish, so a retry does not log a second one. */
   const pendingBreakGlass = new Map<Hex32, { transactionHash: Hex32; logIndex: number }>();
   const recordInfoCache = new Map<string, RecordInfo>();
+  /** Each anchored record's name card for this wallet, or null. Kept in memory only. */
+  const nameCards = new Map<string, { patient: Address; name: string } | null>();
   /** Holds ciphertext only, so repeated screen loads do not download and hash it again. */
   const verifiedBundles = new Map<string, Promise<EncryptedBundle>>();
 
@@ -524,11 +549,21 @@ export function createRecordService({
     let info: RecordInfo;
     try {
       const plaintext = await decryptRecord(bundle, self, keys.x25519SecretKey);
-      if (isDocumentPayload(plaintext)) {
+      if (isNameCardPayload(plaintext)) {
+        decodeNameCard(plaintext);
+        info = { sliceProfile: null, document: null, isProfile: false, isNameCard: true };
+      } else if (isProfilePayload(plaintext)) {
+        decodeProfile(plaintext);
+        info = { sliceProfile: null, document: null, isProfile: true };
+      } else if (isDocumentPayload(plaintext)) {
         const document = documentDetails(decodeDocument(plaintext));
-        info = { sliceProfile: null, document };
+        info = { sliceProfile: null, document, isProfile: false };
       } else {
-        info = { sliceProfile: sliceProfileOf(JSON.parse(utf8Decode(plaintext))), document: null };
+        info = {
+          sliceProfile: sliceProfileOf(JSON.parse(utf8Decode(plaintext))),
+          document: null,
+          isProfile: false,
+        };
       }
     } catch {
       throw new RecordError("This record could not be read.");
@@ -556,6 +591,15 @@ export function createRecordService({
     } catch {
       throw new RecordError("You do not have access to this version of the record.");
     }
+    if (isProfilePayload(plaintext)) {
+      let profile: PatientProfile;
+      try {
+        profile = decodeProfile(plaintext);
+      } catch {
+        throw new RecordError("This profile could not be read.");
+      }
+      return { kind: "profile", profile };
+    }
     if (isDocumentPayload(plaintext)) {
       try {
         return { kind: "document", document: decodeDocument(plaintext) };
@@ -566,9 +610,125 @@ export function createRecordService({
     return { kind: "record", items: describeRecord(plaintext) };
   }
 
+  /** Fails closed: a failed chain check means this wallet does not get the profile. */
+  async function canReadProfile(wallet: Address, providers: Provider[]): Promise<boolean> {
+    if (sameAddress(wallet, self)) return false;
+    try {
+      if (await profileAccess?.walletIsInsurer(wallet)) return false;
+      const listed = providers.find((item) => sameAddress(item.wallet, wallet));
+      if (listed) return canShareProfile(listed.kind);
+      return (await profileAccess?.hospitalIsApproved(wallet)) ?? false;
+    } catch {
+      return false;
+    }
+  }
+
+  async function findProfile(
+    keys: UnlockedKeys,
+  ): Promise<{ recordId: Hex32; profile: PatientProfile } | null> {
+    const anchors = await contract.getEvents.RecordAnchored({ patient: self }, { fromBlock: 0n });
+    for (const { args } of anchors) {
+      if (!args.recordId) continue;
+      const info = await ownRecordInfo(keys, args.recordId).catch(() => null);
+      if (!info?.isProfile) continue;
+      const opened = await openRecord(keys, args.recordId);
+      if (opened.kind === "profile") return { recordId: args.recordId, profile: opened.profile };
+    }
+    return null;
+  }
+
+  /** Hospitals, doctors, and responders. The insurer, labs, and pharmacies are never included. */
+  async function nameCardReaders(): Promise<Address[]> {
+    const logs = await contract.getEvents.KeysRegistered({}, { fromBlock: 0n });
+    const wallets = [
+      ...new Map(
+        logs.flatMap(({ args: { wallet } }) =>
+          wallet && !sameAddress(wallet, self) ? [[wallet.toLowerCase(), wallet] as const] : [],
+        ),
+      ).values(),
+    ];
+    const providers = await listProviders();
+    const allowed = await Promise.all(
+      wallets.map(async (wallet) => {
+        if (await canReadProfile(wallet, providers)) return wallet;
+        try {
+          if (await profileAccess?.walletIsInsurer(wallet)) return null;
+          return (await contract.read.isResponder([wallet])) ? wallet : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return allowed.filter((wallet) => wallet !== null);
+  }
+
+  /** The newest card this patient published, so a later card replaces an older one. */
+  async function latestOwnNameCard(keys: UnlockedKeys): Promise<EncryptedBundle | null> {
+    const anchors = await contract.getEvents.RecordAnchored({ patient: self }, { fromBlock: 0n });
+    for (const { args } of [...anchors].reverse()) {
+      if (!args.recordId) continue;
+      const info = await ownRecordInfo(keys, args.recordId).catch(() => null);
+      if (info?.isNameCard) return (await loadBundle(args.recordId)).bundle;
+    }
+    return null;
+  }
+
+  async function publishNameCard(
+    keys: UnlockedKeys,
+    fullName: string,
+    onPrompt?: WalletPromptHandler,
+  ): Promise<void> {
+    const readers = await Promise.all((await nameCardReaders()).map(readerKey));
+    const recordId = await anchorNewRecord(
+      encodeNameCard(fullName),
+      [{ address: self, x25519PublicKey: keys.x25519PublicKey }, ...readers],
+      onPrompt,
+    );
+    recordInfoCache.set(recordId, {
+      sliceProfile: null,
+      document: null,
+      isProfile: false,
+      isNameCard: true,
+    });
+  }
+
+  /**
+   * Opens only records wrapped to this wallet with no grant. A granted medical record always
+   * has an expiry, so it is never decrypted here and keeps its logged-view rule.
+   */
+  async function readNameCard(
+    keys: UnlockedKeys,
+    recordId: Hex32,
+    patient: Address,
+  ): Promise<{ patient: Address; name: string } | null> {
+    if (sameAddress(patient, self)) return null;
+    const { bundle } = await loadBundle(recordId);
+    if (!bundle.wrappedKeys.some((entry) => sameAddress(entry.reader, self))) return null;
+    if ((await contract.read.accessExpiry([recordId, self])) !== 0n) return null;
+    try {
+      const plaintext = await decryptRecord(bundle, self, keys.x25519SecretKey);
+      return isNameCardPayload(plaintext) ? { patient, name: decodeNameCard(plaintext) } : null;
+    } catch {
+      return null;
+    }
+  }
+
   return {
     self,
     loadBundle,
+
+    /** A new wallet has no gas on the local chain, so the host tops it up once. */
+    async ensureFunded(): Promise<void> {
+      if ((await publicClient.getBalance({ address: self })) > 0n) return;
+      const response = await fetch(`${baseUrl}/api/faucet`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ wallet: self }),
+      }).catch(() => null);
+      if (!response?.ok) {
+        throw new RecordError("Could not set up this new wallet on the demo network.");
+      }
+    },
 
     async ensureRegistered(keys: UnlockedKeys, onPrompt?: WalletPromptHandler): Promise<void> {
       const [Ax, Ay, x25519PublicKey, registered] = await contract.read.keysOf([self]);
@@ -709,7 +869,12 @@ export function createRecordService({
       days: number,
       onPrompt?: WalletPromptHandler,
     ): Promise<bigint> {
-      const { document } = await ownRecordInfo(keys, recordId);
+      const { document, isProfile } = await ownRecordInfo(keys, recordId);
+      if (isProfile && !(await canReadProfile(reader, await listProviders()))) {
+        throw new RecordError(
+          "Your profile can be shared only with an approved hospital or doctor.",
+        );
+      }
       if (document) {
         const provider = (await listProviders()).find(({ wallet }) => sameAddress(wallet, reader));
         if (!canShareDocument(document.category, provider?.kind)) {
@@ -722,6 +887,86 @@ export function createRecordService({
     },
 
     listProviders,
+
+    findProfile,
+
+    /** Lowercased wallet to name, from the newest name card each patient sent this wallet. */
+    async patientNames(keys: UnlockedKeys): Promise<Map<string, string>> {
+      const anchors = await contract.getEvents.RecordAnchored({}, { fromBlock: 0n });
+      await Promise.all(
+        anchors.map(async ({ args: { recordId, patient } }) => {
+          if (!recordId || !patient || nameCards.has(recordId)) return;
+          // A failed load is not remembered, so it is tried again on the next refresh.
+          const card = await readNameCard(keys, recordId, patient).catch(() => undefined);
+          if (card !== undefined) nameCards.set(recordId, card);
+        }),
+      );
+      const names = new Map<string, string>();
+      for (const { args } of anchors) {
+        const card = args.recordId ? nameCards.get(args.recordId) : null;
+        if (card) names.set(card.patient.toLowerCase(), card.name);
+      }
+      return names;
+    },
+
+    /** How many eligible wallets cannot read this patient's name yet. */
+    async nameCardGap(keys: UnlockedKeys): Promise<number> {
+      const [readers, card] = await Promise.all([nameCardReaders(), latestOwnNameCard(keys)]);
+      return readers.filter(
+        (reader) => !card?.wrappedKeys.some((entry) => sameAddress(entry.reader, reader)),
+      ).length;
+    },
+
+    /** Sends a new name card to every eligible wallet. */
+    async shareName(keys: UnlockedKeys, onPrompt?: WalletPromptHandler): Promise<void> {
+      const found = await findProfile(keys);
+      if (!found) throw new RecordError("Save your profile first.");
+      await publishNameCard(keys, found.profile.fullName, onPrompt);
+    },
+
+    /** Wallets the patient may offer the profile to, lowercased. */
+    async profileReaders(wallets: Address[]): Promise<Set<string>> {
+      const providers = await listProviders();
+      const allowed = await Promise.all(
+        wallets.map(async (wallet) => ((await canReadProfile(wallet, providers)) ? wallet : null)),
+      );
+      return new Set(allowed.flatMap((wallet) => (wallet ? [wallet.toLowerCase()] : [])));
+    },
+
+    /** One encrypted profile per wallet. Only the patient holds a key until they share it. */
+    async addProfile(
+      keys: UnlockedKeys,
+      input: PatientProfile,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<Hex32> {
+      let payload: Uint8Array;
+      try {
+        payload = encodeProfile(input);
+      } catch (error) {
+        if (error instanceof ProfileError) throw new RecordError(error.message);
+        throw new RecordError("This profile could not be saved.");
+      }
+      if (await findProfile(keys)) throw new RecordError("You already have a profile.");
+      let step = 0;
+      const stepped: WalletPromptHandler = (text) => {
+        step += 1;
+        onPrompt?.(`Step ${step} of 4: ${text.replace(/^Step \d of \d: /, "")}`);
+      };
+      const recordId = await anchorNewRecord(
+        payload,
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
+        stepped,
+      );
+      recordInfoCache.set(recordId, { sliceProfile: null, document: null, isProfile: true });
+      try {
+        await publishNameCard(keys, decodeProfile(payload).fullName, stepped);
+      } catch {
+        throw new RecordError(
+          "Your profile was saved, but your name was not shared. Use Share my name to finish.",
+        );
+      }
+      return recordId;
+    },
 
     /**
      * Copies only this provider's fields into a new record with its own key, then grants it.
@@ -741,6 +986,9 @@ export function createRecordService({
       let source: unknown;
       try {
         const plaintext = await decryptRecord(loaded.bundle, self, keys.x25519SecretKey);
+        if (isProfilePayload(plaintext)) {
+          throw new RecordError("Your profile can be shared only with a hospital or doctor.");
+        }
         if (isDocumentPayload(plaintext)) {
           throw new RecordError("A document is shared whole and cannot be split into a copy.");
         }
@@ -772,7 +1020,7 @@ export function createRecordService({
         [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
         stepped,
       );
-      recordInfoCache.set(recordId, { sliceProfile: profile, document: null });
+      recordInfoCache.set(recordId, { sliceProfile: profile, document: null, isProfile: false });
       try {
         const expiresAt = await grantReader(keys, recordId, reader, days, stepped);
         return { recordId, expiresAt };
@@ -802,7 +1050,7 @@ export function createRecordService({
         [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
         onPrompt,
       );
-      recordInfoCache.set(recordId, { sliceProfile: null, document: details });
+      recordInfoCache.set(recordId, { sliceProfile: null, document: details, isProfile: false });
       return recordId;
     },
 
@@ -882,6 +1130,9 @@ export function createRecordService({
       const opened = await openRecord(keys, recordId, onPrompt);
       if (opened.kind === "document") {
         throw new RecordError("This document must be opened in the document viewer.");
+      }
+      if (opened.kind === "profile") {
+        throw new RecordError("This profile must be opened in the profile view.");
       }
       return opened.items;
     },

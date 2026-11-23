@@ -3,7 +3,7 @@
 //                  Starts the app itself, so it can also test restart, tamper, expiry, and logs.
 // Second laptop:   node scripts/check-server-routes.mjs https://<L4-LAN-IP>:3000 --wallets <file>
 //                  Set NODE_EXTRA_CA_CERTS to the copied ca.pem. Uses throwaway test wallets.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -33,6 +33,7 @@ const args = process.argv.slice(2);
 const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const hostIp = option("--host");
 const port = 3443;
+const isWindows = process.platform === "win32";
 const base = hostIp ? `https://${hostIp}:${port}` : args.find((arg) => arg.startsWith("https://"));
 const walletFile = option("--wallets") ?? join(repoRoot, "contracts", ".env.demo-wallets");
 const deployment = join(repoRoot, "contracts", "deployments", "localhost.json");
@@ -63,11 +64,13 @@ const call = (method, params = [], id = 1) => ({ jsonrpc: "2.0", id, method, par
 
 async function startServer() {
   server = spawn(
-    join(repoRoot, "node_modules", ".bin", "next"),
+    // Run Next's entry file with Node, because Windows cannot spawn the .bin shim directly.
+    process.execPath,
     [
+      join(repoRoot, "node_modules", "next", "dist", "bin", "next"),
       "dev",
       "--hostname",
-      "0.0.0.0",
+      hostIp,
       "--port",
       String(port),
       "--experimental-https",
@@ -76,7 +79,7 @@ async function startServer() {
       "--experimental-https-cert",
       "certificates/cert.pem",
     ],
-    { cwd: appDir, detached: true, stdio: ["ignore", "pipe", "pipe"] },
+    { cwd: appDir, detached: !isWindows, stdio: ["ignore", "pipe", "pipe"] },
   );
   server.stdout.on("data", (chunk) => (serverLog += chunk));
   server.stderr.on("data", (chunk) => (serverLog += chunk));
@@ -93,7 +96,12 @@ async function startServer() {
 async function stopServer() {
   if (!server) return;
   const exited = new Promise((done) => server.once("exit", done));
-  process.kill(-server.pid, "SIGTERM");
+  // Windows has no process groups, so taskkill stops Next and its child workers.
+  if (isWindows) {
+    spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+  } else {
+    process.kill(-server.pid, "SIGTERM");
+  }
   await exited;
   server = undefined;
 }

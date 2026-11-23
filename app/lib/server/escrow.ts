@@ -132,6 +132,10 @@ export async function releaseEmergencyKey(raw: unknown): Promise<WrappedRecordKe
 
   const escrow = escrowKeys();
   const bundle = parseBundle(await loadVerifiedBundle(record.cid));
+  // A record can anchor another record's CID, so the event must name the bundle's own record.
+  if (bundle.recordId.toLowerCase() !== recordId) {
+    throw new HttpError(403, "No matching emergency access event was found on-chain.");
+  }
   const escrowCopy = bundle.wrappedKeys.find(
     (entry) => entry.reader.toLowerCase() === escrow.address,
   );

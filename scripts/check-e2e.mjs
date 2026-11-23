@@ -602,6 +602,45 @@ async function main() {
     refused(await requestRelease(responder, fullRecordId, await invoke(fullRecordId)), 403),
   );
 
+  // A responder anchors their own record at the patient's summary CID, so the event avoids the patient.
+  const [, , summaryCid] = await publicClient.readContract({
+    address: contracts.recordAccess,
+    abi: accessAbi,
+    functionName: "recordOf",
+    args: [summaryId],
+  });
+  const aliasId = `0x${randomBytes(32).toString("hex")}`;
+  await publicClient.waitForTransactionReceipt({
+    hash: await responder.walletClient.writeContract({
+      address: contracts.recordAccess,
+      abi: accessAbi,
+      functionName: "anchorRecord",
+      args: [aliasId, `0x${randomBytes(32).toString("hex")}`, summaryCid],
+    }),
+  });
+  const aliasHash = await responder.walletClient.writeContract({
+    address: contracts.recordAccess,
+    abi: accessAbi,
+    functionName: "invokeBreakGlass",
+    args: [responder.address, aliasId],
+  });
+  const aliasReceipt = await publicClient.waitForTransactionReceipt({ hash: aliasHash });
+  const [aliasLog] = parseEventLogs({
+    abi: accessAbi,
+    logs: aliasReceipt.logs,
+    eventName: "BreakGlassInvoked",
+  });
+  report(
+    "A record pointing at another patient's summary releases nothing",
+    refused(
+      await requestRelease(responder, aliasId, {
+        transactionHash: aliasHash,
+        logIndex: aliasLog.logIndex,
+      }),
+      403,
+    ),
+  );
+
   const released = await requestRelease(responder, summaryId, event);
   const { bundle: summaryBundle } = await responder.service.loadBundle(summaryId);
   const items =

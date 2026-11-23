@@ -212,6 +212,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — INR display (D-046) passed typecheck, production build, lint with the existing PostCSS warning, and all three browser suites at 390, 768, and 1440px plus reduced motion. No role screen shows dollar text. W08 was unticked until one real MetaMask connection is tested.
 
+**Result:** 2026-11-23 — On Windows with Node 26 against a seeded local chain, MetaMask connected with an imported demo Patient wallet, added Rado Local through `http://127.0.0.1:3000/api/rpc`, showed the connected state, and read the wallet's 100 ETH balance. Chrome connected to the app and not directly to Hardhat, and the app log showed no RPC or route failures. Typecheck, production build, and lint passed with the existing PostCSS warning. A manual desktop click-through passed record, access, claim, replay, seven attacks, Responder, Insurer, and Public Chain flows, with no medical data on the Insurer or Public Chain screens. Phone and tablet widths were not rerun in this pass. Real proofs, payments, and cross-laptop behavior belong to W09 to W11.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.

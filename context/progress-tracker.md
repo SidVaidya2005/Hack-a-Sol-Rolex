@@ -22,13 +22,12 @@
 
 ## Current Status
 
-**Last completed:** W05 Smart contracts and tests
-**Next:** W07 and W08 continue in parallel, and W09 to W11 can start on stand-ins when an owner is free.
+**Last completed:** W08 Role screens with sample data
+**Next:** W07 waits for its second-laptop checks, and W09 to W11 can start when an owner is free.
 
 **Left to do now:**
 
 - **Shreyansh, W07:** routes, cache, and LAN HTTPS are built and pass `scripts/check-server-routes.mjs` on L4 against deployed contracts, with Pinata stubbed, including on Windows with Node 26 (2026-11-23). On one laptop, a real Pinata upload and gateway read matched the on-chain hash, and the same record loaded from the encrypted cache with the internet off (2026-11-23). No second laptop is available yet, so W07 stays unticked. Still to run: the same script from a real second laptop and `crypto.subtle` in that laptop's browser.
-- **Siddarth, W08:** the latest `main` is merged into `w08/role-screens`. Test a real MetaMask connection, including adding the Rado network and a call through `/api/rpc`, rerun the browser flows, then add the W08 Result and tick it.
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
@@ -41,7 +40,7 @@
 - [x] W05 Smart contracts and tests
 - [x] W06 Encryption and key library
 - [ ] W07 Server routes
-- [ ] W08 Role screens with sample data
+- [x] W08 Role screens with sample data
 - [ ] W09 Patient records and permissions
 - [ ] W10 Hospital claim and browser proving
 - [ ] W11 Settlement, insurer view, and end-to-end flow

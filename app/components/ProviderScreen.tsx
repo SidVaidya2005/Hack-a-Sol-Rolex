@@ -7,7 +7,7 @@ const PROVIDER_TEXT = {
   title: "Shared with this provider",
   description:
     "Only the limited copies patients shared with this wallet. Each view is logged first.",
-  unlockPurpose: "Sign once in your lab or pharmacy wallet so patients can share with you.",
+  unlockPurpose: "Sign in with your lab or pharmacy wallet to read what patients shared.",
   className: "",
 };
 

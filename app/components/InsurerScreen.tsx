@@ -81,7 +81,7 @@ export function InsurerScreen() {
         <MetricCard
           label="Pool balance"
           value={ledger ? formatAmount(ledger.poolBalance) : "Loading…"}
-          detail="Demo tokens available"
+          detail="Available for payouts"
           icon="coin"
         />
         <MetricCard
@@ -271,7 +271,7 @@ export function InsurerScreen() {
               <Icon name="lock" className="mt-1 size-4" />
               Private health details are not part of this claim view.
             </p>
-            <p className="mt-auto pt-6 text-xs text-rado-muted">Demo tokens with no real value.</p>
+            <p className="mt-auto pt-6 text-xs text-rado-muted">Settled on the Rado network.</p>
           </div>
         ) : null}
       </dialog>

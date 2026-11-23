@@ -23,13 +23,13 @@
 ## Current Status
 
 **Last completed:** W16 Patient document upload
-**Next:** Verify W17 through MetaMask, then W14 Rehearsal, backup video, and pitch
+**Next:** Reseed, verify W17 and W18 through MetaMask, then W14 Rehearsal, backup video, and pitch
 
 **Left to do now:**
 
 - **Host setup:** after a fresh clone, run `node scripts/generate-escrow-key.mjs` once on the host, then restart the app.
 - **Before the first W14 rehearsal:** restart the Hardhat node, run the seed, register keys again, approve the hospital, register the policy, add the emergency summary again, and run break-glass once through MetaMask with real Pinata. A chain deployed before PR #31 still lets the insurer appoint responders.
-- **After W15 merges:** every host must reseed so the lab and pharmacy wallets exist. Until then, those wallets appear as Unlisted and a share gives them the full record.
+- **W18 reseed:** `RecordAccess` changed, so restart Hardhat and run the seed before using break-glass.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -51,19 +51,20 @@
 - [x] W15 Lab and pharmacy sharing
 - [x] W16 Patient document upload
 - [ ] W17 Wallet sign-up, roles, and patient profile
+- [ ] W18 Production wording, Add record, and emergency profile
 
 ## Key Decisions
 
+- **D-070 — Allow uploaded files up to 5 MB, with a 7 MiB bundle limit and a 64 MiB browser cache.** Reason: the user asked for 5 MB, and encryption and base64 add about a third. Accepted tradeoff: larger files take longer to upload, hash, and open. Source: user request, W18, 2026-11-24.
+- **D-069 — Let patients share only with listed providers or insurer-approved hospitals, enforced before any wallet prompt, and never with the insurer.** Reason: the share list offered every wallet, so a patient could give the insurer a full record. Accepted tradeoff: a hospital must be approved before it can receive records. Source: W18 sharing review, user-approved 2026-11-24.
+- **D-068 — Require a break-glass reason, encrypted to the responder and patient, with only its record ID on-chain.** Reason: patients should know why, and a public reason would be medical data. Accepted tradeoff: `invokeBreakGlass` changes and needs a reseed. Source: W18, user-approved 2026-11-24.
+- **D-067 — Keep one responder and wrap each new patient profile to escrow, replacing the emergency summary button.** Reason: the user wants the responder to have the profile automatically. Accepted tradeoff: the responder can open the whole profile after a logged break-glass. Source: user request, W18, 2026-11-24.
 - **D-066 — Let `POST /api/faucet` give an empty wallet 1 local ETH through `hardhat_setBalance`.** Reason: sign-up must register keys, and new wallets have no gas. Accepted tradeoff: any LAN device can fund an empty wallet, limited to 100 wallets per app run on chain 31337. Source: W17 test, user-reported 2026-11-24.
 - **D-065 — Send a name-only encrypted card to hospitals, doctors, and responders when a patient saves a profile.** Reason: the user wants them to see `<name> - <wallet>` before any record is opened. Accepted tradeoff: reading a name is not logged and a card cannot be revoked. Source: user request, W17, 2026-11-24.
 - **D-064 — Store patient details as one encrypted profile record, shareable only with a listed hospital or doctor or an insurer-approved hospital, and never with the insurer wallet.** Reason: the user asked that the hospital can see these details and the insurer cannot. Accepted tradeoff: the rule is app-level, and profiles cannot be edited in this version. Source: W17, user-approved 2026-11-24.
 - **D-063 — Sign in with a wallet only, let wallets choose only Patient or Hospital, and read assigned roles from the chain and directory.** Reason: a password cannot unlock the keys and would make the host store identities, and a free role choice would show screens the contracts reject. Accepted tradeoff: a lost wallet cannot be recovered. Source: W17, user-approved 2026-11-24.
 - **D-061 — Share each document whole, only with its category's provider types, and show it on a PDF.js canvas with annotations off and download for the patient only.** Reason: a file cannot be field-filtered, and the viewer parses untrusted files on a page that holds keys. Accepted tradeoff: these are app-level rules, and an approved reader can still screenshot a page. Source: W16 plan, user-approved 2026-11-24.
-- **D-060 — Let only patients upload documents, and store each one as its encrypted original of at most 750 KB, with no OCR.** Reason: the patient stays in control of their record, an unchanged original is what clinicians can trust, and OCR errors could misstate a dose. Accepted tradeoff: encrypted size stays visible and text inside a file is not searchable. Source: W16 planning, user-approved 2026-11-24.
-- **D-059 — Keep the provider directory off-chain, built from the seed's deployment file and served by `GET /api/providers`.** Reason: an on-chain label such as a lab or pharmacy would turn public grants into medical hints. Accepted tradeoff: anyone with the directory can still match a public grant to a provider type, but not to its contents. Source: W15 plan, user-approved 2026-11-23.
-- **D-058 — Share with labs and pharmacies through separate limited-copy records rebuilt from a field allowlist, and leave the contracts and circuit unchanged.** Reason: one record holds the diagnosis, medication, and procedure together, so a normal grant would show a pharmacy the diagnosis. Accepted tradeoff: a first share takes four wallet confirmations because it reuses the tested add and grant paths, and providers are read-only in this version. Source: W15 plan, user-approved 2026-11-23.
-- **D-057 — Make the first wallet to pin a record ID its owner, and release an emergency summary only when that wallet is the on-chain patient.** Reason: `anchorRecord` is open, so a responder could otherwise anchor a pinned summary first and use break-glass with no event against the real patient. Keying on the record ID also stops a copied escrow key being pinned in another bundle. Accepted tradeoff: L4 holds owner markers, and a summary pinned before this change must be added again. Source: W13 code review, user-approved 2026-11-23.
-- **D-056 — Give `RecordAccess.setResponder` to a separate responder-admin wallet set at deployment, using `NotResponderAdmin(address caller)`, and use a throwaway seed key that is never saved.** Reason: an insurer that controls the responder list could appoint itself and read emergency summaries, and a saved key would sit in the wallet file operators import from. Accepted tradeoff: this changes a shared ABI error, requires a reseed, and adding a responder later needs another reseed. Source: W13 threat review and code review, user-approved 2026-11-23.
+- **D-060 — Let only patients upload documents, and store each one as its encrypted original of at most 750 KB, with no OCR.** Reason: the patient stays in control of their record, an unchanged original is what clinicians can trust, and OCR errors could misstate a dose. Accepted tradeoff: encrypted size stays visible and text inside a file is not searchable. Source: W16 planning, user-approved 2026-11-24. Size limit superseded by D-070.
 ## Open Questions
 
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.

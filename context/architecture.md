@@ -89,7 +89,7 @@ Use this table as a placement rule: before adding data, identify where it will l
 5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
 6. **Limited share:** for a lab or pharmacy, the patient's browser rebuilds an allowlisted copy as a new record with its own key, then grants that copy. The source record gains no provider key (D-058).
 7. **Patient document:** the file, name, type, and category are one encrypted record payload. It is shared whole, only with its category's provider types (D-060, D-061).
-8. **Patient profile:** name, birth date, blood group, allergies, and emergency contact are one encrypted record, shared only with a hospital or doctor (D-064). A separate name-only card is wrapped to hospitals, doctors, and responders (D-065).
+8. **Patient profile:** name, birth date, blood group, allergies, and emergency contact are one encrypted record, shared only with a hospital or doctor (D-064). It is also wrapped to escrow for break-glass (D-067). A name-only card is wrapped to hospitals, doctors, and responders (D-065).
 9. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
 
 ## ZK Claim Circuit
@@ -223,7 +223,7 @@ The inbox carries policy and claim messages between laptops. L4 stores and forwa
 11. A proof is bound to its claim amount, day, and payout address through `claimHash`.
 12. Every AES-GCM encryption uses a fresh random IV.
 13. Revocation rotates the record key before the app reports it complete.
-14. Escrow can release only emergency summary keys, and only after a matching on-chain break-glass event.
+14. Escrow can release only emergency profile or summary keys, and only after a matching on-chain break-glass event.
 15. Every grant, revoke, key rotation, break-glass, and claim emits an audit event.
 16. The RPC proxy never forwards `hardhat_*`, `evm_*`, `debug_*`, `personal_*`, or `eth_sendTransaction`.
 17. Demo wallets are newly generated accounts funded by the seed script, never Hardhat's public default accounts or a wallet holding real funds.

@@ -45,7 +45,14 @@ export function bytesToBigInt(bytes: Uint8Array): bigint {
   return bytes.length === 0 ? 0n : BigInt(`0x${bytesToHex(bytes)}`);
 }
 
+/** Built-in base64 is far faster on large files. Older browsers use the fallback below. */
+type NativeBase64 = {
+  fromBase64?: (value: string, options: { lastChunkHandling: "strict" }) => Uint8Array;
+};
+
 export function bytesToBase64(bytes: Uint8Array): Base64 {
+  const native = (bytes as Uint8Array & { toBase64?: () => string }).toBase64;
+  if (native) return native.call(bytes);
   let binary = "";
   for (let i = 0; i < bytes.length; i += BASE64_CHUNK) {
     binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK));
@@ -58,13 +65,23 @@ export function base64ToBytes(value: string): Uint8Array {
   if (value.length % 4 !== 0 || !BASE64_PATTERN.test(value)) {
     throw new Error("Invalid base64 value");
   }
+  const native = Uint8Array as unknown as NativeBase64;
+  if (native.fromBase64) {
+    try {
+      // Strict mode rejects missing padding and non-zero trailing bits, so it stays canonical.
+      return native.fromBase64(value, { lastChunkHandling: "strict" });
+    } catch {
+      throw new Error("Invalid base64 value");
+    }
+  }
   let binary: string;
   try {
     binary = atob(value);
   } catch {
     throw new Error("Invalid base64 value");
   }
-  const out = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  const out = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) out[index] = binary.charCodeAt(index);
   if (bytesToBase64(out) !== value) throw new Error("Invalid base64 value");
   return out;
 }

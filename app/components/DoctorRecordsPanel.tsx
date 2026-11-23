@@ -25,7 +25,7 @@ type PanelText = { title: string; description: string; unlockPurpose: string; cl
 const DOCTOR_TEXT: PanelText = {
   title: "Doctor record view",
   description: "Records patients shared with this wallet. Each view is logged on-chain first.",
-  unlockPurpose: "Sign once in your doctor wallet so patients can share records with you.",
+  unlockPurpose: "Sign in with your doctor wallet to read records shared with you.",
   className: "mt-14",
 };
 

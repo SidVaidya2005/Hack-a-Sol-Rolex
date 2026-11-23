@@ -2,7 +2,9 @@ import { CHAIN_ID } from "@rado/shared";
 import type { Address, Hex32 } from "@rado/shared";
 
 /** Largest encrypted bundle `/api/pin` accepts, in decoded bytes. */
-export const MAX_BUNDLE_BYTES = 1024 * 1024;
+export const MAX_BUNDLE_BYTES = 7 * 1024 * 1024;
+/** Name cards and emergency profiles are tiny, so list screens never fetch large files. */
+export const MAX_SMALL_BUNDLE_BYTES = 64 * 1024;
 
 /** Longer than inbox requests, because a person approves this one in MetaMask. */
 export const PIN_AUTH_MAX_TTL_SECONDS = 300;

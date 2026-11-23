@@ -220,6 +220,16 @@ export interface FhirServiceRequest {
   code: FhirConcept;
 }
 
+/** A patient's free-text note. It is never copied into a lab or pharmacy slice. */
+export interface FhirDocumentReference {
+  resourceType: "DocumentReference";
+  id: string;
+  status: "current";
+  subject: FhirReference;
+  description: string;
+  content: { attachment: { contentType: "text/plain"; data: Base64 } }[];
+}
+
 export type FhirResource =
   | FhirPatient
   | FhirCondition
@@ -227,7 +237,8 @@ export type FhirResource =
   | FhirMedicationRequest
   | FhirObservation
   | FhirProcedure
-  | FhirServiceRequest;
+  | FhirServiceRequest
+  | FhirDocumentReference;
 
 export interface FhirBundle {
   resourceType: "Bundle";

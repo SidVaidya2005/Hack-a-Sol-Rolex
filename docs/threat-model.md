@@ -109,3 +109,11 @@ Rado is a hackathon prototype. It uses synthetic patient data, mock tokens, a lo
 25. A saved role choice is only a browser label. It grants no access, and contracts still enforce each action (D-063).
 26. Hospitals, doctors, and responders can read a patient's name without an on-chain view log, the card cannot be revoked, and its bundle lists those reader wallets (D-065).
 27. Any LAN device can give an empty wallet worthless local ETH, up to 100 wallets per app run (D-066).
+
+**Added by W18, awaiting team review:**
+
+28. After break-glass, the responder can read the patient's whole profile, including date of birth and emergency contact (D-067).
+29. The chain cannot confirm that a break-glass reason is truthful or readable by the patient. A false or unreadable reason still leaves a permanent access event (D-068).
+30. Patient-entered records are not clinically verified.
+31. Records follow the FHIR R4 structure but use Rado codes rather than SNOMED CT, LOINC, or RxNorm, and Rado has no FHIR import or export.
+32. Share limits are app-level, so a modified client could still grant a record to any registered wallet (D-069).

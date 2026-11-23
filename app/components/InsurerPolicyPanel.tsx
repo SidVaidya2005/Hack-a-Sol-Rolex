@@ -41,7 +41,7 @@ function WalletPicker({
             </option>
           ))
         ) : (
-          <option value="">No other unlocked wallets</option>
+          <option value="">No other registered wallets</option>
         )}
       </select>
     </div>
@@ -156,7 +156,7 @@ function InsurerPolicyContent() {
           </div>
         </>
       ) : (
-        <UnlockGate purpose="Sign once with the insurer wallet to approve hospitals and deliver policies." />
+        <UnlockGate purpose="Sign in with the insurer wallet to approve hospitals and deliver policies." />
       )}
     </Panel>
   );

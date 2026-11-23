@@ -1,5 +1,7 @@
 "use client";
 
+import { BREAK_GLASS_REASONS } from "@rado/shared";
+import type { BreakGlassCategory } from "@rado/shared";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -29,6 +31,8 @@ function ResponderContent() {
   const [patients, setPatients] = useState<EmergencySummaryRecord[]>([]);
   const [names, setNames] = useState<Map<string, string>>(new Map());
   const [selected, setSelected] = useState("");
+  const [category, setCategory] = useState<BreakGlassCategory | "">("");
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [walletPrompt, setWalletPrompt] = useState("");
@@ -65,17 +69,28 @@ function ResponderContent() {
     const name = names.get(wallet.toLowerCase());
     return name ? `${name} - ${shortId(wallet)}` : shortId(wallet);
   };
-  const withSummary = new Set(patients.map(({ patient }) => patient.toLowerCase()));
-  const withoutSummary = [...names.keys()].filter((wallet) => !withSummary.has(wallet));
+  const reasonReady = Boolean(category) && (category !== "other" || Boolean(note.trim()));
 
   async function openSummary() {
-    if (!session || !target) return;
+    if (!session || !target || !category) return;
     setBusy(true);
     setMessage(null);
     setSummary(null);
     try {
-      setSummary(await session.service.openEmergencySummary(session.keys, target, setWalletPrompt));
-      setMessage({ ok: true, text: "Emergency access logged on-chain. Summary released once." });
+      setSummary(
+        await session.service.openEmergencySummary(
+          session.keys,
+          target,
+          { category, note },
+          setWalletPrompt,
+        ),
+      );
+      setCategory("");
+      setNote("");
+      setMessage({
+        ok: true,
+        text: "Emergency access logged. The patient can see who, when, and why.",
+      });
       refresh();
     } catch (error) {
       setMessage({ ok: false, text: plainRecordError(error) });
@@ -90,7 +105,7 @@ function ResponderContent() {
       <PageHeading
         eyebrow="Emergency responder"
         title="Emergency access"
-        description="Open a patient's emergency summary when they cannot act."
+        description="Open a patient's emergency profile when they cannot act."
         status="live"
         action={<Badge tone="info">Responder role</Badge>}
       />
@@ -98,11 +113,11 @@ function ResponderContent() {
         <Band
           eyebrow="Break-glass"
           title="Break-glass request"
-          description="Each access is permanently recorded on-chain and limited to the summary."
+          description="Each access is permanently recorded and limited to the emergency profile."
           tone="ink"
         >
           {!session ? (
-            <UnlockGate purpose="Sign once with the registered responder wallet." />
+            <UnlockGate purpose="Sign in with the authorized responder wallet." />
           ) : (
             <>
               <WalletPromptNotice text={walletPrompt} />
@@ -114,7 +129,8 @@ function ResponderContent() {
                 <div>
                   <p className="text-sm text-rado-ink">Use only for an urgent need</p>
                   <p className="mt-1 text-sm leading-6 text-rado-slate">
-                    The patient will see this access in their audit timeline. It cannot be removed.
+                    The patient will see who accessed their profile, when, and why. This cannot be
+                    removed.
                   </p>
                 </div>
               </div>
@@ -124,11 +140,11 @@ function ResponderContent() {
                 </p>
               ) : null}
               <label className="mt-5 block text-sm text-rado-slate" htmlFor="emergency-patient">
-                Patient wallet
+                Patient
               </label>
               <select
                 className="field mt-2"
-                disabled={(!patients.length && !withoutSummary.length) || busy}
+                disabled={!patients.length || busy}
                 id="emergency-patient"
                 onChange={(event) => {
                   setSelected(event.target.value);
@@ -138,24 +154,48 @@ function ResponderContent() {
                 value={target?.patient ?? ""}
               >
                 {!patients.length ? (
-                  <option value="">
-                    {loading ? "Loading…" : "No patient has added a summary"}
-                  </option>
+                  <option value="">{loading ? "Loading…" : "No patients available"}</option>
                 ) : null}
                 {patients.map(({ patient }) => (
                   <option key={patient} value={patient}>
                     {labelFor(patient)}
                   </option>
                 ))}
-                {withoutSummary.map((wallet) => (
-                  <option disabled key={wallet} value={wallet}>
-                    {labelFor(wallet)} (no emergency summary)
+              </select>
+              <label className="mt-4 block text-sm text-rado-slate" htmlFor="emergency-reason">
+                Reason for access
+              </label>
+              <select
+                className="field mt-2"
+                disabled={busy}
+                id="emergency-reason"
+                onChange={(event) => setCategory(event.target.value as BreakGlassCategory | "")}
+                value={category}
+              >
+                <option value="">Choose a reason</option>
+                {(Object.keys(BREAK_GLASS_REASONS) as BreakGlassCategory[]).map((item) => (
+                  <option key={item} value={item}>
+                    {BREAK_GLASS_REASONS[item]}
                   </option>
                 ))}
               </select>
+              <label className="mt-4 block text-sm text-rado-slate" htmlFor="emergency-note">
+                {category === "other" ? "Describe the reason" : "Note (optional)"}
+              </label>
+              <input
+                className="field mt-2"
+                disabled={busy}
+                id="emergency-note"
+                maxLength={280}
+                onChange={(event) => setNote(event.target.value)}
+                value={note}
+              />
+              <p className="mt-2 text-xs leading-5 text-rado-slate">
+                Encrypted so only you and the patient can read it. It is never public.
+              </p>
               <button
                 className="button-primary mt-4 w-full justify-center disabled:opacity-50"
-                disabled={!target || !allowed || busy}
+                disabled={!target || !allowed || !reasonReady || busy}
                 onClick={() => void openSummary()}
                 type="button"
               >
@@ -174,8 +214,8 @@ function ResponderContent() {
         </Band>
         <div className="grid gap-10">
           <Panel
-            title="Emergency summary"
-            description="Only the limited summary is shown. It stays in this browser's memory."
+            title="Emergency profile"
+            description="Name, date of birth, blood group, allergies, and emergency contact only."
             action={
               <Badge tone={summary ? "success" : "neutral"}>
                 {summary ? "Released" : "Locked"}
@@ -193,13 +233,12 @@ function ResponderContent() {
                     <span className="text-right text-base text-rado-ink">{item.value}</span>
                   </div>
                 ))}
-                <p className="pt-4 text-xs text-rado-muted">Synthetic information.</p>
               </div>
             ) : (
               <EmptyState
                 icon="lock"
-                title="Summary is locked"
-                description="Invoke break-glass to log the access and release this patient's summary."
+                title="Profile is locked"
+                description="Give a reason and invoke break-glass to log the access and open this profile."
               />
             )}
           </Panel>

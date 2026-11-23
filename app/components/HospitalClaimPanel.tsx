@@ -93,7 +93,7 @@ function HospitalClaimContent() {
     <Panel
       className="mt-14"
       title="Private claim exchange"
-      description="Real encrypted request, browser proof, and on-chain payout in demo tokens."
+      description="Encrypted requests, private proofs, and on-chain settlement."
       action={
         session ? (
           <Badge tone={approved ? "success" : "warning"}>
@@ -103,7 +103,7 @@ function HospitalClaimContent() {
       }
     >
       {!session ? (
-        <UnlockGate purpose="Sign once with the hospital wallet to send claims and generate proofs." />
+        <UnlockGate purpose="Sign in with the hospital wallet to send claims and generate proofs." />
       ) : (
         <>
           <StatusMessage message={message} />
@@ -136,7 +136,7 @@ function HospitalClaimContent() {
                     </option>
                   ))
                 ) : (
-                  <option value="">No other unlocked wallets</option>
+                  <option value="">No other registered wallets</option>
                 )}
               </select>
             </div>

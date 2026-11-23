@@ -561,12 +561,26 @@ async function main() {
     listed.length === 1 && listed[0].recordId === summaryId,
   );
 
+  const anchorReason = async () => {
+    const reasonId = `0x${randomBytes(32).toString("hex")}`;
+    await publicClient.waitForTransactionReceipt({
+      hash: await responder.walletClient.writeContract({
+        address: contracts.recordAccess,
+        abi: accessAbi,
+        functionName: "anchorRecord",
+        args: [reasonId, `0x${randomBytes(32).toString("hex")}`, "reason"],
+      }),
+    });
+    return reasonId;
+  };
+  const emergencyReason = { category: "unconscious", note: "RadoW18Reason" };
   const invoke = async (recordId) => {
+    const reasonId = await anchorReason();
     const hash = await responder.walletClient.writeContract({
       address: contracts.recordAccess,
       abi: accessAbi,
       functionName: "invokeBreakGlass",
-      args: [patient.address, recordId],
+      args: [patient.address, recordId, reasonId],
     });
     const invoked = await publicClient.waitForTransactionReceipt({ hash });
     const [log] = parseEventLogs({
@@ -616,8 +630,9 @@ async function main() {
   );
   report(
     "An unregistered wallet cannot invoke break-glass",
-    (await rejectionOf(() => outsider.service.openEmergencySummary(outsider.keys, target))) ===
-      "This wallet is not a registered emergency responder.",
+    (await rejectionOf(() =>
+      outsider.service.openEmergencySummary(outsider.keys, target, emergencyReason),
+    )) === "This wallet is not a registered emergency responder.",
   );
   const event = await invoke(summaryId);
   report(
@@ -649,7 +664,7 @@ async function main() {
     address: contracts.recordAccess,
     abi: accessAbi,
     functionName: "invokeBreakGlass",
-    args: [responder.address, aliasId],
+    args: [responder.address, aliasId, await anchorReason()],
   });
   const aliasReceipt = await publicClient.waitForTransactionReceipt({ hash: aliasHash });
   const [aliasLog] = parseEventLogs({
@@ -722,7 +737,7 @@ async function main() {
     address: contracts.recordAccess,
     abi: accessAbi,
     functionName: "invokeBreakGlass",
-    args: [responder.address, pendingId],
+    args: [responder.address, pendingId, await anchorReason()],
   });
   const frontRunReceipt = await publicClient.waitForTransactionReceipt({ hash: frontRunHash });
   const [frontRunLog] = parseEventLogs({
@@ -771,7 +786,11 @@ async function main() {
     refused(await requestRelease(responder, summaryId, event), 409),
   );
 
-  const opened = await responder.service.openEmergencySummary(responder.keys, target);
+  const opened = await responder.service.openEmergencySummary(
+    responder.keys,
+    target,
+    emergencyReason,
+  );
   report("The responder app flow opens a new event's summary", opened.length === 3);
   const emergencyEntries = (await patient.service.timeline()).filter(
     (entry) => entry.title === "Emergency access used",
@@ -784,9 +803,22 @@ async function main() {
       ),
   );
 
+  writeFileSync(
+    join(workDir, "localhost.json"),
+    JSON.stringify({
+      chainId: hardhat.id,
+      placeholder: false,
+      contracts: addresses,
+      wallets: { doctor: doctor.address },
+    }),
+  );
   await patient.service.grant(patient.keys, summaryId, doctor.address, 1);
   await patient.service.revoke(patient.keys, summaryId, doctor.address);
-  const afterRevoke = await responder.service.openEmergencySummary(responder.keys, target);
+  const afterRevoke = await responder.service.openEmergencySummary(
+    responder.keys,
+    target,
+    emergencyReason,
+  );
   report(
     "Revoking a doctor rotates the summary key and keeps emergency access working",
     afterRevoke.length === 3 &&
@@ -1031,7 +1063,7 @@ async function main() {
         category: "other",
         bytes: new Uint8Array(MAX_DOCUMENT_BYTES + 1).fill(0x25),
       }),
-    )) === "This file is larger than the 750 KB limit.",
+    )) === "This file is larger than the 5 MB limit.",
   );
   // A new service measures a real first load, then the repeat that each screen refresh makes.
   const timedPatient = createRecordService({
@@ -1057,7 +1089,8 @@ async function main() {
   console.log(
     `INFO  Patient screen with five maximum-size documents: first ${firstLoadMs} ms, repeat ${repeatLoadMs} ms`,
   );
-  report("The first patient screen load finishes within 10 seconds", firstLoadMs < 10_000);
+  // Five 5 MB files are about 35 MB to fetch and verify on the unoptimized dev server.
+  report("The first patient screen load finishes within 15 seconds", firstLoadMs < 15_000);
   report("A repeat patient screen load finishes within 2 seconds", repeatLoadMs < 2_000);
   const reloadedDocument = await timedPatient.openRecord(patient.keys, fullSizeIds[1]);
   report(
@@ -1142,19 +1175,86 @@ async function main() {
     "Refused profile shares send no transaction",
     (await publicClient.getBlockNumber()) === blockBeforeProfileRefusal,
   );
-  const offeredReaders = await patient.service.profileReaders([
+  const offered = await patient.service.shareableProviders([
     insurer.address,
     hospital.address,
     doctor.address,
     lab.address,
     pharmacy.address,
+    responder.address,
     outsider.address,
   ]);
+  const offeredWallets = new Set(offered.map(({ wallet }) => wallet.toLowerCase()));
   report(
-    "The share list offers only the approved hospital and the doctor",
-    offeredReaders.size === 2 &&
-      offeredReaders.has(hospital.address.toLowerCase()) &&
-      offeredReaders.has(doctor.address.toLowerCase()),
+    "The share list offers only approved care providers",
+    offeredWallets.size === 4 &&
+      [hospital, doctor, lab, pharmacy].every(({ address }) =>
+        offeredWallets.has(address.toLowerCase()),
+      ),
+  );
+  const fullRecordRefusal = "A full record can be shared only with an approved hospital or doctor.";
+  const blockBeforeFullRefusal = await publicClient.getBlockNumber();
+  for (const [label, wallet] of [
+    ["insurer", insurer.address],
+    ["responder", responder.address],
+    ["unlisted wallet", outsider.address],
+    ["lab", lab.address],
+    ["pharmacy", pharmacy.address],
+  ]) {
+    report(
+      `The ${label} cannot be granted a full record`,
+      (await rejectionOf(() => patient.service.grant(patient.keys, fullRecordId, wallet, 1))) ===
+        fullRecordRefusal,
+    );
+  }
+  report(
+    "A limited copy cannot be made for the wrong provider type",
+    (await rejectionOf(() =>
+      patient.service.shareSlice(patient.keys, fullRecordId, insurer.address, "lab", 1),
+    )) === "This copy can be shared only with a lab.",
+  );
+  report(
+    "Refused record shares send no transaction",
+    (await publicClient.getBlockNumber()) === blockBeforeFullRefusal,
+  );
+  const secondHospital = await newUser(await newAccount());
+  report(
+    "An unapproved hospital is not offered and cannot get a document",
+    !(await patient.service.shareableProviders([secondHospital.address])).length &&
+      (await rejectionOf(() =>
+        patient.service.grant(patient.keys, documentId, secondHospital.address, 1),
+      )) === "A lab report cannot be shared with this wallet.",
+  );
+  await insurer.exchange.approveHospital(secondHospital.address);
+  await patient.service.shareName(patient.keys);
+  report(
+    "A hospital approved later gets the name after Share my name",
+    (await secondHospital.service.patientNames(secondHospital.keys)).get(
+      patient.address.toLowerCase(),
+    ) === profileMarker,
+  );
+  await patient.service.grant(patient.keys, fullRecordId, secondHospital.address, 1);
+  await patient.service.grant(patient.keys, documentId, secondHospital.address, 1);
+  const secondHospitalRecord = await secondHospital.service.openRecord(
+    secondHospital.keys,
+    fullRecordId,
+  );
+  const secondHospitalDocument = await secondHospital.service.openRecord(
+    secondHospital.keys,
+    documentId,
+  );
+  report(
+    "A second insurer-approved hospital receives both a record and a document",
+    secondHospitalRecord.kind === "record" &&
+      secondHospitalDocument.kind === "document" &&
+      sameBytes(secondHospitalDocument.document.bytes, documentBytes),
+  );
+  await patient.service.revoke(patient.keys, documentId, secondHospital.address);
+  report(
+    "Revoking the second hospital ends its document access",
+    (await rejectionOf(() =>
+      secondHospital.service.openRecord(secondHospital.keys, documentId),
+    )) !== null,
   );
   report(
     "A profile cannot be turned into a limited copy",
@@ -1206,7 +1306,7 @@ async function main() {
           (await patient.service.listPatientRecords()).map(({ recordId }) => recordId),
         )
       ).values(),
-    ].filter((info) => info.isNameCard).length === 1,
+    ].filter((info) => info.isNameCard).length === 2,
   );
   report(
     "A patient with a current name card has no missing readers",
@@ -1279,9 +1379,74 @@ async function main() {
     "Revoking the hospital ends its profile access",
     (await rejectionOf(() => hospital.service.openRecord(hospital.keys, profileId))) !== null,
   );
+  const profileTarget = { patient: patient.address, recordId: profileId };
   report(
-    "Break-glass cannot release a patient profile",
-    refused(await requestRelease(responder, profileId, await invoke(profileId)), 403),
+    "A new profile is available to the responder without a separate summary",
+    (await responder.service.listEmergencyPatients()).some(
+      ({ recordId }) => recordId === profileId,
+    ),
+  );
+  report(
+    "Break-glass needs a reason",
+    (await rejectionOf(() =>
+      responder.service.openEmergencySummary(responder.keys, profileTarget, {
+        category: "other",
+        note: " ",
+      }),
+    )) === "Describe the reason for emergency access.",
+  );
+  const emergencyProfile = await responder.service.openEmergencySummary(
+    responder.keys,
+    profileTarget,
+    emergencyReason,
+  );
+  report(
+    "After break-glass the responder sees only the emergency profile fields",
+    emergencyProfile.map(({ label }) => label).join("|") ===
+      "Patient|Date of birth|Blood group|Allergies|Emergency contact" &&
+      emergencyProfile[0].value === profileMarker,
+  );
+  const reasonEntries = (await patient.service.timeline()).filter(
+    (entry) => entry.title === "Emergency access used" && entry.recordId === profileId,
+  );
+  const patientReasons = await patient.service.breakGlassReasons(patient.keys);
+  report(
+    "The patient can read why the profile was accessed",
+    reasonEntries.length === 1 &&
+      patientReasons.get(reasonEntries[0].id) === "Patient is unconscious: RadoW18Reason",
+  );
+  report(
+    "Another wallet cannot read the break-glass reason",
+    (await hospital.service.breakGlassReasons(hospital.keys)).size === 0,
+  );
+  const medicationId = await patient.service.addPatientEntry(patient.keys, {
+    type: "medication",
+    title: "RadoW18Medicine",
+    detail: "One daily",
+  });
+  const noteId = await patient.service.addPatientEntry(patient.keys, {
+    type: "note",
+    title: "",
+    detail: "RadoW18PrivateNote",
+  });
+  const { recordId: pharmacyCopy } = await patient.service.shareSlice(
+    patient.keys,
+    medicationId,
+    pharmacy.address,
+    "pharmacy",
+    1,
+  );
+  report(
+    "A typed medication reaches the pharmacy as a limited copy",
+    /RadoW18Medicine/.test(textOf(await pharmacy.service.open(pharmacy.keys, pharmacyCopy))),
+  );
+  report(
+    "A free-text note cannot be copied to a lab",
+    /nothing to share/.test(
+      (await rejectionOf(() =>
+        patient.service.shareSlice(patient.keys, noteId, lab.address, "lab", 1),
+      )) ?? "",
+    ),
   );
 
   const chainLogs = await chainClient.getLogs({
@@ -1317,7 +1482,9 @@ async function main() {
   report(
     "Stored bundles hold no readable profile",
     !storedRecords.includes(profileMarker) &&
-      !/RADOPRF1|RADONAM1|fullName|dateOfBirth|emergencyContact/.test(storedRecords),
+      !/RADOPRF1|RADONAM1|RADOWHY1|RadoW18|fullName|dateOfBirth|emergencyContact/.test(
+        storedRecords,
+      ),
   );
   await globalThis.curve_bn128?.terminate?.();
 }

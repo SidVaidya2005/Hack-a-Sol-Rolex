@@ -7,7 +7,7 @@ import { PatientProfilePanel, usePatientProfile } from "./PatientProfilePanel";
 import { AuditTimeline, PatientRecordsPanel } from "./PatientRecordsPanel";
 import { PageHeading } from "./ui";
 
-/** Real data only. The labeled sample walkthrough stays in the demo screens. */
+/** Live data only. The labeled walkthrough is reachable only at `/?walkthrough`. */
 export function PatientWorkspace() {
   const { profile } = usePatientProfile();
   return (

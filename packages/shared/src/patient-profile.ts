@@ -1,5 +1,4 @@
 import { utf8Decode, utf8Encode } from "./crypto/bytes.ts";
-import type { FhirBundle } from "./types.ts";
 
 export const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"] as const;
 export type BloodGroup = (typeof BLOOD_GROUPS)[number];
@@ -153,66 +152,6 @@ export function decodeNameCard(payload: Uint8Array): string {
     throw invalid();
   }
   return fullName;
-}
-
-/** Builds the break-glass summary from the patient's own details. */
-export function profileEmergencySummary(profile: PatientProfile): FhirBundle {
-  const subject = { reference: "Patient/profile-patient" };
-  const concept = (code: string, text: string) => ({
-    coding: [{ system: "urn:rado:profile", code, display: text }],
-    text,
-  });
-  return {
-    resourceType: "Bundle",
-    type: "collection",
-    entry: [
-      {
-        resource: {
-          resourceType: "Patient",
-          id: "profile-patient",
-          name: [{ text: profile.fullName }],
-          birthDate: profile.dateOfBirth,
-        },
-      },
-      ...(profile.allergies
-        ? [
-            {
-              resource: {
-                resourceType: "AllergyIntolerance" as const,
-                id: "profile-allergy",
-                patient: subject,
-                code: concept("allergy", profile.allergies),
-                criticality: "unable-to-assess" as const,
-              },
-            },
-          ]
-        : []),
-      {
-        resource: {
-          resourceType: "Observation",
-          id: "profile-blood-group",
-          status: "final",
-          subject,
-          code: concept("blood-group", "Blood group"),
-          valueString: profile.bloodGroup,
-        },
-      },
-      ...(profile.emergencyContact
-        ? [
-            {
-              resource: {
-                resourceType: "Observation" as const,
-                id: "profile-emergency-contact",
-                status: "final" as const,
-                subject,
-                code: concept("emergency-contact", "Emergency contact"),
-                valueString: profile.emergencyContact,
-              },
-            },
-          ]
-        : []),
-    ],
-  };
 }
 
 /** Hospitals and doctors only. Labs, pharmacies, responders, and insurers never qualify. */

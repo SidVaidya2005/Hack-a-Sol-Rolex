@@ -10,16 +10,16 @@ function concept(code: string, display: string) {
 }
 
 export const SAMPLE_PROCEDURES = [
-  { code: 1001n, label: "Sample outpatient consult" },
-  { code: 1002n, label: "Sample imaging scan" },
-  { code: 1003n, label: "Sample minor surgery" },
-  { code: 1004n, label: "Sample physiotherapy session" },
+  { code: 1001n, label: "Outpatient consult" },
+  { code: 1002n, label: "Imaging scan" },
+  { code: 1003n, label: "Minor surgery" },
+  { code: 1004n, label: "Physiotherapy session" },
 ] as const;
 
 /** A procedure outside the sample policy, for rejection tests. */
 export const SAMPLE_UNCOVERED_PROCEDURE = {
   code: 9001n,
-  label: "Sample uncovered procedure",
+  label: "Specialist procedure",
 } as const;
 
 export const SAMPLE_HOSPITALS = [

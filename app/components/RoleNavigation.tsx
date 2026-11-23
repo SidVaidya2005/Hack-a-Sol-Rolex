@@ -31,7 +31,7 @@ export function RoleNavigation({
   return (
     <>
       <label className="sr-only" htmlFor="role-select">
-        Choose a demo role
+        Choose a workspace
       </label>
       <select
         className="field bg-rado-canvas lg:hidden"
@@ -45,7 +45,7 @@ export function RoleNavigation({
           </option>
         ))}
       </select>
-      <nav aria-label="Choose a demo role" className="hidden items-center gap-1 lg:flex">
+      <nav aria-label="Choose a workspace" className="hidden items-center gap-1 lg:flex">
         {roles.map((role) => (
           <button
             aria-current={activeRole === role.id ? "page" : undefined}

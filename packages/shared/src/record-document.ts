@@ -18,8 +18,8 @@ export interface RadoDocument extends RadoDocumentInfo {
 /** Its message is plain enough to show a user. */
 export class DocumentError extends Error {}
 
-/** Leaves room for base64, bundle fields, and wrapped keys inside the 1 MiB bundle limit. */
-export const MAX_DOCUMENT_BYTES = 750_000;
+/** 5 MB. Leaves room for base64, bundle fields, and wrapped keys inside the 7 MiB bundle limit. */
+export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
 const MAX_NAME_CHARS = 120;
 const MAX_HEADER_BYTES = 1024;
 const MAGIC = utf8Encode("RADODOC1");
@@ -84,7 +84,7 @@ export function encodeDocument(input: {
   if (!isCategory(category)) throw new DocumentError("Choose a document category.");
   if (bytes.length === 0) throw new DocumentError("This file is empty.");
   if (bytes.length > MAX_DOCUMENT_BYTES) {
-    throw new DocumentError("This file is larger than the 750 KB limit.");
+    throw new DocumentError("This file is larger than the 5 MB limit.");
   }
   const mime = detectDocumentMime(bytes);
   if (!mime) throw new DocumentError("Only PDF, PNG, and JPG files can be uploaded.");

@@ -16,14 +16,6 @@ const EMPTY_PROFILE: PatientProfile = {
   emergencyContact: "",
 };
 
-const SAMPLE_PROFILE: PatientProfile = {
-  fullName: "Demo Patient Alpha",
-  dateOfBirth: "1990-01-15",
-  bloodGroup: "O+",
-  allergies: "Sample allergy",
-  emergencyContact: "Demo Contact, 00000 00000",
-};
-
 export function ProfileDetails({ profile }: { profile: PatientProfile }) {
   const rows = [
     ["Name", profile.fullName],
@@ -45,7 +37,7 @@ export function ProfileDetails({ profile }: { profile: PatientProfile }) {
 }
 
 /** Holds typed details only in React state until they are encrypted in this browser. */
-export function ProfileForm({ onSaved, onSkip }: { onSaved: () => void; onSkip?: () => void }) {
+export function ProfileForm({ onSaved }: { onSaved: () => void }) {
   const { session, refresh } = useRecordSession();
   const [form, setForm] = useState<PatientProfile>(EMPTY_PROFILE);
   const [busy, setBusy] = useState(false);
@@ -74,18 +66,6 @@ export function ProfileForm({ onSaved, onSkip }: { onSaved: () => void; onSkip?:
     <div>
       <WalletPromptNotice text={walletPrompt} />
       <StatusMessage message={message} />
-      <p className="mb-4 text-xs leading-5 text-rado-slate">
-        <strong className="font-normal text-rado-error">Demo details only.</strong> Do not enter
-        real personal information.{" "}
-        <button
-          className="underline disabled:opacity-50"
-          disabled={busy}
-          onClick={() => setForm(SAMPLE_PROFILE)}
-          type="button"
-        >
-          Use sample details
-        </button>
-      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs text-rado-slate" htmlFor="profile-name">
@@ -159,11 +139,6 @@ export function ProfileForm({ onSaved, onSkip }: { onSaved: () => void; onSkip?:
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-end gap-4">
-        {onSkip ? (
-          <button className="button-secondary" disabled={busy} onClick={onSkip} type="button">
-            Skip for now
-          </button>
-        ) : null}
         <button
           className="button-primary disabled:opacity-50"
           disabled={busy || !form.fullName.trim() || !form.dateOfBirth}
@@ -280,7 +255,7 @@ export function PatientProfilePanel() {
   return (
     <Panel
       title="Your profile"
-      description="Encrypted in this browser. Share it from Your records with an approved hospital or doctor."
+      description="Encrypted in this browser. Share it with a hospital or doctor from Your records. The emergency responder can open it only through a logged break-glass."
       action={<Badge tone="success">Hidden from insurer</Badge>}
     >
       {failed ? (

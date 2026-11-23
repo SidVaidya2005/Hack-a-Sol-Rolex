@@ -5,7 +5,7 @@ import { injected } from "wagmi/connectors";
 
 export const radoChain = defineChain({
   id: CHAIN_ID,
-  name: "Rado Local",
+  name: "Rado Network",
   nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" },
   rpcUrls: { default: { http: ["/api/rpc"] } },
 });

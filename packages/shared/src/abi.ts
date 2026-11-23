@@ -23,7 +23,7 @@ export const recordAccessAbi = [
   "function revokeAndRotate(bytes32 recordId, address reader, bytes32 newBundleHash, string newCid)",
   "function logView(bytes32 recordId)",
   "function setResponder(address responder, bool allowed)",
-  "function invokeBreakGlass(address patient, bytes32 recordId)",
+  "function invokeBreakGlass(address patient, bytes32 recordId, bytes32 reasonRecordId)",
   "function keysOf(address wallet) view returns (uint256 eddsaAx, uint256 eddsaAy, bytes32 x25519PublicKey, bool registered)",
   "function recordOf(bytes32 recordId) view returns (address patient, bytes32 bundleHash, string cid, uint64 keyVersion)",
   "function accessExpiry(bytes32 recordId, address reader) view returns (uint64)",
@@ -35,7 +35,7 @@ export const recordAccessAbi = [
   "event AccessRevoked(bytes32 indexed recordId, address indexed patient, address indexed reader)",
   "event RecordKeyRotated(bytes32 indexed recordId, address indexed patient, bytes32 bundleHash, string cid)",
   "event RecordViewed(bytes32 indexed recordId, address indexed patient, address indexed reader)",
-  "event BreakGlassInvoked(bytes32 indexed recordId, address indexed patient, address indexed responder)",
+  "event BreakGlassInvoked(bytes32 indexed recordId, address indexed patient, address indexed responder, bytes32 reasonRecordId)",
   "event ResponderUpdated(address indexed responder, bool allowed)",
   "error KeysNotRegistered(address wallet)",
   "error RecordAlreadyExists(bytes32 recordId)",
@@ -45,6 +45,7 @@ export const recordAccessAbi = [
   "error AccessNotActive(bytes32 recordId, address reader)",
   "error NotResponder(address caller)",
   "error NotResponderAdmin(address caller)",
+  "error InvalidReason(bytes32 reasonRecordId)",
 ] as const;
 
 export const claimSettlementAbi = [

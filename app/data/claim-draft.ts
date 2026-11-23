@@ -23,11 +23,11 @@ export const PROCEDURE_OPTIONS = [
     code: code.toString(),
     label: label as string,
   })),
-  { code: SAMPLE_UNCOVERED_PROCEDURE.code.toString(), label: "Sample specialist procedure" },
+  { code: SAMPLE_UNCOVERED_PROCEDURE.code.toString(), label: "Specialist procedure" },
 ];
 
 export function procedureLabel(code: string) {
-  return PROCEDURE_OPTIONS.find((option) => option.code === code)?.label ?? "Sample procedure";
+  return PROCEDURE_OPTIONS.find((option) => option.code === code)?.label ?? "Procedure";
 }
 
 /** Converts a displayed rupee string to 6-decimal token base units, or null if it is not a positive amount. */

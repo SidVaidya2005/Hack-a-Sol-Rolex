@@ -31,7 +31,12 @@ contract RecordAccess {
     event AccessRevoked(bytes32 indexed recordId, address indexed patient, address indexed reader);
     event RecordKeyRotated(bytes32 indexed recordId, address indexed patient, bytes32 bundleHash, string cid);
     event RecordViewed(bytes32 indexed recordId, address indexed patient, address indexed reader);
-    event BreakGlassInvoked(bytes32 indexed recordId, address indexed patient, address indexed responder);
+    event BreakGlassInvoked(
+        bytes32 indexed recordId,
+        address indexed patient,
+        address indexed responder,
+        bytes32 reasonRecordId
+    );
     event ResponderUpdated(address indexed responder, bool allowed);
 
     error KeysNotRegistered(address wallet);
@@ -42,6 +47,7 @@ contract RecordAccess {
     error AccessNotActive(bytes32 recordId, address reader);
     error NotResponder(address caller);
     error NotResponderAdmin(address caller);
+    error InvalidReason(bytes32 reasonRecordId);
 
     /// @dev Separate from the insurer, so an insurer cannot appoint itself to read summaries (D-056).
     address private immutable _responderAdmin;
@@ -50,6 +56,7 @@ contract RecordAccess {
     mapping(bytes32 recordId => Record) private _records;
     mapping(bytes32 recordId => mapping(address reader => uint64)) private _expiry;
     mapping(address responder => bool) private _responders;
+    mapping(bytes32 reasonRecordId => bool) private _usedReasons;
 
     constructor(address responderAdmin_) {
         if (responderAdmin_ == address(0)) revert NotResponderAdmin(responderAdmin_);
@@ -117,13 +124,18 @@ contract RecordAccess {
         emit ResponderUpdated(responder, allowed);
     }
 
-    function invokeBreakGlass(address patient, bytes32 recordId) external {
+    /// @dev The reason is an encrypted record owned by the responder, so the chain holds no reason text.
+    function invokeBreakGlass(address patient, bytes32 recordId, bytes32 reasonRecordId) external {
         if (!_responders[msg.sender]) revert NotResponder(msg.sender);
         _requireKeys(msg.sender);
         address recordPatient = _records[recordId].patient;
         if (recordPatient == address(0)) revert UnknownRecord(recordId);
         if (recordPatient != patient) revert NotRecordPatient(recordId, patient);
-        emit BreakGlassInvoked(recordId, patient, msg.sender);
+        if (_records[reasonRecordId].patient != msg.sender || _usedReasons[reasonRecordId]) {
+            revert InvalidReason(reasonRecordId);
+        }
+        _usedReasons[reasonRecordId] = true;
+        emit BreakGlassInvoked(recordId, patient, msg.sender, reasonRecordId);
     }
 
     function keysOf(

@@ -9,12 +9,12 @@ export interface Provider {
   kind: ProviderKind;
 }
 
-/** Synthetic names. They stay off-chain so the chain never labels a provider's type. */
+/** Display names. They stay off-chain so the chain never labels a provider's type. */
 export const PROVIDER_NAMES: Record<ProviderKind, string> = {
-  hospital: "Sample General Hospital",
-  doctor: "Sample General Doctor",
-  lab: "Sample City Lab",
-  pharmacy: "Sample City Pharmacy",
+  hospital: "Rado General Hospital",
+  doctor: "Rado Physician",
+  lab: "Rado Diagnostics Lab",
+  pharmacy: "Rado Pharmacy",
 };
 
 export function shareProfileFor(kind: ProviderKind | undefined): ShareProfile {

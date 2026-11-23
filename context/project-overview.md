@@ -32,10 +32,10 @@ Today, hospitals often have to show insurers diagnoses, prescriptions, and treat
 ## Screens
 
 - **Sign in and sign up** — wallet only. New wallets choose Patient or Hospital; assigned roles are detected (D-063).
-- **Patient** — view records, upload demo PDF, PNG, or JPG documents, grant or revoke doctor access, approve a specific claim, read the audit timeline.
+- **Patient** — add typed records and PDF, PNG, or JPG files, grant or revoke doctor access, approve a specific claim, read the audit timeline.
 - **Hospital** — doctor record view, create a claim, generate the proof in the browser, submit it.
 - **Lab & Pharmacy** — read only the limited copy a patient shared with that simulated provider (W15).
-- **Emergency Responder** — invoke break-glass and read only the patient's emergency summary.
+- **Emergency Responder** — give a reason, invoke break-glass, and read only the patient's profile.
 - **Insurer** — issue policies, fund the payout pool, see verified claims and payouts with no medical data.
 - **Public Chain View** — shows exactly what an outsider can read on-chain, on the host laptop's screen.
 

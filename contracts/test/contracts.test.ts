@@ -455,7 +455,7 @@ describe("RecordAccess", () => {
       "NotResponderAdmin",
     );
     await assertions.revertWithCustomError(
-      access.write.invokeBreakGlass([patientAddress, id], { account: responder.account }),
+      access.write.invokeBreakGlass([patientAddress, id, zeroHash], { account: responder.account }),
       access,
       "NotResponder",
     );
@@ -470,24 +470,48 @@ describe("RecordAccess", () => {
       account: responderAdmin.account,
     });
     await assertions.revertWithCustomError(
-      access.write.invokeBreakGlass([patientAddress, id], { account: stranger.account }),
+      access.write.invokeBreakGlass([patientAddress, id, zeroHash], { account: stranger.account }),
       access,
       "KeysNotRegistered",
     );
     await assertions.revertWithCustomError(
-      access.write.invokeBreakGlass([patientAddress, zeroHash], { account: responder.account }),
+      access.write.invokeBreakGlass([patientAddress, zeroHash, zeroHash], {
+        account: responder.account,
+      }),
       access,
       "UnknownRecord",
     );
     await assertions.revertWithCustomError(
-      access.write.invokeBreakGlass([doctor.account.address, id], { account: responder.account }),
+      access.write.invokeBreakGlass([doctor.account.address, id, zeroHash], {
+        account: responder.account,
+      }),
       access,
       "NotRecordPatient",
     );
+    await assertions.revertWithCustomError(
+      access.write.invokeBreakGlass([patientAddress, id, zeroHash], { account: responder.account }),
+      access,
+      "InvalidReason",
+    );
+    await assertions.revertWithCustomError(
+      access.write.invokeBreakGlass([patientAddress, id, id], { account: responder.account }),
+      access,
+      "InvalidReason",
+    );
+    const reason = `0x${"ab".repeat(32)}` as const;
+    await access.write.registerKeys([1n, 2n, `0x${"cd".repeat(32)}`], {
+      account: responder.account,
+    });
+    await access.write.anchorRecord([reason, zeroHash, "reason"], { account: responder.account });
     await assertions.emit(
-      access.write.invokeBreakGlass([patientAddress, id], { account: responder.account }),
+      access.write.invokeBreakGlass([patientAddress, id, reason], { account: responder.account }),
       access,
       "BreakGlassInvoked",
+    );
+    await assertions.revertWithCustomError(
+      access.write.invokeBreakGlass([patientAddress, id, reason], { account: responder.account }),
+      access,
+      "InvalidReason",
     );
   });
 });

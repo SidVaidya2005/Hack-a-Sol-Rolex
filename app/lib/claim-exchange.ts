@@ -291,7 +291,7 @@ export function createClaimExchange({
 
   async function send(recipient: Address, plaintext: InboxPlaintext): Promise<void> {
     const key = await registeredKey(recipient);
-    if (!key) throw new RecordError("That wallet has not unlocked Rado yet.");
+    if (!key) throw new RecordError("That wallet has not joined Rado yet.");
     const envelope = await encryptInboxMessage({
       sender: self,
       recipient,
@@ -416,7 +416,7 @@ export function createClaimExchange({
     /** Insurer only. Emits the full approved list so hospitals can rebuild their path. */
     async approveHospital(wallet: Address): Promise<boolean> {
       const key = await registeredKey(wallet);
-      if (!key) throw new RecordError("That wallet has not unlocked Rado yet.");
+      if (!key) throw new RecordError("That wallet has not joined Rado yet.");
       const leaf = await leafOf(key.eddsa);
       const leaves = await approvedLeaves();
       if (leaves.includes(leaf)) return false;
@@ -436,7 +436,7 @@ export function createClaimExchange({
     /** Insurer only. Registers once, then every call delivers the same terms again. */
     async issuePolicy(patient: Address): Promise<{ newlyRegistered: boolean }> {
       const key = await registeredKey(patient);
-      if (!key) throw new RecordError("That wallet has not unlocked Rado yet.");
+      if (!key) throw new RecordError("That wallet has not joined Rado yet.");
       const terms = await derivePolicyTerms(keys.eddsaSeed, patient, key.eddsa);
       const commitment = await policyCommitmentOf(terms);
       const newlyRegistered = !(await isRegisteredPolicy(commitment));

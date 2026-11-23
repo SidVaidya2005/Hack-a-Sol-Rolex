@@ -76,7 +76,7 @@ export function RecordSessionProvider({ children }: { children: ReactNode }) {
         setError("The Rado contracts are not available yet.");
         return;
       }
-      setUnlockPrompt("Sign the unlock message in your wallet. It costs nothing.");
+      setUnlockPrompt("Confirm it's you in your wallet. This costs nothing.");
       const signature = await walletClient.signTypedData({
         account: walletClient.account,
         ...unlockTypedData(address),
@@ -156,7 +156,7 @@ export function UnlockGate({ purpose }: { purpose: string }) {
   const steps = [
     {
       title: "Connect wallet",
-      detail: "Use the MetaMask account for this role.",
+      detail: "Use your MetaMask account.",
       label: !wallet.hasConnector
         ? "Wallet unavailable"
         : wallet.connecting
@@ -166,16 +166,16 @@ export function UnlockGate({ purpose }: { purpose: string }) {
       onClick: wallet.connectWallet,
     },
     {
-      title: "Switch to Rado Local",
-      detail: "Rado runs on the local demo network.",
+      title: "Switch to the Rado network",
+      detail: "Your wallet needs to be on the Rado network.",
       label: wallet.switching ? "Switching…" : "Switch network",
       disabled: wallet.switching,
       onClick: wallet.switchNetwork,
     },
     {
-      title: "Unlock with one signature",
+      title: "Secure sign-in",
       detail: unlockPrompt || purpose,
-      label: unlocking ? "Check your wallet…" : "Unlock Rado",
+      label: unlocking ? "Check your wallet…" : "Sign in",
       disabled: !ready || unlocking,
       onClick: () => void unlock(),
     },
@@ -248,6 +248,17 @@ export function formatExpiry(expiresAt: bigint) {
   });
 }
 
+const ITEM_KINDS: Record<string, string> = {
+  Patient: "Patient",
+  Condition: "Diagnosis",
+  MedicationRequest: "Medication",
+  AllergyIntolerance: "Allergy",
+  Observation: "Result",
+  Procedure: "Procedure",
+  ServiceRequest: "Test order",
+  DocumentReference: "Visit note",
+};
+
 export function RecordItems({
   items,
 }: {
@@ -258,7 +269,9 @@ export function RecordItems({
       {items.map((item) => (
         <li className="py-3" key={item.id}>
           <p className="text-sm text-rado-ink">{item.description}</p>
-          <p className="mt-0.5 text-xs text-rado-slate">{item.kind} · Synthetic record</p>
+          <p className="mt-0.5 text-xs text-rado-slate">
+            {ITEM_KINDS[item.kind] ?? "Health record"} · Patient-reported
+          </p>
         </li>
       ))}
     </ul>

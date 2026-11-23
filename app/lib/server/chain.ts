@@ -141,7 +141,7 @@ export async function fundNewWallet(wallet: Address): Promise<void> {
   if (balance > 0n) return;
   const key = wallet.toLowerCase();
   if (!fundedWallets.has(key) && fundedWallets.size >= MAX_FUNDED_WALLETS) {
-    throw new HttpError(429, "Too many new wallets. Restart the demo host.");
+    throw new HttpError(429, "Too many new wallets. Contact the administrator.");
   }
   const response = await fetch(url, {
     method: "POST",

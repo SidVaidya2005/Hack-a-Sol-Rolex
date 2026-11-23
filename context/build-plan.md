@@ -306,6 +306,11 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — `docs/threat-model.drawio` and `docs/threat-model.md` merged through PR #32. A comparison with `context/architecture.md` found every data location, route, contract, role, and listed limitation in the diagram and document. All four owners are checked off on the PR's review list, and no formal GitHub approvals were recorded. The diagram file parses with two pages, but this record has no confirmation of how it looks when rendered. Limitations 13 to 17 stay in the threat model until the team decides whether they join Known Limitations. The fixes from PRs #29 and #31 passed the automated checks on Windows with Node 26, and have not run through MetaMask, a real Pinata upload, `scripts/check-server-routes.mjs`, or the E2E on macOS. Decisions: D-056, D-057.
 
+**Decisions moved from Key Decisions:**
+
+- **D-056 — Give `RecordAccess.setResponder` to a separate responder-admin wallet set at deployment, using `NotResponderAdmin(address caller)`, and use a throwaway seed key that is never saved.** Reason: an insurer that controls the responder list could appoint itself and read emergency summaries, and a saved key would sit in the wallet file operators import from. Accepted tradeoff: this changes a shared ABI error, requires a reseed, and adding a responder later needs another reseed. Source: W13 threat review and code review, user-approved 2026-11-23.
+- **D-057 — Make the first wallet to pin a record ID its owner, and release an emergency summary only when that wallet is the on-chain patient.** Reason: `anchorRecord` is open, so a responder could otherwise anchor a pinned summary first and use break-glass with no event against the real patient. Keying on the record ID also stops a copied escrow key being pinned in another bundle. Accepted tradeoff: L4 holds owner markers, and a summary pinned before this change must be added again. Source: W13 code review, user-approved 2026-11-23.
+
 ### W14 Rehearsal, backup video, and pitch
 
 **Owner:** all. Run the four-laptop setup on venue Wi-Fi, test the hotspot fallback, record a full backup run, and prepare the pitch.
@@ -323,6 +328,14 @@ An item can **start** before its dependencies are finished by building against a
 **Built, not yet verified through MetaMask:** 2026-11-23. On Windows with Node 26, all 46 E2E checks passed, including 12 new sharing checks. The 68 shared and 35 contract tests, typecheck, lint, format check, and production build also passed. On a separate temporary chain, the updated seed created the `lab` and `pharmacy` wallets, `GET /api/providers` listed only provider wallets, and all 36 `scripts/check-patient-records.mjs` checks passed with bundles stored in a local cache. The screens through MetaMask and a real Pinata upload had not been run at this point.
 
 **Result:** 2026-11-23 — The W15 flow passed through MetaMask over the LAN from a fresh seed, as reported by the team, with LA as the host and Patient and LB running the provider wallets. The live chain confirmed separate pharmacy and lab copies, each granted, opened with a logged view, and revoked with a key rotation, and the 51 cached bundles hold no readable record text. The lab was granted after the pharmacy revokes, so the chain does not show a lab view following a pharmacy revoke. That independence, and the refusal of each provider opening the other's copy or the source record, are covered by `npm run e2e`, which has run only on Windows. Decisions: D-058, D-059.
+
+**Decision moved from Key Decisions:**
+
+- **D-058 — Share with labs and pharmacies through separate limited-copy records rebuilt from a field allowlist, and leave the contracts and circuit unchanged.** Reason: one record holds the diagnosis, medication, and procedure together, so a normal grant would show a pharmacy the diagnosis. Accepted tradeoff: a first share takes four wallet confirmations because it reuses the tested add and grant paths, and providers are read-only in this version. Source: W15 plan, user-approved 2026-11-23.
+
+**Decision moved from Key Decisions:**
+
+- **D-059 — Keep the provider directory off-chain, built from the seed's deployment file and served by `GET /api/providers`.** Reason: an on-chain label such as a lab or pharmacy would turn public grants into medical hints. Accepted tradeoff: anyone with the directory can still match a public grant to a provider type, but not to its contents. Source: W15 plan, user-approved 2026-11-23.
 
 ### W16 Patient document upload
 
@@ -349,6 +362,16 @@ An item can **start** before its dependencies are finished by building against a
 **Plan:** `app/lib/account-role.ts` lets assigned roles override a saved choice. `walletIsInsurer` simulates an insurer-only call, because the contract keeps that address private. `packages/shared/src/patient-profile.ts` defines the validated payload, and `record-service.ts` stores it as a normal encrypted record. A name-only encrypted card lets hospitals, doctors, and responders list patients by name, and `POST /api/faucet` gives new wallets local gas. The earlier all-role screens stay behind "Explore all demo screens". No contract, ABI, circuit, or reseed change. Decisions: D-063 to D-066.
 
 **Built, not yet verified through MetaMask:** 2026-11-24. On Windows with Node 26, all 96 E2E checks passed, including 31 new ones, and the 91 shared tests, typecheck, lint with the existing warning, format check, and production build also passed. The sign-in page rendered correctly in headless Chrome at desktop and phone widths. The role and profile screens, a real wallet, a real Pinata upload, and the flow across two laptops have not been run.
+
+### W18 Production wording, Add record, and emergency profile
+
+**Owner:** team. Branch: `w18/production-polish`. Replace trial wording on live screens, add typed patient records with an optional attachment, and give the single responder each patient's profile through break-glass with a required private reason. The labeled walkthrough stays at `/?walkthrough`.
+
+**Verify:** after a reseed, through MetaMask with real Pinata, a new patient signs up, saves a profile, and adds a medication with an attachment. Expected: no trial wording appears on live screens, the responder sees the patient's name, must give a reason, and sees only the five profile fields, and the patient's timeline shows who, when, and why. A pharmacy copy holds the medication, and a full claim still settles.
+
+**Plan:** `patient-entry.ts` maps typed input to FHIR, and `break-glass-reason.ts` defines the encrypted reason. `addProfile` wraps the profile to escrow. `invokeBreakGlass` takes a one-time reason record owned by the responder. Sharing is limited to listed providers and insurer-approved hospitals, and visit notes carry the `content` field FHIR R4 requires. Uploads now allow 5 MB. Decisions: D-067 to D-070.
+
+**Built, not yet verified through MetaMask:** 2026-11-24. On Windows with Node 26, all 113 E2E checks, 116 shared tests, and 35 contract tests passed, and a patient with five 5 MB files first loaded in about 11 seconds on the dev server and 0.5 seconds on repeat, with typecheck, lint with the existing warning, format check, and production build. All 14 sample, entry, and limited-copy bundles passed the official HL7 FHIR R4 JSON schema in a one-time check, which does not validate terminology. `scripts/check-patient-records.mjs` was updated but not rerun, because it moves chain time. The new forms, a reseeded host, real Pinata, and two laptops have not been run.
 
 ## Workflow Decisions
 

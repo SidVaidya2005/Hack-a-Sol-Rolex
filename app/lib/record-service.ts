@@ -1,15 +1,20 @@
 import {
   addRecordReader,
+  breakGlassReasonText,
+  BreakGlassReasonError,
+  buildPatientEntry,
   buildRecordSlice,
   bytesToBase64,
   canShareDocument,
   canShareProfile,
+  decodeBreakGlassReason,
   decodeDocument,
   decodeNameCard,
   decodeProfile,
   decryptRecord,
   DOCUMENT_CATEGORIES,
   DocumentError,
+  encodeBreakGlassReason,
   encodeBundle,
   encodeDocument,
   encodeNameCard,
@@ -20,6 +25,7 @@ import {
   isNameCardPayload,
   isProfilePayload,
   parseBundle,
+  PatientEntryError,
   ProfileError,
   recordAccessAbi,
   rotateRecordKey,
@@ -31,9 +37,11 @@ import {
 } from "@rado/shared";
 import type {
   Address,
+  BreakGlassReason,
   DocumentCategory,
   EncryptedBundle,
   Hex32,
+  PatientEntryInput,
   PatientProfile,
   RadoDocument,
   RadoDocumentInfo,
@@ -65,7 +73,7 @@ import type {
 } from "viem";
 
 import { escrowReaderAddress, escrowReleaseTypedData } from "./escrow-auth.ts";
-import { pinTypedData } from "./pin-auth.ts";
+import { MAX_SMALL_BUNDLE_BYTES, pinTypedData } from "./pin-auth.ts";
 import { providersFromWallets, type Provider } from "./providers.ts";
 
 const abi = parseAbi(recordAccessAbi);
@@ -73,6 +81,7 @@ const PIN_AUTH_TTL_SECONDS = 180;
 const ESCROW_AUTH_TTL_SECONDS = 180;
 const SECONDS_PER_DAY = 86_400;
 const MAX_CACHED_BUNDLES = 32;
+const MAX_CACHED_BUNDLE_BYTES = 64 * 1024 * 1024;
 
 export type RecordAccount = JsonRpcAccount | LocalAccount;
 export type GrantStatus = "Active" | "Expired" | "Revoked";
@@ -119,6 +128,8 @@ export interface RecordInfo {
   isProfile: boolean;
   /** A name-only record, hidden from the patient's record list. */
   isNameCard?: boolean;
+  /** A readable label from the decrypted entry. It stays in browser memory. */
+  title?: string;
 }
 
 export type OpenedRecord =
@@ -140,7 +151,7 @@ export interface RecordServiceConfig {
   baseUrl?: string;
   /** Set only by the E2E script, so a test run never uploads to Pinata. */
   storeBundle?: (bundle: EncryptedBundle) => Promise<{ bundleHash: Hex32; cid: string }>;
-  /** Without these, a profile can go only to hospitals and doctors in the directory. */
+  /** Without these, records can go only to providers in the directory. */
   profileAccess?: ProfileAccessChecks;
 }
 
@@ -179,7 +190,8 @@ const REVERT_MESSAGES: Record<string, string> = {
   InvalidExpiry: "Choose an expiry in the future.",
   InvalidPayoutAddress: "This claim has an invalid payout address.",
   InvalidProof: "The contract rejected this proof.",
-  KeysNotRegistered: "That wallet has not unlocked Rado yet.",
+  InvalidReason: "The emergency reason could not be used. Try again.",
+  KeysNotRegistered: "That wallet has not joined Rado yet.",
   NotInsurer: "Only the insurer wallet can do this.",
   NotRecordPatient: "Only the patient can change access to this record.",
   NotResponder: "This wallet is not a registered emergency responder.",
@@ -260,20 +272,41 @@ export function describeRecord(bytes: Uint8Array): RecordItem[] {
       kind,
       description:
         kind === "Patient"
-          ? "Patient profile"
-          : kind === "Observation" &&
-              textOf(resource.code) &&
-              typeof resource.valueString === "string"
-            ? `${textOf(resource.code)}: ${resource.valueString}`
-            : (textOf(resource.code) ??
-              textOf(resource.medicationCodeableConcept) ??
-              "Health record item"),
+          ? "Patient details"
+          : kind === "DocumentReference" && typeof resource.description === "string"
+            ? resource.description
+            : kind === "Observation" &&
+                textOf(resource.code) &&
+                typeof resource.valueString === "string"
+              ? `${textOf(resource.code)}: ${resource.valueString}`
+              : (textOf(resource.code) ??
+                textOf(resource.medicationCodeableConcept) ??
+                "Health record item"),
     };
   });
 }
 
 /** Shows only the emergency fields, even if a summary holds other resource types. */
 export function describeEmergencySummary(bytes: Uint8Array): EmergencySummaryItem[] {
+  if (isProfilePayload(bytes)) {
+    let profile: PatientProfile;
+    try {
+      profile = decodeProfile(bytes);
+    } catch {
+      throw new RecordError("This emergency profile could not be read.");
+    }
+    return [
+      { id: "name", label: "Patient", value: profile.fullName },
+      { id: "birth", label: "Date of birth", value: profile.dateOfBirth },
+      { id: "blood", label: "Blood group", value: profile.bloodGroup },
+      { id: "allergies", label: "Allergies", value: profile.allergies || "None listed" },
+      {
+        id: "contact",
+        label: "Emergency contact",
+        value: profile.emergencyContact || "None listed",
+      },
+    ];
+  }
   let value: unknown;
   try {
     value = JSON.parse(utf8Decode(bytes));
@@ -326,10 +359,39 @@ export function createRecordService({
   /** A confirmed event whose release did not finish, so a retry does not log a second one. */
   const pendingBreakGlass = new Map<Hex32, { transactionHash: Hex32; logIndex: number }>();
   const recordInfoCache = new Map<string, RecordInfo>();
+  const breakGlassReasonCache = new Map<string, string>();
   /** Each anchored record's name card for this wallet, or null. Kept in memory only. */
   const nameCards = new Map<string, { patient: Address; name: string } | null>();
   /** Holds ciphertext only, so repeated screen loads do not download and hash it again. */
   const verifiedBundles = new Map<string, Promise<EncryptedBundle>>();
+  const cachedBundleSizes = new Map<string, number>();
+  const oversizedBundles = new Set<string>();
+
+  /** Drops the oldest finished bundles, so several 5 MB files cannot exhaust browser memory. */
+  function trimBundleCache(): void {
+    let total = [...cachedBundleSizes.values()].reduce((sum, size) => sum + size, 0);
+    for (const key of [...verifiedBundles.keys()]) {
+      const size = cachedBundleSizes.get(key);
+      const overCount = verifiedBundles.size > MAX_CACHED_BUNDLES;
+      if (!overCount && total <= MAX_CACHED_BUNDLE_BYTES) return;
+      if (size === undefined) continue;
+      verifiedBundles.delete(key);
+      cachedBundleSizes.delete(key);
+      total -= size;
+    }
+  }
+
+  function rememberBundle(key: string, pending: Promise<EncryptedBundle>): void {
+    verifiedBundles.set(key, pending);
+    pending.then(
+      (bundle) => {
+        if (verifiedBundles.get(key) !== pending) return;
+        cachedBundleSizes.set(key, bundle.ciphertext.length);
+        trimBundleCache();
+      },
+      () => verifiedBundles.delete(key),
+    );
+  }
 
   async function confirmed(hash: Hex32): Promise<void> {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -355,7 +417,7 @@ export function createRecordService({
 
   async function readerKey(address: Address): Promise<RecordReader> {
     const [, , x25519PublicKey, registered] = await contract.read.keysOf([address]);
-    if (!registered) throw new RecordError("That wallet has not unlocked Rado yet.");
+    if (!registered) throw new RecordError("That wallet has not joined Rado yet.");
     return { address, x25519PublicKey: hexToBytes(x25519PublicKey) };
   }
 
@@ -368,11 +430,7 @@ export function createRecordService({
     let pending = verifiedBundles.get(cacheKey);
     if (!pending) {
       pending = fetchVerifiedBundle(recordId, bundleHash, cid);
-      verifiedBundles.set(cacheKey, pending);
-      pending.catch(() => verifiedBundles.delete(cacheKey));
-      if (verifiedBundles.size > MAX_CACHED_BUNDLES) {
-        verifiedBundles.delete(verifiedBundles.keys().next().value as string);
-      }
+      rememberBundle(cacheKey, pending);
     }
     return { patient, bundle: await pending, bundleHash, cid, keyVersion };
   }
@@ -384,7 +442,14 @@ export function createRecordService({
   ): Promise<EncryptedBundle> {
     const response = await fetch(`${baseUrl}/api/records/${cid}`, { cache: "no-store" });
     if (!response.ok) throw new RecordError("The encrypted record could not be loaded.");
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    return verifiedBundleFrom(new Uint8Array(await response.arrayBuffer()), recordId, bundleHash);
+  }
+
+  function verifiedBundleFrom(
+    bytes: Uint8Array,
+    recordId: Hex32,
+    bundleHash: Hex32,
+  ): EncryptedBundle {
     if (hashBundleBytes(bytes).toLowerCase() !== bundleHash.toLowerCase()) {
       throw new RecordError("This record failed its integrity check.");
     }
@@ -398,6 +463,52 @@ export function createRecordService({
       throw new RecordError("This record failed its integrity check.");
     }
     return bundle;
+  }
+
+  /**
+   * Stops reading once a bundle is too large to be a name card or emergency profile.
+   * Returns null for those, and still checks a small bundle against the chain.
+   */
+  async function loadSmallBundle(
+    recordId: Hex32,
+  ): Promise<{ patient: Address; bundle: EncryptedBundle } | null> {
+    const [patient, bundleHash, cid] = await contract.read.recordOf([recordId]);
+    if (patient === zeroAddress) throw new RecordError("This record could not be found.");
+    const cacheKey = `${recordId}:${bundleHash}`.toLowerCase();
+    if (oversizedBundles.has(cacheKey)) return null;
+    const cached = verifiedBundles.get(cacheKey);
+    if (cached) return { patient, bundle: await cached };
+    const response = await fetch(`${baseUrl}/api/records/${cid}?small=1`, { cache: "no-store" });
+    if (response.status === 413) {
+      oversizedBundles.add(cacheKey);
+      return null;
+    }
+    if (!response.ok || !response.body) {
+      throw new RecordError("The encrypted record could not be loaded.");
+    }
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > MAX_SMALL_BUNDLE_BYTES) {
+        await reader.cancel();
+        oversizedBundles.add(cacheKey);
+        return null;
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.length;
+    }
+    const bundle = verifiedBundleFrom(bytes, recordId, bundleHash);
+    rememberBundle(cacheKey, Promise.resolve(bundle));
+    return { patient, bundle };
   }
 
   /** The escrow reader label is recomputed here instead of trusting the server's. */
@@ -440,8 +551,11 @@ export function createRecordService({
       anchors.map(async ({ args }): Promise<EmergencySummaryRecord | null> => {
         if (!args.recordId || !args.patient) return null;
         try {
-          const { bundle } = await loadBundle(args.recordId);
-          return bundle.wrappedKeys.some((entry) => sameAddress(entry.reader, escrow.address))
+          const loaded = await loadSmallBundle(args.recordId);
+          if (!loaded) return null;
+          return loaded.bundle.wrappedKeys.some((entry) =>
+            sameAddress(entry.reader, escrow.address),
+          )
             ? { recordId: args.recordId, patient: args.patient }
             : null;
         } catch {
@@ -522,7 +636,7 @@ export function createRecordService({
     return expiresAt;
   }
 
-  /** Off-chain directory only. A failure leaves sharing usable with unlisted wallets. */
+  /** Off-chain directory only. A failure offers no listed provider, so sharing fails closed. */
   async function listProviders(): Promise<Provider[]> {
     try {
       const response = await fetch(`${baseUrl}/api/providers`, { cache: "no-store" });
@@ -563,6 +677,7 @@ export function createRecordService({
           sliceProfile: sliceProfileOf(JSON.parse(utf8Decode(plaintext))),
           document: null,
           isProfile: false,
+          title: describeRecord(plaintext).find(({ kind }) => kind !== "Patient")?.description,
         };
       }
     } catch {
@@ -610,17 +725,26 @@ export function createRecordService({
     return { kind: "record", items: describeRecord(plaintext) };
   }
 
-  /** Fails closed: a failed chain check means this wallet does not get the profile. */
-  async function canReadProfile(wallet: Address, providers: Provider[]): Promise<boolean> {
-    if (sameAddress(wallet, self)) return false;
+  /**
+   * A listed provider or an insurer-approved hospital, and never the insurer itself.
+   * Fails closed: a failed chain check means this wallet is not offered anything.
+   */
+  async function providerOf(wallet: Address, providers: Provider[]): Promise<Provider | null> {
+    if (sameAddress(wallet, self)) return null;
     try {
-      if (await profileAccess?.walletIsInsurer(wallet)) return false;
+      if (await profileAccess?.walletIsInsurer(wallet)) return null;
       const listed = providers.find((item) => sameAddress(item.wallet, wallet));
-      if (listed) return canShareProfile(listed.kind);
-      return (await profileAccess?.hospitalIsApproved(wallet)) ?? false;
+      if (listed) return listed;
+      return (await profileAccess?.hospitalIsApproved(wallet))
+        ? { wallet, name: "Approved hospital", kind: "hospital" }
+        : null;
     } catch {
-      return false;
+      return null;
     }
+  }
+
+  async function canReadProfile(wallet: Address, providers: Provider[]): Promise<boolean> {
+    return canShareProfile((await providerOf(wallet, providers))?.kind);
   }
 
   async function findProfile(
@@ -702,7 +826,9 @@ export function createRecordService({
     patient: Address,
   ): Promise<{ patient: Address; name: string } | null> {
     if (sameAddress(patient, self)) return null;
-    const { bundle } = await loadBundle(recordId);
+    const loaded = await loadSmallBundle(recordId);
+    if (!loaded) return null;
+    const { bundle } = loaded;
     if (!bundle.wrappedKeys.some((entry) => sameAddress(entry.reader, self))) return null;
     if ((await contract.read.accessExpiry([recordId, self])) !== 0n) return null;
     try {
@@ -726,7 +852,7 @@ export function createRecordService({
         body: JSON.stringify({ wallet: self }),
       }).catch(() => null);
       if (!response?.ok) {
-        throw new RecordError("Could not set up this new wallet on the demo network.");
+        throw new RecordError("Could not set up this new wallet on the Rado network.");
       }
     },
 
@@ -763,7 +889,7 @@ export function createRecordService({
       );
     },
 
-    /** The only path that wraps a record key to escrow (Invariant 14). */
+    /** Wraps a standalone summary to escrow. New patients use their profile instead (D-067). */
     async addEmergencySummary(
       keys: UnlockedKeys,
       plaintext: Uint8Array,
@@ -800,14 +926,38 @@ export function createRecordService({
     async openEmergencySummary(
       keys: UnlockedKeys,
       { patient, recordId }: EmergencySummaryRecord,
+      reason: BreakGlassReason,
       onPrompt?: WalletPromptHandler,
     ): Promise<EmergencySummaryItem[]> {
       let event = pendingBreakGlass.get(recordId);
+      const totalSteps = event ? 1 : 4;
+      let step = 0;
+      const stepped: WalletPromptHandler = (text) => {
+        step += 1;
+        onPrompt?.(`Step ${step} of ${totalSteps}: ${text.replace(/^Step \d of \d: /, "")}`);
+      };
       if (!event) {
-        const { request } = await contract.simulate.invokeBreakGlass([patient, recordId], {
-          account,
-        });
-        onPrompt?.(BREAK_GLASS_PROMPT);
+        if (!(await contract.read.isResponder([self]))) {
+          throw new RecordError(REVERT_MESSAGES.NotResponder);
+        }
+        let reasonPayload: Uint8Array;
+        try {
+          reasonPayload = encodeBreakGlassReason(reason);
+        } catch (error) {
+          if (error instanceof BreakGlassReasonError) throw new RecordError(error.message);
+          throw new RecordError("Choose a reason for emergency access.");
+        }
+        // Readable only by this responder and the patient. The chain stores just its record ID.
+        const reasonRecordId = await anchorNewRecord(
+          reasonPayload,
+          [{ address: self, x25519PublicKey: keys.x25519PublicKey }, await readerKey(patient)],
+          stepped,
+        );
+        const { request } = await contract.simulate.invokeBreakGlass(
+          [patient, recordId, reasonRecordId],
+          { account },
+        );
+        stepped(BREAK_GLASS_PROMPT);
         const transactionHash = await walletClient.writeContract(request);
         const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash });
         const [log] = parseEventLogs({ abi, logs: receipt.logs, eventName: "BreakGlassInvoked" });
@@ -819,7 +969,7 @@ export function createRecordService({
       }
 
       const expiresAt = Math.floor(Date.now() / 1000) + ESCROW_AUTH_TTL_SECONDS;
-      onPrompt?.(RELEASE_PROMPT);
+      stepped(RELEASE_PROMPT);
       const signature = await walletClient.signTypedData({
         account,
         ...escrowReleaseTypedData({
@@ -869,19 +1019,31 @@ export function createRecordService({
       days: number,
       onPrompt?: WalletPromptHandler,
     ): Promise<bigint> {
-      const { document, isProfile } = await ownRecordInfo(keys, recordId);
-      if (isProfile && !(await canReadProfile(reader, await listProviders()))) {
-        throw new RecordError(
-          "Your profile can be shared only with an approved hospital or doctor.",
-        );
-      }
-      if (document) {
-        const provider = (await listProviders()).find(({ wallet }) => sameAddress(wallet, reader));
-        if (!canShareDocument(document.category, provider?.kind)) {
+      const { document, isProfile, isNameCard, sliceProfile } = await ownRecordInfo(keys, recordId);
+      if (isNameCard) throw new RecordError("This item cannot be shared.");
+      const kind = (await providerOf(reader, await listProviders()))?.kind;
+      if (isProfile) {
+        if (!canShareProfile(kind)) {
+          throw new RecordError(
+            "Your profile can be shared only with an approved hospital or doctor.",
+          );
+        }
+      } else if (document) {
+        if (!canShareDocument(document.category, kind)) {
           throw new RecordError(
             `A ${DOCUMENT_CATEGORIES[document.category].label.toLowerCase()} cannot be shared with this wallet.`,
           );
         }
+      } else if (sliceProfile) {
+        if (kind !== sliceProfile) {
+          throw new RecordError(
+            `This copy can be shared only with a ${SHARE_PROFILES[sliceProfile].label.toLowerCase()}.`,
+          );
+        }
+      } else if (kind !== "hospital" && kind !== "doctor") {
+        throw new RecordError(
+          "A full record can be shared only with an approved hospital or doctor.",
+        );
       }
       return grantReader(keys, recordId, reader, days, onPrompt);
     },
@@ -924,13 +1086,11 @@ export function createRecordService({
       await publishNameCard(keys, found.profile.fullName, onPrompt);
     },
 
-    /** Wallets the patient may offer the profile to, lowercased. */
-    async profileReaders(wallets: Address[]): Promise<Set<string>> {
-      const providers = await listProviders();
-      const allowed = await Promise.all(
-        wallets.map(async (wallet) => ((await canReadProfile(wallet, providers)) ? wallet : null)),
-      );
-      return new Set(allowed.flatMap((wallet) => (wallet ? [wallet.toLowerCase()] : [])));
+    /** The registered wallets a patient may share with. The insurer is never included. */
+    async shareableProviders(wallets: Address[]): Promise<Provider[]> {
+      const listed = await listProviders();
+      const found = await Promise.all(wallets.map((wallet) => providerOf(wallet, listed)));
+      return found.filter((provider) => provider !== null);
     },
 
     /** One encrypted profile per wallet. Only the patient holds a key until they share it. */
@@ -947,6 +1107,8 @@ export function createRecordService({
         throw new RecordError("This profile could not be saved.");
       }
       if (await findProfile(keys)) throw new RecordError("You already have a profile.");
+      // Wrapped to escrow, so the responder can reach it only through a logged break-glass.
+      const escrow = await escrowReader();
       let step = 0;
       const stepped: WalletPromptHandler = (text) => {
         step += 1;
@@ -954,7 +1116,7 @@ export function createRecordService({
       };
       const recordId = await anchorNewRecord(
         payload,
-        [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }, escrow],
         stepped,
       );
       recordInfoCache.set(recordId, { sliceProfile: null, document: null, isProfile: true });
@@ -982,6 +1144,11 @@ export function createRecordService({
     ): Promise<{ recordId: Hex32; expiresAt: bigint }> {
       if (sameAddress(reader, self)) throw new RecordError("You already have this record.");
       await readerKey(reader);
+      if ((await providerOf(reader, await listProviders()))?.kind !== profile) {
+        throw new RecordError(
+          `This copy can be shared only with a ${SHARE_PROFILES[profile].label.toLowerCase()}.`,
+        );
+      }
       const loaded = await loadOwnRecord(sourceId);
       let source: unknown;
       try {
@@ -1029,6 +1196,49 @@ export function createRecordService({
           "The limited copy was created but not shared. Use Grant access on it to finish.",
         );
       }
+    },
+
+    /** Saves a typed entry as FHIR, so limited lab and pharmacy copies keep working. */
+    async addPatientEntry(
+      keys: UnlockedKeys,
+      input: PatientEntryInput,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<Hex32> {
+      const found = await findProfile(keys);
+      if (!found) throw new RecordError("Save your profile first.");
+      let entry: ReturnType<typeof buildPatientEntry>;
+      try {
+        entry = buildPatientEntry(input, found.profile);
+      } catch (error) {
+        if (error instanceof PatientEntryError) throw new RecordError(error.message);
+        throw new RecordError("This record could not be saved.");
+      }
+      return anchorNewRecord(
+        utf8Encode(JSON.stringify(entry)),
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
+        onPrompt,
+      );
+    },
+
+    /** Timeline entry ID to the responder's reason, readable only by this patient. */
+    async breakGlassReasons(keys: UnlockedKeys): Promise<Map<string, string>> {
+      const logs = await contract.getEvents.BreakGlassInvoked({ patient: self }, { fromBlock: 0n });
+      await Promise.all(
+        logs.map(async (log) => {
+          const id = `${log.transactionHash}-${log.logIndex}`;
+          const { reasonRecordId, responder } = log.args;
+          if (breakGlassReasonCache.has(id) || !reasonRecordId || !responder) return;
+          try {
+            const { patient: owner, bundle } = await loadBundle(reasonRecordId);
+            if (!sameAddress(owner, responder)) return;
+            const plaintext = await decryptRecord(bundle, self, keys.x25519SecretKey);
+            breakGlassReasonCache.set(id, breakGlassReasonText(decodeBreakGlassReason(plaintext)));
+          } catch {
+            // Left out, so the timeline says the reason is unavailable and tries again.
+          }
+        }),
+      );
+      return new Map(breakGlassReasonCache);
     },
 
     /** Encrypts the file, its name, type, and category together, then pins and anchors them. */

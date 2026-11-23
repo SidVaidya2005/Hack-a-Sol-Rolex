@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { AccountEntry, ProfileSetup, RoleSetup, useAccountRole } from "../components/AccountEntry";
 import { ClaimExchangeProvider } from "../components/ClaimExchangeProvider";
@@ -31,21 +31,35 @@ export default function Home() {
   );
 }
 
+const noSubscription = () => () => undefined;
+
 function AppEntry() {
   const { session } = useRecordSession();
-  const [demoRole, setDemoRole] = useState<RoleId | null>(null);
+  const [publicView, setPublicView] = useState(false);
+  const walkthrough = useSyncExternalStore(
+    noSubscription,
+    () => new URLSearchParams(window.location.search).has("walkthrough"),
+    () => false,
+  );
 
-  if (demoRole) {
-    return <DemoApp initialRole={demoRole} onExit={() => setDemoRole(null)} />;
+  if (walkthrough) {
+    return <DemoApp initialRole="patient" onExit={() => window.location.replace("/")} />;
   }
-  if (!session) {
+  if (publicView) {
     return (
-      <AccountEntry
-        onExploreDemo={() => setDemoRole("patient")}
-        onPublicChain={() => setDemoRole("public")}
-      />
+      <AppFrame
+        activeRole="public"
+        exitLabel="Back to sign in"
+        navigation={
+          <RoleNavigation activeRole="public" allowed={["public"]} onSelect={() => undefined} />
+        }
+        onExit={() => setPublicView(false)}
+      >
+        <PublicChainScreen />
+      </AppFrame>
     );
   }
+  if (!session) return <AccountEntry onPublicChain={() => setPublicView(true)} />;
   // Keyed by wallet, so one wallet's setup or view never carries over to another.
   return <SignedInApp key={session.address} />;
 }
@@ -110,7 +124,7 @@ function RoleWorkspace({ role }: { role: AccountRole }) {
   );
 }
 
-/** The original all-role walkthrough. Contracts still enforce what each wallet can do. */
+/** The labeled all-role walkthrough at `/?walkthrough`. Contracts still enforce every action. */
 function DemoApp({ initialRole, onExit }: { initialRole: RoleId; onExit: () => void }) {
   const [activeRole, setActiveRole] = useState<RoleId>(initialRole);
   const selectRole = (role: RoleId) => {
@@ -122,6 +136,7 @@ function DemoApp({ initialRole, onExit }: { initialRole: RoleId; onExit: () => v
     <AppFrame
       activeRole={activeRole}
       navigation={<RoleNavigation activeRole={activeRole} onSelect={selectRole} />}
+      exitLabel="Exit walkthrough"
       onExit={onExit}
       story={<ClaimStoryBar activeRole={activeRole} onGo={selectRole} />}
     >
@@ -140,12 +155,14 @@ function AppFrame({
   navigation,
   story,
   onExit,
+  exitLabel,
   children,
 }: {
   activeRole: RoleId;
   navigation: ReactNode;
   story?: ReactNode;
   onExit?: () => void;
+  exitLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -169,7 +186,7 @@ function AppFrame({
                   onClick={onExit}
                   type="button"
                 >
-                  Exit demo
+                  {exitLabel}
                 </button>
               ) : null}
               <WalletConnection />

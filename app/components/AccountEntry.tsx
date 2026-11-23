@@ -19,13 +19,7 @@ const PROMISES = [
   "Insurers verify claims without seeing medical data.",
 ];
 
-export function AccountEntry({
-  onExploreDemo,
-  onPublicChain,
-}: {
-  onExploreDemo: () => void;
-  onPublicChain: () => void;
-}) {
+export function AccountEntry({ onPublicChain }: { onPublicChain: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const signingUp = mode === "signup";
 
@@ -46,7 +40,9 @@ export function AccountEntry({
             ))}
           </ul>
         </div>
-        <p className="font-mono text-xs text-rado-muted">Prototype · synthetic data only</p>
+        <p className="font-mono text-xs text-rado-muted">
+          Research prototype. Not for clinical use.
+        </p>
       </section>
       <main className="flex items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-md">
@@ -74,16 +70,13 @@ export function AccountEntry({
           <UnlockGate
             purpose={
               signingUp
-                ? "Sign once to create your private keys. It costs nothing."
-                : "Sign once to unlock your private keys for this session."
+                ? "Confirm in your wallet to create your secure keys. This costs nothing."
+                : "Confirm in your wallet to access your account securely."
             }
           />
-          <div className="mt-6 flex flex-wrap justify-between gap-3 text-sm">
+          <div className="mt-6 text-sm">
             <button className="text-rado-slate underline" onClick={onPublicChain} type="button">
               View public chain
-            </button>
-            <button className="text-rado-slate underline" onClick={onExploreDemo} type="button">
-              Explore all demo screens
             </button>
           </div>
         </div>
@@ -175,13 +168,13 @@ const CHOICES: {
   {
     id: "insurer",
     title: "Insurer",
-    detail: "Assigned at deployment. Connect the insurer wallet to open it.",
+    detail: "Reserved for the authorized insurer wallet.",
     icon: "shield",
   },
   {
     id: "responder",
     title: "Responder",
-    detail: "Assigned by the responder admin. Connect an approved wallet to open it.",
+    detail: "Reserved for the authorized emergency responder wallet.",
     icon: "asterisk",
   },
 ];
@@ -252,9 +245,9 @@ export function ProfileSetup({ onDone }: { onDone: () => void }) {
     <SetupFrame
       step="Step 2 of 2"
       title="Your patient details"
-      description="Encrypted in this browser. Only hospitals and doctors you approve can read them. Insurers cannot."
+      description="Encrypted in this browser. Hospitals and doctors you approve can read them. The emergency responder can open them only through a logged break-glass. Insurers cannot."
     >
-      <ProfileForm onSaved={onDone} onSkip={onDone} />
+      <ProfileForm onSaved={onDone} />
     </SetupFrame>
   );
 }

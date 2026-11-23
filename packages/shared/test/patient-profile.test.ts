@@ -11,7 +11,6 @@ import {
   isNameCardPayload,
   isProfilePayload,
   ProfileError,
-  profileEmergencySummary,
   utf8Encode,
 } from "../src/index.ts";
 import type { PatientProfile } from "../src/index.ts";
@@ -79,15 +78,6 @@ describe("patient profile", () => {
     forged.set(extra, magic.length);
     assert.throws(() => decodeNameCard(forged), ProfileError);
     assert.throws(() => encodeNameCard("Demo‮Patient"), ProfileError);
-  });
-
-  it("builds an emergency summary from the profile", () => {
-    const text = JSON.stringify(profileEmergencySummary(profile));
-    for (const value of [profile.fullName, profile.allergies, profile.emergencyContact, "O+"]) {
-      assert.equal(text.includes(value), true);
-    }
-    const minimal = profileEmergencySummary({ ...profile, allergies: "", emergencyContact: "" });
-    assert.equal(minimal.entry.length, 2);
   });
 
   it("allows only hospitals and doctors as readers", () => {

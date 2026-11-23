@@ -2,12 +2,9 @@
 
 import {
   canShareDocument,
+  canShareProfile,
   DOCUMENT_CATEGORIES,
-  profileEmergencySummary,
-  SAMPLE_CARE_RECORD,
-  SAMPLE_EMERGENCY_SUMMARY,
   SHARE_PROFILES,
-  utf8Encode,
 } from "@rado/shared";
 import type { Address, Hex32 } from "@rado/shared";
 import { useEffect, useState } from "react";
@@ -21,7 +18,7 @@ import {
   type TimelineEntry,
   type WalletPromptHandler,
 } from "../lib/record-service";
-import { DocumentUploadForm } from "./DocumentUploadForm";
+import { AddRecordForm } from "./AddRecordForm";
 import { DocumentViewer, formatDocumentSize } from "./DocumentViewer";
 import { Icon } from "./icons";
 import { ProfileDetails } from "./PatientProfilePanel";
@@ -46,16 +43,14 @@ function providerFor(wallet: string, providers: Provider[]) {
 
 function providerLabel(wallet: string, providers: Provider[]) {
   const provider = providerFor(wallet, providers);
-  return provider ? `${provider.name} · ${shortId(wallet)}` : `Unlisted · ${shortId(wallet)}`;
+  return provider ? `${provider.name} · ${shortId(wallet)}` : `Former reader · ${shortId(wallet)}`;
 }
 
 function RecordRow({
   record,
   emergency,
   info,
-  wallets,
   providers,
-  profileReaders,
   busy,
   onRun,
 }: {
@@ -63,9 +58,8 @@ function RecordRow({
   emergency: boolean;
   /** Undefined until this record has been read, so a copy is never mistaken for a full record. */
   info: RecordInfo | undefined;
-  wallets: Address[];
+  /** Only wallets this patient may share with. The insurer is never in this list. */
   providers: Provider[];
-  profileReaders: Set<string>;
   busy: string;
   onRun: (id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) => Promise<void>;
 }) {
@@ -78,15 +72,13 @@ function RecordRow({
   const documentInfo = info?.document ?? null;
   const isProfile = info?.isProfile ?? false;
   const sharedWhole = Boolean(documentInfo) || isProfile;
-  const walletLabel = (wallet: string) =>
-    isProfile && !providerFor(wallet, providers)
-      ? `Approved hospital · ${shortId(wallet)}`
-      : providerLabel(wallet, providers);
+  const walletLabel = (wallet: string) => providerLabel(wallet, providers);
   const active = new Set(
     grants.filter(({ status }) => status === "Active").map(({ reader }) => reader.toLowerCase()),
   );
   // A limited copy can only go to its own provider type, so a lab never gets a pharmacy copy.
-  const candidates = wallets
+  const candidates = providers
+    .map(({ wallet }) => wallet)
     .filter((wallet) => !active.has(wallet.toLowerCase()))
     .filter((wallet) => !sliceProfile || providerFor(wallet, providers)?.kind === sliceProfile)
     .filter(
@@ -94,11 +86,7 @@ function RecordRow({
         !documentInfo ||
         canShareDocument(documentInfo.category, providerFor(wallet, providers)?.kind),
     )
-    .filter((wallet) => !isProfile || profileReaders.has(wallet.toLowerCase()))
-    .sort(
-      (a, b) =>
-        Number(Boolean(providerFor(b, providers))) - Number(Boolean(providerFor(a, providers))),
-    );
+    .filter((wallet) => !isProfile || canShareProfile(providerFor(wallet, providers)?.kind));
   const target = candidates.find((wallet) => wallet === selected) ?? candidates[0] ?? "";
   const profile = shareProfileFor(target ? providerFor(target, providers)?.kind : undefined);
   const locked = Boolean(busy) || !session;
@@ -113,15 +101,13 @@ function RecordRow({
           <p className="text-base text-rado-ink">
             {documentInfo
               ? documentInfo.name
-              : `${
-                  isProfile
-                    ? "Patient profile"
-                    : emergency
-                      ? "Emergency summary"
-                      : sliceProfile
-                        ? `${SHARE_PROFILES[sliceProfile].label} copy`
-                        : "Encrypted record"
-                } ${shortId(recordId)}`}
+              : isProfile
+                ? "Patient profile"
+                : emergency
+                  ? "Emergency summary"
+                  : sliceProfile
+                    ? `${SHARE_PROFILES[sliceProfile].label} copy`
+                    : (info?.title ?? "Health record")}
           </p>
           <p className="mt-0.5 font-mono text-xs text-rado-slate">
             {documentInfo
@@ -130,7 +116,7 @@ function RecordRow({
             Key version {keyVersion.toString()}
           </p>
         </div>
-        {emergency ? <Badge tone="warning">Break-glass enabled</Badge> : null}
+        {emergency ? <Badge tone="warning">Emergency access enabled</Badge> : null}
         <button
           className="button-pill-outline disabled:opacity-50"
           disabled={locked}
@@ -212,8 +198,8 @@ function RecordRow({
             ) : (
               <option value="">
                 {sliceProfile || sharedWhole
-                  ? "No allowed provider has unlocked"
-                  : "No other unlocked wallets"}
+                  ? "No eligible provider available"
+                  : "No eligible provider available"}
               </option>
             )}
           </select>
@@ -337,10 +323,8 @@ export function PatientRecordsPanel() {
 function PatientRecordsContent() {
   const { session, revision, refresh } = useRecordSession();
   const [records, setRecords] = useState<PatientRecord[]>([]);
-  const [wallets, setWallets] = useState<Address[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [recordInfos, setRecordInfos] = useState<Map<string, RecordInfo>>(new Map());
-  const [profileReaders, setProfileReaders] = useState<Set<string>>(new Set());
   const [summaryIds, setSummaryIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
@@ -352,24 +336,17 @@ function PatientRecordsContent() {
     const load = () =>
       Promise.all([
         session.service.listPatientRecords(),
-        session.service.listRegisteredWallets(),
-        session.service.listProviders(),
+        session.service.listRegisteredWallets().then(session.service.shareableProviders),
       ])
-        .then(async ([nextRecords, nextWallets, nextProviders]) => {
+        .then(async ([nextRecords, nextProviders]) => {
           if (!current) return;
           setRecords(nextRecords);
-          setWallets(nextWallets);
           setProviders(nextProviders);
           const nextInfos = await session.service.recordInfos(
             session.keys,
             nextRecords.map(({ recordId }) => recordId),
           );
-          if (!current) return;
-          setRecordInfos(nextInfos);
-          if ([...nextInfos.values()].some(({ isProfile }) => isProfile)) {
-            const nextReaders = await session.service.profileReaders(nextWallets);
-            if (current) setProfileReaders(nextReaders);
-          }
+          if (current) setRecordInfos(nextInfos);
         })
         .catch(() => {
           if (current) setMessage({ ok: false, text: "Could not load your records." });
@@ -418,61 +395,12 @@ function PatientRecordsContent() {
     <Panel
       title="Your records"
       description="Encrypted in this browser. You choose who can read them and for how long."
-      action={
-        session ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              className="button-pill-outline whitespace-nowrap disabled:opacity-50"
-              disabled={Boolean(busy) || summaryIds.size > 0}
-              onClick={() =>
-                void run("add-summary", async (onPrompt) => {
-                  const found = await session.service.findProfile(session.keys);
-                  const summary = found
-                    ? profileEmergencySummary(found.profile)
-                    : SAMPLE_EMERGENCY_SUMMARY;
-                  await session.service.addEmergencySummary(
-                    session.keys,
-                    utf8Encode(JSON.stringify(summary)),
-                    onPrompt,
-                  );
-                  return "Emergency summary encrypted. Only this summary can be released in an emergency.";
-                })
-              }
-              type="button"
-            >
-              {busy === "add-summary"
-                ? "Adding…"
-                : summaryIds.size > 0
-                  ? "Emergency summary added"
-                  : "Add emergency summary"}
-            </button>
-            <button
-              className="button-primary whitespace-nowrap disabled:opacity-50"
-              disabled={Boolean(busy)}
-              onClick={() =>
-                void run("add", async (onPrompt) => {
-                  await session.service.addRecord(
-                    session.keys,
-                    utf8Encode(JSON.stringify(SAMPLE_CARE_RECORD)),
-                    onPrompt,
-                  );
-                  return "Synthetic record encrypted, stored, and anchored on-chain.";
-                })
-              }
-              type="button"
-            >
-              <Icon name="plus" className="size-4" />
-              {busy === "add" ? "Adding…" : "Add synthetic record"}
-            </button>
-          </div>
-        ) : null
-      }
     >
       {session ? (
         <>
           <WalletPromptNotice text={walletPrompt} />
           <StatusMessage message={message} />
-          <DocumentUploadForm busy={busy} onRun={run} />
+          <AddRecordForm busy={busy} onRun={run} />
           {visibleRecords.length ? (
             <div className="divide-y divide-rado-line">
               {visibleRecords.map((record) => (
@@ -482,21 +410,19 @@ function PatientRecordsContent() {
                   key={record.recordId}
                   onRun={run}
                   providers={providers}
-                  profileReaders={profileReaders}
                   info={recordInfos.get(record.recordId)}
                   record={record}
-                  wallets={wallets}
                 />
               ))}
             </div>
           ) : (
             <p className="py-4 text-sm text-rado-slate">
-              No records yet. Add a synthetic record to begin.
+              No records yet. Add your first record above.
             </p>
           )}
         </>
       ) : (
-        <UnlockGate purpose="Sign once in your wallet to unlock your private keys for this session." />
+        <UnlockGate purpose="Confirm in your wallet to access your records securely." />
       )}
     </Panel>
   );
@@ -510,17 +436,18 @@ export function AuditTimeline() {
 function AuditTimelineContent() {
   const { session, revision } = useRecordSession();
   const [entries, setEntries] = useState<TimelineEntry[]>([]);
+  const [reasons, setReasons] = useState<Map<string, string>>(new Map());
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!session) return;
     let current = true;
     const load = () =>
-      session.service
-        .timeline()
-        .then((next) => {
+      Promise.all([session.service.timeline(), session.service.breakGlassReasons(session.keys)])
+        .then(([next, nextReasons]) => {
           if (!current) return;
           setEntries(next);
+          setReasons(nextReasons);
           setFailed(false);
         })
         .catch(() => {
@@ -537,7 +464,7 @@ function AuditTimelineContent() {
   return (
     <Panel title="Audit timeline" description="Read from on-chain events for your records.">
       {!session ? (
-        <p className="text-sm text-rado-slate">Unlock Rado to read your timeline.</p>
+        <p className="text-sm text-rado-slate">Sign in to read your timeline.</p>
       ) : failed ? (
         <p className="text-sm text-rado-error">Could not load your timeline.</p>
       ) : entries.length ? (
@@ -558,6 +485,11 @@ function AuditTimelineContent() {
                   Record {shortId(entry.recordId)}
                   {entry.actor ? ` · ${shortId(entry.actor)}` : ""}
                 </p>
+                {entry.title === "Emergency access used" ? (
+                  <p className="mt-1 text-xs leading-5 text-rado-ink">
+                    Reason: {reasons.get(entry.id) ?? "Not available"}
+                  </p>
+                ) : null}
               </div>
             </li>
           ))}

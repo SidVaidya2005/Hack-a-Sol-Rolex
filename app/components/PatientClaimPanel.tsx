@@ -62,7 +62,7 @@ export function PatientClaimPanel() {
       }
     >
       {!session ? (
-        <UnlockGate purpose="Sign once to receive your policy and review claim requests." />
+        <UnlockGate purpose="Sign in to receive your policy and review claim requests." />
       ) : (
         <>
           <StatusMessage message={message} />

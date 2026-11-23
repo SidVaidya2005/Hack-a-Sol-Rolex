@@ -75,6 +75,13 @@ async function main() {
     transport,
   });
 
+  // These throwaway doctors are not in the seeded directory, so the check approves them here.
+  const approvedReaders = new Set();
+  const profileAccess = {
+    hospitalIsApproved: async (wallet) => approvedReaders.has(wallet.toLowerCase()),
+    walletIsInsurer: async () => false,
+  };
+
   async function newUser() {
     const account = privateKeyToAccount(generatePrivateKey());
     await publicClient.waitForTransactionReceipt({
@@ -94,6 +101,7 @@ async function main() {
       walletClient,
       recordAccess,
       baseUrl: base,
+      profileAccess,
     });
     await service.ensureRegistered(unlocked);
     return { address: account.address, keys: unlocked, service, walletClient };
@@ -103,6 +111,8 @@ async function main() {
   const doctor = await newUser();
   const secondDoctor = await newUser();
   const stranger = await newUser();
+  approvedReaders.add(doctor.address.toLowerCase());
+  approvedReaders.add(secondDoctor.address.toLowerCase());
   const plaintext = utf8Encode(JSON.stringify(SAMPLE_RECORD));
 
   // Add record

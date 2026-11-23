@@ -1,12 +1,12 @@
 import "server-only";
 
-import { rm } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { encodeBundle, hashBundleBytes, parseBundle } from "@rado/shared";
 import { PinataSDK } from "pinata";
 
-import { MAX_BUNDLE_BYTES } from "../pin-auth";
+import { MAX_BUNDLE_BYTES, MAX_SMALL_BUNDLE_BYTES } from "../pin-auth";
 import { anchoredRecord } from "./chain";
 import { cacheRoot, readFileIfPresent, withLock, writeFileAtomic } from "./file-store";
 import { HttpError } from "./http";
@@ -130,6 +130,15 @@ async function checkAgainstChain(
   return record.bundleHash.toLowerCase() === hashBundleBytes(bytes).toLowerCase()
     ? "match"
     : "tampered";
+}
+
+/** Lets list screens skip a large file without hashing it. Its size is already public. */
+export async function isCachedBundleLarge(cid: string): Promise<boolean> {
+  try {
+    return (await stat(cacheFile(cid))).size > MAX_SMALL_BUNDLE_BYTES;
+  } catch {
+    return false;
+  }
 }
 
 /** Every read is checked against the chain, whether it came from the cache or Pinata. */

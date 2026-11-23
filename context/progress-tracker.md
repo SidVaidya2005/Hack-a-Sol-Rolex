@@ -22,13 +22,11 @@
 
 ## Current Status
 
-**Last completed:** W08 Role screens with sample data
-**Next:** W07 and W09 wait for their second-laptop checks, and W10 and W11 can start when an owner is free.
+**Last completed:** W09 Patient records and permissions
+**Next:** W10 and W11 can start when an owner is free.
 
 **Left to do now:**
 
-- **Shreyansh, W07:** routes, cache, and LAN HTTPS are built and pass `scripts/check-server-routes.mjs` on L4 against deployed contracts, with Pinata stubbed, including on Windows with Node 26 (2026-11-23). On one laptop, a real Pinata upload and gateway read matched the on-chain hash, and the same record loaded from the encrypted cache with the internet off (2026-11-23). No second laptop is available yet, so W07 stays unticked. Still to run: the same script from a real second laptop and `crypto.subtle` in that laptop's browser.
-- **Siddarth with Shreyansh, W09:** real add-record, grant, expiry, revoke with rotation, doctor view, and audit timeline are built on `w09/patient-records` and pass `scripts/check-patient-records.mjs` against the real contracts and routes, with Pinata stubbed. The full flow also passed through MetaMask on one laptop with real Pinata (2026-11-23). Still to run: the same flow with the patient on L1 and the doctor on L2. W09 stays unticked until then.
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
@@ -40,9 +38,9 @@
 - [x] W04 Trusted setup and verifier
 - [x] W05 Smart contracts and tests
 - [x] W06 Encryption and key library
-- [ ] W07 Server routes
+- [x] W07 Server routes
 - [x] W08 Role screens with sample data
-- [ ] W09 Patient records and permissions
+- [x] W09 Patient records and permissions
 - [ ] W10 Hospital claim and browser proving
 - [ ] W11 Settlement, insurer view, and end-to-end flow
 - [ ] W12 Break-glass

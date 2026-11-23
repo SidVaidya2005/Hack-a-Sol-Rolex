@@ -186,6 +186,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Verify inbox:** run the Private Message Inbox rules from a second laptop. Expected: unregistered senders, wrong recipients, reused nonces, and oversized messages are refused. A retry creates no duplicate, a message survives an app restart, acknowledgement deletes it, an expired message is removed, and server logs contain no message contents.
 
+**Result:** 2026-11-23 — A second laptop loaded the app over LAN HTTPS and used `crypto.subtle` to decrypt a record during the W09 check. The team reported that `scripts/check-server-routes.mjs` passed from that laptop, and the live chain showed its footprint: four funding transactions and three registered test wallets. That remote run covers RPC blocking, batches, path traversal, size limits, and inbox authentication. Pin success, tamper, restart, expiry, and log checks can only run on the host, and passed there in the 65-check run on Windows with Node 26 with Pinata stubbed. On the host, a real Pinata upload and gateway read matched the on-chain hash, and the same record loaded from the encrypted cache with the internet off. Decision: D-043.
+
 ### W08 Role screens with sample data
 
 **Owner:** T3. Build Patient, Hospital, Responder, Insurer, and Public Chain View with wallet connection and sample data.
@@ -226,7 +228,9 @@ An item can **start** before its dependencies are finished by building against a
 
 **Built, not yet verified across laptops:** 2026-11-23. On Windows with Node 26, 36 scripted checks passed against deployed contracts and the real routes with Pinata stubbed, covering grant, view logging, cancelled revoke, rotation, old-key failure, expiry, renewal, and the timeline. Typecheck, lint, tests, and build passed, and the page loaded in headless Chrome. MetaMask browser flows and the L1 and L2 Verify check had not run at this point.
 
-**One-laptop MetaMask pass:** 2026-11-23. With separate Patient and Doctor demo wallets in one browser and real Pinata, a manual run passed unlock, add record, patient open, grant, logged doctor view, revoke with rotation, and the refused doctor state. The chain then showed key version 2, no doctor access, one logged doctor view, and each expected audit event. The current bundle had no doctor key and no readable medical terms. All 3 pins succeeded, and the app log showed no route failures, medical text, or wallet addresses. Expiry was covered by the scripted check, not this manual run. The L1 and L2 Verify check has not run, so W09 is unticked.
+**One-laptop MetaMask pass:** 2026-11-23. With separate Patient and Doctor demo wallets in one browser and real Pinata, a manual run passed unlock, add record, patient open, grant, logged doctor view, revoke with rotation, and the refused doctor state. The chain then showed key version 2, no doctor access, one logged doctor view, and each expected audit event. The current bundle had no doctor key and no readable medical terms. All 3 pins succeeded, and the app log showed no route failures, medical text, or wallet addresses. Expiry was covered by the scripted check, not this manual run. The L1 and L2 Verify check had not run at this point.
+
+**Result:** 2026-11-23 — The patient on the host laptop and the doctor on a second laptop passed the W09 Verify flow over LAN HTTPS through MetaMask, as reported by the team. The live chain confirmed both wallets registered, one record anchored, one grant, one logged doctor view, one revoke, and one key rotation. The record is on key version 2, the doctor has no access, and the current bundle served over LAN has no doctor key or readable medical terms. Expiry is covered by `scripts/check-patient-records.mjs`, not by the two-laptop manual run. Decisions: D-047, D-048.
 
 ### W10 Hospital claim and browser proving
 

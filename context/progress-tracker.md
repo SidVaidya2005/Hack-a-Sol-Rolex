@@ -22,13 +22,12 @@
 
 ## Current Status
 
-**Last completed:** W10 Hospital claim and browser proving
-**Next:** W11 is built and its E2E script passes. It stays unticked until the flow passes across all four laptops, including the Mac.
+**Last completed:** W11 Settlement, insurer view, and end-to-end flow
+**Next:** W12 can start when an owner is free.
 
 **Left to do now:**
 
-- **W11 owners:** run the four-laptop MetaMask flow from a fresh seed, then record the result.
-- **Next rehearsal:** W08 UI polish was merged by user decision on 2026-11-23 without a real MetaMask run. Run Connect, Unlock, add record, grant, revoke, and one claim exchange, because it changed the wallet and record-service paths.
+- **Next rehearsal:** W08 UI polish changed the wallet and record-service paths. The W11 run covered Connect, Unlock, and the claim flow through MetaMask, so still run add record, grant, doctor view, and revoke on the merged version.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -43,7 +42,7 @@
 - [x] W08 Role screens with sample data
 - [x] W09 Patient records and permissions
 - [x] W10 Hospital claim and browser proving
-- [ ] W11 Settlement, insurer view, and end-to-end flow
+- [x] W11 Settlement, insurer view, and end-to-end flow
 - [ ] W12 Break-glass
 - [ ] W13 Threat model and architecture diagram
 - [ ] W14 Rehearsal, backup video, and pitch

@@ -22,12 +22,11 @@
 
 ## Current Status
 
-**Last completed:** W09 Patient records and permissions
-**Next:** W10 needs its MetaMask and three-laptop checks, and W11 can start when an owner is free.
+**Last completed:** W10 Hospital claim and browser proving
+**Next:** W11 can start when an owner is free.
 
 **Left to do now:**
 
-- **Shikhar with Siddarth, W10:** the real policy delivery, encrypted claim exchange, both signatures, and browser proof are built on `w10/hospital-proving` and pass `scripts/check-claim-exchange.mjs`. A three-context Chrome run with test wallets also passed. Still to run: the flow through MetaMask, proof time on L2, and a real third laptop for the Insurer (D-051). W10 stays unticked until then.
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
@@ -42,7 +41,7 @@
 - [x] W07 Server routes
 - [x] W08 Role screens with sample data
 - [x] W09 Patient records and permissions
-- [ ] W10 Hospital claim and browser proving
+- [x] W10 Hospital claim and browser proving
 - [ ] W11 Settlement, insurer view, and end-to-end flow
 - [ ] W12 Break-glass
 - [ ] W13 Threat model and architecture diagram

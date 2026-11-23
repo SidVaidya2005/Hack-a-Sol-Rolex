@@ -129,6 +129,9 @@ Mention these clearly in both the pitch and the threat model.
 - The L4 host cannot read inbox messages, but it can see who messaged whom and when.
 - Inbox request signatures do not cover the recipient, message ID, or acknowledged IDs, so L4 or someone altering traffic could misroute or delete messages, but could not read them (D-042).
 - The Groth16 trusted setup and all wallets are demo-grade.
+- Anyone reading the chain can see which patient wallet granted access to which doctor wallet, and when.
+- Public encrypted bundles list their readers' wallet addresses.
+- Old bundles stay on IPFS after a key rotation, so a revoked doctor can still open the old version with their old key.
 
 ## Product Decisions
 

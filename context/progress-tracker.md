@@ -22,12 +22,12 @@
 
 ## Current Status
 
-**Last completed:** W11 Settlement, insurer view, and end-to-end flow
-**Next:** W12 can start when an owner is free.
+**Last completed:** W12 Break-glass
+**Next:** W13 Threat model and architecture diagram
 
 **Left to do now:**
 
-- **Next rehearsal:** W08 UI polish changed the wallet and record-service paths. The W11 run covered Connect, Unlock, and the claim flow through MetaMask, so still run add record, grant, doctor view, and revoke on the merged version.
+- **Host setup:** after a fresh clone, run `node scripts/generate-escrow-key.mjs` once on the host, then restart the app.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -43,12 +43,13 @@
 - [x] W09 Patient records and permissions
 - [x] W10 Hospital claim and browser proving
 - [x] W11 Settlement, insurer view, and end-to-end flow
-- [ ] W12 Break-glass
+- [x] W12 Break-glass
 - [ ] W13 Threat model and architecture diagram
 - [ ] W14 Rehearsal, backup video, and pitch
 
 ## Key Decisions
 
+- **D-055 — Store the emergency summary as a separate record wrapped to escrow, and release it once per on-chain break-glass event after a MetaMask `RadoEscrowRelease` signature.** Reason: the chain must not label record types, so an escrow-wrapped key is what separates a summary from a full record, and a per-event marker on disk keeps release single-use across restarts while each new access adds a timeline entry. Accepted tradeoff: a bundle's escrow reader reveals that it is a summary, though not its contents. Source: W12 plan, user-approved 2026-11-23.
 - **D-054 — Show only live chain data on the Insurer and Public Chain screens, and leave the labeled sample walkthrough on the Patient and Hospital screens.** Reason: fake rows beside real payouts would undermine the privacy demo, and keeping the walkthrough keeps W11 small. Source: W11 plan, user-approved 2026-11-23.
 - **D-053 — Show one data status per screen, and keep "simulated" wording on every proof, payment, and attack outcome.** Reason: repeated sample labels made the product feel fake, while removing the outcome labels would imply a real proof or payment happened (D-044). Accepted tradeoff: W10 and W11 must change each screen's status as its data becomes real. Source: W08 UI polish, user-approved 2026-11-23.
 - **D-052 — Add a signed, encrypted `claim-decline` inbox message from the patient to the hospital.** Reason: without it, the Hospital keeps showing Awaiting patient after a decline. The signature stops anyone else from cancelling a claim. Accepted tradeoff: this adds one shared message type, so affected owners must be told. Source: W10 two-laptop test, user-approved 2026-11-23.
@@ -58,8 +59,6 @@
 - **D-048 — Let patients choose a doctor from wallets registered on-chain.** Reason: this avoids copying addresses between laptops during the demo. Accepted tradeoff: the list shows short addresses without names, so the patient must confirm the right wallet. Source: W09 plan, user-approved 2026-11-23.
 - **D-047 — Give the browser contract addresses through a read-only `GET /api/contracts` route.** Reason: the addresses live in a git-ignored server file and are already public on-chain, and a route lets a fresh seed work without a rebuild. Source: W09 plan, user-approved 2026-11-23.
 - **D-046 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
-- **D-045 — Keep coverage and per-claim limit checks on the Patient screen, and show the Hospital the limit only after approval.** Reason: the hospital must not learn the patient's wider coverage (D-032), and it receives policy terms only in the approval message. Accepted tradeoff: an invalid request reaches the patient before it is stopped, and the patient must decline it. Source: W08 interactive pass, Slice 3, user-approved direction 2026-11-23.
-
 ## Open Questions
 
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.

@@ -1,6 +1,6 @@
 "use client";
 
-import { SAMPLE_RECORD, utf8Encode } from "@rado/shared";
+import { SAMPLE_EMERGENCY_SUMMARY, SAMPLE_RECORD, utf8Encode } from "@rado/shared";
 import type { Address, Hex32 } from "@rado/shared";
 import { useEffect, useState } from "react";
 
@@ -29,11 +29,13 @@ const STATUS_TONE = { Active: "success", Expired: "neutral", Revoked: "warning" 
 
 function RecordRow({
   record,
+  emergency,
   wallets,
   busy,
   onRun,
 }: {
   record: PatientRecord;
+  emergency: boolean;
   wallets: Address[];
   busy: string;
   onRun: (id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) => Promise<void>;
@@ -57,11 +59,14 @@ function RecordRow({
           <Icon name="file" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-base text-rado-ink">Encrypted record {shortId(recordId)}</p>
+          <p className="text-base text-rado-ink">
+            {emergency ? "Emergency summary" : "Encrypted record"} {shortId(recordId)}
+          </p>
           <p className="mt-0.5 font-mono text-xs text-rado-slate">
             Key version {keyVersion.toString()}
           </p>
         </div>
+        {emergency ? <Badge tone="warning">Break-glass enabled</Badge> : null}
         <button
           className="button-pill-outline disabled:opacity-50"
           disabled={locked}
@@ -196,6 +201,7 @@ function PatientRecordsContent() {
   const { session, revision, refresh } = useRecordSession();
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [wallets, setWallets] = useState<Address[]>([]);
+  const [summaryIds, setSummaryIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState("");
   const [walletPrompt, setWalletPrompt] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -221,6 +227,21 @@ function PatientRecordsContent() {
     };
   }, [session, revision]);
 
+  // Separate and unpolled, so an escrow problem can never affect records or the claim flow.
+  useEffect(() => {
+    if (!session) return;
+    let current = true;
+    session.service
+      .emergencySummaryIds()
+      .then((ids) => {
+        if (current) setSummaryIds(ids);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [session, revision]);
+
   async function run(id: string, action: (onPrompt: WalletPromptHandler) => Promise<string>) {
     setBusy(id);
     setMessage(null);
@@ -242,24 +263,47 @@ function PatientRecordsContent() {
       description="Encrypted in this browser. You choose who can read them and for how long."
       action={
         session ? (
-          <button
-            className="button-primary whitespace-nowrap disabled:opacity-50"
-            disabled={Boolean(busy)}
-            onClick={() =>
-              void run("add", async (onPrompt) => {
-                await session.service.addRecord(
-                  session.keys,
-                  utf8Encode(JSON.stringify(SAMPLE_RECORD)),
-                  onPrompt,
-                );
-                return "Synthetic record encrypted, stored, and anchored on-chain.";
-              })
-            }
-            type="button"
-          >
-            <Icon name="plus" className="size-4" />
-            {busy === "add" ? "Adding…" : "Add synthetic record"}
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              className="button-pill-outline whitespace-nowrap disabled:opacity-50"
+              disabled={Boolean(busy) || summaryIds.size > 0}
+              onClick={() =>
+                void run("add-summary", async (onPrompt) => {
+                  await session.service.addEmergencySummary(
+                    session.keys,
+                    utf8Encode(JSON.stringify(SAMPLE_EMERGENCY_SUMMARY)),
+                    onPrompt,
+                  );
+                  return "Emergency summary encrypted. Only this summary can be released in an emergency.";
+                })
+              }
+              type="button"
+            >
+              {busy === "add-summary"
+                ? "Adding…"
+                : summaryIds.size > 0
+                  ? "Emergency summary added"
+                  : "Add emergency summary"}
+            </button>
+            <button
+              className="button-primary whitespace-nowrap disabled:opacity-50"
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void run("add", async (onPrompt) => {
+                  await session.service.addRecord(
+                    session.keys,
+                    utf8Encode(JSON.stringify(SAMPLE_RECORD)),
+                    onPrompt,
+                  );
+                  return "Synthetic record encrypted, stored, and anchored on-chain.";
+                })
+              }
+              type="button"
+            >
+              <Icon name="plus" className="size-4" />
+              {busy === "add" ? "Adding…" : "Add synthetic record"}
+            </button>
+          </div>
         ) : null
       }
     >
@@ -272,6 +316,7 @@ function PatientRecordsContent() {
               {records.map((record) => (
                 <RecordRow
                   busy={busy}
+                  emergency={summaryIds.has(record.recordId)}
                   key={record.recordId}
                   onRun={run}
                   record={record}

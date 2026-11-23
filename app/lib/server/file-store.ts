@@ -67,6 +67,25 @@ export async function readFileIfPresent(file: string): Promise<Buffer | null> {
   }
 }
 
+/** A permanent single-use marker. It survives a restart and is never pruned. */
+export async function claimOnce(scope: string, id: string): Promise<boolean> {
+  if (!NONCE_FILE.test(id)) throw new Error("Invalid marker");
+  const directory = path.join(cacheRoot, scope);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  try {
+    const handle = await open(path.join(directory, id), "wx", 0o600);
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw error;
+  }
+}
+
 async function pruneNonces(directory: string, now: number): Promise<void> {
   if (now * 1000 - (shared.__radoNoncePrunedAt ?? 0) < NONCE_PRUNE_MS) return;
   shared.__radoNoncePrunedAt = now * 1000;

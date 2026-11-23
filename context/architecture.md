@@ -87,7 +87,7 @@ Use this table as a placement rule: before adding data, identify where it will l
 3. **Encrypt:** each record gets a random AES-256-GCM key and a fresh 96-bit IV for every encryption. The on-chain bundle hash is keccak256 of the exact pinned JSON bytes.
 4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM, with AAD `rado/wrap/v1 || recordId || reader` (D-041). The record ciphertext uses `recordId` as AAD. A grant adds a wrapped key, so `grantAccess` also updates the bundle hash and CID (D-031).
 5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
-6. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event.
+6. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
 
 ## ZK Claim Circuit
 
@@ -152,7 +152,8 @@ All routes run on L4 and share the app's HTTPS origin.
 | `GET /api/contracts` | Return the public RecordAccess, ClaimSettlement, and MockUSD addresses (D-047) | Same origin, read-only |
 | `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
-| `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder signature, single use |
+| `GET /api/escrow/release` | Return the escrow public key for wrapping a summary | Same origin, read-only |
+| `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder's `RadoEscrowRelease` signature, escrow-wrapped record, single use per event across restarts (D-055) |
 | `POST /api/inbox` | Store one encrypted message | Registered sender and recipient, fresh request signature, size and pending limits |
 | `POST /api/inbox/list` | Return the caller's pending messages | Fresh recipient request signature |
 | `POST /api/inbox/ack` | Delete messages after successful decryption | Fresh recipient request signature |

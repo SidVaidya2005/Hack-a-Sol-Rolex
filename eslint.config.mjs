@@ -8,6 +8,7 @@ export default defineConfig([
   { settings: { next: { rootDir: "app/" } } },
   globalIgnores([
     "**/.next/**",
+    "**/.next-e2e/**",
     "**/next-env.d.ts",
     "contracts/artifacts/**",
     "contracts/cache/**",

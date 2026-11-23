@@ -11,14 +11,24 @@ import {
   unwrapRecordKey,
   utf8Decode,
 } from "@rado/shared";
-import type { Address, EncryptedBundle, Hex32, RecordReader, UnlockedKeys } from "@rado/shared";
+import type {
+  Address,
+  EncryptedBundle,
+  Hex32,
+  RecordReader,
+  UnlockedKeys,
+  WrappedRecordKey,
+} from "@rado/shared";
 import {
   BaseError,
   bytesToHex,
   ContractFunctionRevertedError,
   getContract,
   hexToBytes,
+  isHex,
   parseAbi,
+  parseEventLogs,
+  size,
   UserRejectedRequestError,
   zeroAddress,
 } from "viem";
@@ -31,10 +41,12 @@ import type {
   WalletClient,
 } from "viem";
 
+import { escrowReaderAddress, escrowReleaseTypedData } from "./escrow-auth.ts";
 import { pinTypedData } from "./pin-auth.ts";
 
 const abi = parseAbi(recordAccessAbi);
 const PIN_AUTH_TTL_SECONDS = 180;
+const ESCROW_AUTH_TTL_SECONDS = 180;
 const SECONDS_PER_DAY = 86_400;
 
 export type RecordAccount = JsonRpcAccount | LocalAccount;
@@ -81,6 +93,19 @@ export interface RecordServiceConfig {
   recordAccess: Address;
   /** Empty in the browser, where routes share the page's origin. */
   baseUrl?: string;
+  /** Set only by the E2E script, so a test run never uploads to Pinata. */
+  storeBundle?: (bundle: EncryptedBundle) => Promise<{ bundleHash: Hex32; cid: string }>;
+}
+
+export interface EmergencySummaryRecord {
+  recordId: Hex32;
+  patient: Address;
+}
+
+export interface EmergencySummaryItem {
+  id: string;
+  label: string;
+  value: string;
 }
 
 /** Called just before each wallet popup, so the screen can say what the popup is for. */
@@ -91,6 +116,10 @@ const CHAIN_PROMPT = "Step 2 of 2: confirm the on-chain update in your wallet.";
 const SINGLE_CHAIN_PROMPT = "Confirm the on-chain update in your wallet.";
 const VIEW_PROMPT = "Confirm the on-chain view log in your wallet.";
 const REGISTER_PROMPT = "Approve registering your public keys in your wallet.";
+const BREAK_GLASS_PROMPT =
+  "Step 1 of 2: confirm the permanent emergency access log in your wallet.";
+const RELEASE_PROMPT = "Step 2 of 2: sign the request to release the emergency summary.";
+const ESCROW_UNAVAILABLE = "Emergency access is not set up on the host.";
 
 /** An error whose message is already safe and plain enough to show a user. */
 export class RecordError extends Error {}
@@ -106,6 +135,7 @@ const REVERT_MESSAGES: Record<string, string> = {
   KeysNotRegistered: "That wallet has not unlocked Rado yet.",
   NotInsurer: "Only the insurer wallet can do this.",
   NotRecordPatient: "Only the patient can change access to this record.",
+  NotResponder: "This wallet is not a registered emergency responder.",
   NullifierAlreadyUsed: "This claim was already submitted.",
   PolicyAlreadyRegistered: "This policy is already registered.",
   RecordAlreadyExists: "This record already exists. Try again.",
@@ -185,11 +215,47 @@ export function describeRecord(bytes: Uint8Array): RecordItem[] {
   });
 }
 
+/** Shows only the emergency fields, even if a summary holds other resource types. */
+export function describeEmergencySummary(bytes: Uint8Array): EmergencySummaryItem[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(utf8Decode(bytes));
+  } catch {
+    throw new RecordError("This emergency summary could not be read.");
+  }
+  const entries = (value as { entry?: unknown } | null)?.entry;
+  if (!Array.isArray(entries)) throw new RecordError("This emergency summary could not be read.");
+  return entries.flatMap((entry: unknown, index): EmergencySummaryItem[] => {
+    const resource = ((entry as { resource?: unknown } | null)?.resource ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const id = typeof resource.id === "string" ? resource.id : `item-${index}`;
+    const code = textOf(resource.code);
+    if (resource.resourceType === "Patient" && Array.isArray(resource.name)) {
+      const name = textOf(resource.name[0]);
+      return name ? [{ id, label: "Patient", value: name }] : [];
+    }
+    if (resource.resourceType === "AllergyIntolerance" && code) {
+      return [{ id, label: "Allergy", value: code }];
+    }
+    if (
+      resource.resourceType === "Observation" &&
+      code &&
+      typeof resource.valueString === "string"
+    ) {
+      return [{ id, label: code, value: resource.valueString }];
+    }
+    return [];
+  });
+}
+
 export function createRecordService({
   publicClient,
   walletClient,
   recordAccess,
   baseUrl = "",
+  storeBundle,
 }: RecordServiceConfig) {
   const contract = getContract({
     address: recordAccess,
@@ -199,6 +265,8 @@ export function createRecordService({
   // viem cannot infer simulate types for an account union. The real object is passed unchanged.
   const account = walletClient.account as JsonRpcAccount;
   const self = account.address;
+  /** A confirmed event whose release did not finish, so a retry does not log a second one. */
+  const pendingBreakGlass = new Map<Hex32, { transactionHash: Hex32; logIndex: number }>();
 
   async function confirmed(hash: Hex32): Promise<void> {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -250,7 +318,60 @@ export function createRecordService({
     return { patient, bundle, bundleHash, cid, keyVersion };
   }
 
+  /** The escrow reader label is recomputed here instead of trusting the server's. */
+  async function escrowReader(): Promise<RecordReader> {
+    const response = await fetch(`${baseUrl}/api/escrow/release`, { cache: "no-store" });
+    const body = (await response.json().catch(() => null)) as { publicKey?: unknown } | null;
+    const publicKey = body?.publicKey;
+    if (!response.ok || typeof publicKey !== "string" || !isHex(publicKey)) {
+      throw new RecordError(ESCROW_UNAVAILABLE);
+    }
+    if (size(publicKey) !== 32) throw new RecordError(ESCROW_UNAVAILABLE);
+    const x25519PublicKey = hexToBytes(publicKey);
+    return { address: escrowReaderAddress(x25519PublicKey), x25519PublicKey };
+  }
+
+  async function anchorNewRecord(
+    plaintext: Uint8Array,
+    readers: RecordReader[],
+    onPrompt?: WalletPromptHandler,
+  ): Promise<Hex32> {
+    const recordId = randomHex32();
+    const { bundle } = await encryptRecord({ recordId, plaintext, readers });
+    onPrompt?.(UPLOAD_PROMPT);
+    const { bundleHash, cid } = await pin(bundle);
+    const { request } = await contract.simulate.anchorRecord([recordId, bundleHash, cid], {
+      account,
+    });
+    onPrompt?.(CHAIN_PROMPT);
+    await confirmed(await walletClient.writeContract(request));
+    return recordId;
+  }
+
+  /** Newest first. A bundle that cannot be loaded is skipped, not treated as a summary. */
+  async function summaryRecords(patient?: Address): Promise<EmergencySummaryRecord[]> {
+    const escrow = await escrowReader();
+    const anchors = await contract.getEvents.RecordAnchored(patient ? { patient } : {}, {
+      fromBlock: 0n,
+    });
+    const found = await Promise.all(
+      anchors.map(async ({ args }): Promise<EmergencySummaryRecord | null> => {
+        if (!args.recordId || !args.patient) return null;
+        try {
+          const { bundle } = await loadBundle(args.recordId);
+          return bundle.wrappedKeys.some((entry) => sameAddress(entry.reader, escrow.address))
+            ? { recordId: args.recordId, patient: args.patient }
+            : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return found.filter((item) => item !== null).reverse();
+  }
+
   async function pin(bundle: EncryptedBundle): Promise<{ bundleHash: Hex32; cid: string }> {
+    if (storeBundle) return storeBundle(bundle);
     const bytes = encodeBundle(bundle);
     const bundleHash = hashBundleBytes(bytes);
     const nonce = randomHex32();
@@ -318,20 +439,109 @@ export function createRecordService({
       plaintext: Uint8Array,
       onPrompt?: WalletPromptHandler,
     ): Promise<Hex32> {
-      const recordId = randomHex32();
-      const { bundle } = await encryptRecord({
-        recordId,
+      return anchorNewRecord(
         plaintext,
-        readers: [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
-      });
-      onPrompt?.(UPLOAD_PROMPT);
-      const { bundleHash, cid } = await pin(bundle);
-      const { request } = await contract.simulate.anchorRecord([recordId, bundleHash, cid], {
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }],
+        onPrompt,
+      );
+    },
+
+    /** The only path that wraps a record key to escrow (Invariant 14). */
+    async addEmergencySummary(
+      keys: UnlockedKeys,
+      plaintext: Uint8Array,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<Hex32> {
+      const escrow = await escrowReader();
+      return anchorNewRecord(
+        plaintext,
+        [{ address: self, x25519PublicKey: keys.x25519PublicKey }, escrow],
+        onPrompt,
+      );
+    },
+
+    async emergencySummaryIds(): Promise<Set<string>> {
+      const records = await summaryRecords(self);
+      return new Set(records.map(({ recordId }) => recordId));
+    },
+
+    /** One entry per patient, using that patient's newest summary. */
+    async listEmergencyPatients(): Promise<EmergencySummaryRecord[]> {
+      const latest = new Map<string, EmergencySummaryRecord>();
+      for (const record of await summaryRecords()) {
+        const key = record.patient.toLowerCase();
+        if (!latest.has(key)) latest.set(key, record);
+      }
+      return [...latest.values()];
+    },
+
+    isResponder(): Promise<boolean> {
+      return contract.read.isResponder([self]);
+    },
+
+    /** Logs the access on-chain first, then asks escrow for this responder's copy of the key. */
+    async openEmergencySummary(
+      keys: UnlockedKeys,
+      { patient, recordId }: EmergencySummaryRecord,
+      onPrompt?: WalletPromptHandler,
+    ): Promise<EmergencySummaryItem[]> {
+      let event = pendingBreakGlass.get(recordId);
+      if (!event) {
+        const { request } = await contract.simulate.invokeBreakGlass([patient, recordId], {
+          account,
+        });
+        onPrompt?.(BREAK_GLASS_PROMPT);
+        const transactionHash = await walletClient.writeContract(request);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash });
+        const [log] = parseEventLogs({ abi, logs: receipt.logs, eventName: "BreakGlassInvoked" });
+        if (receipt.status !== "success" || !log) {
+          throw new RecordError("The transaction failed. Nothing was changed.");
+        }
+        event = { transactionHash, logIndex: log.logIndex };
+        pendingBreakGlass.set(recordId, event);
+      }
+
+      const expiresAt = Math.floor(Date.now() / 1000) + ESCROW_AUTH_TTL_SECONDS;
+      onPrompt?.(RELEASE_PROMPT);
+      const signature = await walletClient.signTypedData({
         account,
+        ...escrowReleaseTypedData({
+          wallet: self,
+          recordId,
+          ...event,
+          expiresAt: BigInt(expiresAt),
+        }),
       });
-      onPrompt?.(CHAIN_PROMPT);
-      await confirmed(await walletClient.writeContract(request));
-      return recordId;
+      const response = await fetch(`${baseUrl}/api/escrow/release`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ wallet: self, recordId, ...event, expiresAt, signature }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        wrappedKey?: unknown;
+        error?: unknown;
+      } | null;
+      if (!response.ok) {
+        // These refusals are final for this event. Other failures can retry it.
+        if (response.status === 403 || response.status === 409) {
+          pendingBreakGlass.delete(recordId);
+        }
+        throw new RecordError(
+          typeof body?.error === "string" ? body.error : "The emergency summary was not released.",
+        );
+      }
+      pendingBreakGlass.delete(recordId);
+
+      const { bundle } = await loadBundle(recordId);
+      try {
+        const released = parseBundle(
+          encodeBundle({ ...bundle, wrappedKeys: [body?.wrappedKey as WrappedRecordKey] }),
+        );
+        return describeEmergencySummary(await decryptRecord(released, self, keys.x25519SecretKey));
+      } catch (error) {
+        if (error instanceof RecordError) throw error;
+        throw new RecordError("This emergency summary could not be opened.");
+      }
     },
 
     /** A new reader changes the bundle. A returning reader who still has a key does not. */
@@ -384,9 +594,14 @@ export function createRecordService({
           remaining.push({ address, x25519PublicKey: keys.x25519PublicKey });
           continue;
         }
+        const expiry = await contract.read.accessExpiry([recordId, address]);
         // A reader whose grant has ended gets no copy of the new key.
-        if ((await contract.read.accessExpiry([recordId, address])) > now) {
+        if (expiry > now) {
           remaining.push(await readerKey(address));
+        } else if (expiry === 0n) {
+          // Only escrow is in a bundle without ever having a grant. Keep its emergency copy.
+          const escrow = await escrowReader();
+          if (sameAddress(address, escrow.address)) remaining.push(escrow);
         }
       }
       const recordKey = await ownRecordKey(loaded.bundle, keys);

@@ -138,7 +138,7 @@ Function, event, and error signatures are in `packages/shared/src/abi.ts`.
 
 **Insurer-only calls (D-040):** `MockUSD.mint`, `ClaimSettlement.registerPolicy`, and `ClaimSettlement.updateHospitalRoot` accept only the insurer wallet set at deployment, and otherwise revert with `NotInsurer`.
 
-**Responder approval (D-056):** `RecordAccess.setResponder` accepts only a separate responder-admin wallet set at deployment, and otherwise reverts with `NotResponderAdmin`. Deployment refuses to use the insurer wallet for this role.
+**Responder approval (D-056):** `RecordAccess.setResponder` accepts only a separate responder-admin wallet set at deployment, and otherwise reverts with `NotResponderAdmin`. Deployment refuses to use the insurer wallet for this role. The seed uses a throwaway admin key that is never saved, so adding a responder later needs a reseed.
 
 `ClaimSettlement.submitClaim` checks, in order: amount above zero, payout address fits 160 bits (D-030), registered policy, current hospital root, unused nullifier, claim day not before the policy's registration day (D-026), not in the future, and at most `MAX_CLAIM_AGE_DAYS` (30) days old, total cap, valid proof. It then records the nullifier and paid total before transferring tokens.
 
@@ -266,6 +266,7 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-042 — Keep the documented inbox request digest, which does not sign `recipient`, `messageId`, or acknowledged IDs.** Reason: changing it would change a documented crypto rule, and AES-GCM AAD still stops an altered message from being read as genuine. Accepted tradeoff: a party able to alter a request in transit, including L4, could misroute a send or change which messages are deleted, but could not read them. Source: W06 plan, user-approved 2026-11-23.
 - **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
 - **D-046 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
+- **D-047 — Give the browser contract addresses through a read-only `GET /api/contracts` route.** Reason: the addresses live in a git-ignored server file and are already public on-chain, and a route lets a fresh seed work without a rebuild. Source: W09 plan, user-approved 2026-11-23.
 
 ## Code Standards
 

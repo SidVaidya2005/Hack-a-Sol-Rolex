@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { network } from "hardhat";
-import { keccak256, stringToHex, zeroHash } from "viem";
+import { keccak256, stringToHex, zeroAddress, zeroHash } from "viem";
 import { MAX_CLAIM_AGE_DAYS, SECONDS_PER_DAY } from "@rado/shared";
-import { contractsDir, resolveVerifier } from "../scripts/deploy.ts";
+import { contractsDir, deployRado, resolveVerifier } from "../scripts/deploy.ts";
 
 const { viem, networkHelpers } = await network.create();
 const { assertions } = viem;
@@ -286,6 +286,19 @@ describe("submitClaim", () => {
 });
 
 describe("RecordAccess", () => {
+  it("refuses a zero responder admin", async () => {
+    await assert.rejects(viem.deployContract("RecordAccess", [zeroAddress]), /NotResponderAdmin/);
+  });
+
+  it("refuses to deploy with the insurer as responder admin", async () => {
+    const [insurer] = await viem.getWalletClients();
+    const wallet = insurer.account.address;
+    await assert.rejects(
+      deployRado(null as never, null as never, wallet, wallet, null as never),
+      /must be different wallets/,
+    );
+  });
+
   it("audits key registration and anchoring", async () => {
     const { access, stranger, id, hash } = await networkHelpers.loadFixture(recordFixture);
     await assertions.emit(

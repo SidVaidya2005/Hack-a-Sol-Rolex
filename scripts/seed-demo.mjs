@@ -23,15 +23,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const walletFile = join(contractsDir, ".env.demo-wallets");
 const deploymentFile = join(contractsDir, "deployments", "localhost.json");
 const rpcUrl = "http://127.0.0.1:8545";
-const roles = [
-  "deployer",
-  "insurer",
-  "patient",
-  "hospital",
-  "doctor",
-  "responder",
-  "responderAdmin",
-];
+const roles = ["deployer", "insurer", "patient", "hospital", "doctor", "responder"];
 const publicHardhatMnemonic = "test test test test test test test test test test test junk";
 
 function keyName(role) {
@@ -97,7 +89,9 @@ async function main() {
   if (verifier.placeholder)
     console.warn("[seed] PLACEHOLDER VERIFIER. Never rehearse or demo this.");
 
-  for (const account of Object.values(accounts)) {
+  // Lives only in this process and is never saved, so no demo laptop can appoint a responder (D-056).
+  const responderAdmin = privateKeyToAccount(generatePrivateKey());
+  for (const account of [...Object.values(accounts), responderAdmin]) {
     await publicClient.request({
       method: "hardhat_setBalance",
       params: [account.address, `0x${parseEther("100").toString(16)}`],
@@ -109,7 +103,7 @@ async function main() {
     publicClient,
     walletFor(accounts.deployer),
     accounts.insurer.address,
-    accounts.responderAdmin.address,
+    responderAdmin.address,
     verifier,
   );
 
@@ -127,7 +121,7 @@ async function main() {
     addresses.claimSettlement,
     SAMPLE_POLICY.totalCap,
   ]);
-  const responderHash = await walletFor(accounts.responderAdmin).writeContract({
+  const responderHash = await walletFor(responderAdmin).writeContract({
     address: addresses.recordAccess,
     abi: parseAbi(recordAccessAbi),
     functionName: "setResponder",

@@ -255,6 +255,11 @@ An item can **start** before its dependencies are finished by building against a
 
 **Decline follow-up:** 2026-11-23 — D-052 closed that gap. Through MetaMask across the three laptops, as reported by the team, the Patient declined an uncovered procedure and the Hospital changed to Declined by patient with no resend or proof action. Stored inbox data held no readable claim fields. Forged and wrong-wallet declines, and approvals after a decline, are covered by `scripts/check-claim-exchange.mjs`.
 
+**Decisions moved from Key Decisions:**
+
+- **D-051 — Test W10 with the Insurer in a separate Chrome profile on the host, but leave W10 unticked until a real third laptop runs it.** Reason: the team has two laptops now, and W10's Verify names separate Insurer, Patient, and Hospital laptops. Source: W10 plan, user-approved 2026-11-23.
+- **D-050 — Include minimal approve-hospital and register-policy actions on the Insurer screen in W10.** Reason: policy delivery cannot work until a hospital is approved and a policy is registered, and those actions are needed in the demo. Source: W10 plan, user-approved 2026-11-23.
+
 ### W11 Settlement, insurer view, and end-to-end flow
 
 **Owner:** T2 and T3. Connect the contract's `submitClaim` function, token payout, Insurer screen, Public Chain View, and the scripted end-to-end (E2E) run.
@@ -306,6 +311,20 @@ An item can **start** before its dependencies are finished by building against a
 **Built, not yet verified through MetaMask:** 2026-11-23. On Windows with Node 26, all 46 E2E checks passed, including 12 new sharing checks. The 68 shared and 35 contract tests, typecheck, lint, format check, and production build also passed. On a separate temporary chain, the updated seed created the `lab` and `pharmacy` wallets, `GET /api/providers` listed only provider wallets, and all 36 `scripts/check-patient-records.mjs` checks passed with bundles stored in a local cache. The screens through MetaMask and a real Pinata upload had not been run at this point.
 
 **Result:** 2026-11-23 — The W15 flow passed through MetaMask over the LAN from a fresh seed, as reported by the team, with LA as the host and Patient and LB running the provider wallets. The live chain confirmed separate pharmacy and lab copies, each granted, opened with a logged view, and revoked with a key rotation, and the 51 cached bundles hold no readable record text. The lab was granted after the pharmacy revokes, so the chain does not show a lab view following a pharmacy revoke. That independence, and the refusal of each provider opening the other's copy or the source record, are covered by `npm run e2e`, which has run only on Windows. Decisions: D-058, D-059.
+
+### W16 Patient document upload
+
+**Owner:** team. Branch: `w16/document-upload`. Let a patient upload a PDF, PNG, or JPG of at most 750 KB, view it in the app, and share it whole with approved provider types. Doctor uploads and OCR are out of scope.
+
+**Verify:** through MetaMask with real Pinata, the patient uploads a demo lab report and opens it. Expected: it can be shared with the lab, is not offered to the pharmacy, opens for the lab only after a logged view with no Download button, and stops opening after revoke. The Public Chain View shows no file name or contents.
+
+**Plan:** `packages/shared/src/record-document.ts` defines the binary payload, content-based type checks, and category rules. `app/lib/record-service.ts` adds `addDocument`, `openRecord`, and `recordInfos`, and reuses verified ciphertext within a session. `DocumentUploadForm` and `DocumentViewer` hold the screens. `scripts/generate-demo-documents.mjs` writes the synthetic PDFs. No contract, ABI, circuit, server route, or reseed change. Decisions: D-060, D-061.
+
+**Built, not yet verified through MetaMask:** 2026-11-24. On Windows with Node 26, all 65 E2E checks passed, including 19 new document checks. The 77 shared tests, 35 contract tests, and 36 patient-record checks on a temporary chain also passed. In headless Chrome, the real viewer rendered a PDF and PNG, zoomed, and cleared on close, a PDF with an embedded script did not run it, and no request left the app. With five maximum-size documents, the Patient screen took about 5.4 seconds on first load and 0.8 seconds on repeat under the E2E's dev server. The upload form, a real Pinata upload, and the flow across two laptops have not been run.
+
+**Retired decision:**
+
+- **D-062 — Extract document data in the viewer's browser with PDF.js text or self-hosted Tesseract OCR, and never upload or save it.** Reason: the user asked for local OCR with no extracted data on a server. Source: user request, W16, 2026-11-24. Retired the same day because the user asked to remove OCR, so D-060 stands and the viewer shows only the original file.
 
 ## Workflow Decisions
 

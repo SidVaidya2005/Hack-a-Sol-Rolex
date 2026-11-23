@@ -95,3 +95,9 @@ Rado is a hackathon prototype. It uses synthetic patient data, mock tokens, a lo
 
 18. Anyone with the off-chain provider directory can match a public grant to a provider type, such as a pharmacy, but cannot read what was shared (D-059).
 19. A pharmacy may infer a condition from a prescription, because field filtering cannot hide what a medicine implies (D-058).
+
+**Added by W16, awaiting team review:**
+
+20. An uploaded document is shared whole, so a provider can read everything in that file. Category limits are app-level and a modified client could bypass them (D-061).
+21. The PDF viewer parses untrusted files on a page that holds unlocked keys, and the app has no Content Security Policy. File checks, a pinned PDF.js version, and disabled annotations reduce this risk but do not remove it (D-061).
+22. A document's encrypted size is visible to anyone who can fetch its bundle, and Rado cannot detect a real medical document (D-060).

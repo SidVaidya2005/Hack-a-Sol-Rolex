@@ -42,7 +42,7 @@
 | Wallet client | wagmi, viem, TanStack Query | `^3.7.11`, `^2.58.4`, `^5.108.2` | Wallet connection and contract calls |
 | Storage | Pinata (IPFS) | `pinata ^2.7.0` | Encrypted record bundles |
 | Browser crypto | WebCrypto, `@noble/curves`, `@noble/hashes` | `^2.4.0`, `^2.4.0` | AES-GCM, X25519, HKDF |
-| Styling | Tailwind CSS | `^4.3.5` | Interface styling |
+| Document viewer | PDF.js (`pdfjs-dist`) | `6.5.438` exact | Renders decrypted PDFs to a canvas || Styling | Tailwind CSS | `^4.3.5` | Interface styling |
 | Tests | Hardhat node test runner, circom_tester | Hardhat range, `^0.0.24` | Contract and circuit rejection tests |
 | Formatter and linter | Prettier, ESLint, eslint-config-next | `^3.10.1`, `^9.39.5`, `^16.4.6` | Formatting and code checks (D-035) |
 | Deployment | L4 laptop on local network over HTTPS | n/a | Demo host |
@@ -88,7 +88,8 @@ Use this table as a placement rule: before adding data, identify where it will l
 4. **Share:** the record key is wrapped separately for each approved reader using an ephemeral X25519 key, HKDF, and AES-GCM, with AAD `rado/wrap/v1 || recordId || reader` (D-041). The record ciphertext uses `recordId` as AAD. A grant adds a wrapped key, so `grantAccess` also updates the bundle hash and CID (D-031).
 5. **Revoke:** the patient's browser creates a new key, re-encrypts, re-pins, and re-wraps for remaining readers. One `revokeAndRotate` transaction removes access and updates the on-chain hash and CID (D-031).
 6. **Limited share:** for a lab or pharmacy, the patient's browser rebuilds an allowlisted copy as a new record with its own key, then grants that copy. The source record gains no provider key (D-058).
-7. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
+7. **Patient document:** the file, name, type, and category are one encrypted record payload. It is shared whole, only with its category's provider types (D-060, D-061).
+8. **Break-glass:** only the emergency summary's key is also wrapped to the escrow public key. Escrow re-wraps it to a registered responder after verifying an on-chain `BreakGlassInvoked` event. The summary is a separate record, and a key rotation keeps its escrow copy (D-055).
 
 ## ZK Claim Circuit
 
@@ -271,6 +272,7 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-047 — Give the browser contract addresses through a read-only `GET /api/contracts` route.** Reason: the addresses live in a git-ignored server file and are already public on-chain, and a route lets a fresh seed work without a rebuild. Source: W09 plan, user-approved 2026-11-23.
 - **D-048 — Let patients choose a doctor from wallets registered on-chain.** Reason: this avoids copying addresses between laptops during the demo. Accepted tradeoff: the list shows short addresses without names, so the patient must confirm the right wallet. Source: W09 plan, user-approved 2026-11-23.
 - **D-049 — Derive each policy salt from the Insurer's unlocked EdDSA seed and the patient wallet with keccak256 and the tag `rado/policy-salt/v1`.** Reason: private terms cannot be stored in readable form, and this lets the Insurer rebuild and resend them after a refresh. Accepted tradeoff: each patient has one demo policy per insurer key. Source: W10 plan, user-approved 2026-11-23.
+- **D-052 — Add a signed, encrypted `claim-decline` inbox message from the patient to the hospital.** Reason: without it, the Hospital keeps showing Awaiting patient after a decline. The signature stops anyone else from cancelling a claim. Accepted tradeoff: this adds one shared message type, so affected owners must be told. Source: W10 two-laptop test, user-approved 2026-11-23.
 
 ## Code Standards
 

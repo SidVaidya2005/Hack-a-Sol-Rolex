@@ -48,6 +48,7 @@ All entries were checked on 2026-11-22 using Context7 and the npm registry. Lock
 | `server-only` | `^0.0.1` | `0.0.1` | Next.js docs |
 | `@types/node` | `^26.6.6` | `26.6.6` | npm registry |
 | `@types/react`, `@types/react-dom` | `^19.3.0` | `19.3.0` | npm registry |
+| `pdfjs-dist` | `6.5.438` exact | `6.5.438` | npm registry and the package's bundled types, W16 |
 
 TypeScript stays on 5.9 rather than the newer 7.x because this project's tools have not been checked for compatibility with 7.x.
 
@@ -230,6 +231,27 @@ const wrapKey = hkdf(sha256, shared, salt, new TextEncoder().encode("rado/wrap/v
 ```
 
 Use WebCrypto `AES-GCM` for record encryption and key wrapping. `crypto.subtle` is available only on a secure origin such as HTTPS.
+
+## PDF.js
+
+Context7 was not available when W16 was built, so this usage comes from the installed package's types and was checked by rendering the demo PDFs in Chrome.
+
+```ts
+const pdfjs = await import("pdfjs-dist");
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+const task = pdfjs.getDocument({ data: bytes.slice(), enableXfa: false, stopAtErrors: true });
+const page = await (await task.promise).getPage(1);
+await page.render({
+  canvas,
+  viewport: page.getViewport({ scale: 1.5 }),
+  annotationMode: pdfjs.AnnotationMode.DISABLE,
+}).promise;
+```
+
+**Rules:** import it only in the browser, pass a copy of the bytes because the worker takes ownership of the buffer, keep annotations off so a file's links and forms never render, and keep the version pinned because this code parses untrusted files.
 
 ## Tailwind CSS
 

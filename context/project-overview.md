@@ -31,7 +31,7 @@ Today, hospitals often have to show insurers diagnoses, prescriptions, and treat
 
 ## Screens
 
-- **Patient** — view records, grant or revoke doctor access, approve a specific claim, read the audit timeline.
+- **Patient** — view records, upload demo PDF, PNG, or JPG documents, grant or revoke doctor access, approve a specific claim, read the audit timeline.
 - **Hospital** — doctor record view, create a claim, generate the proof in the browser, submit it.
 - **Lab & Pharmacy** — read only the limited copy a patient shared with that simulated provider (W15).
 - **Emergency Responder** — invoke break-glass and read only the patient's emergency summary.
@@ -135,7 +135,7 @@ Mention these clearly in both the pitch and the threat model.
 - Old bundles stay on IPFS after a key rotation, so a revoked doctor can still open the old version with their old key.
 - Anyone with the off-chain provider directory can match public grants to a provider type, such as learning that a patient shared something with a pharmacy, but not what was shared (D-059).
 - A pharmacy may infer a condition from a prescription, because field filtering cannot hide what a medicine implies (D-058).
-
+- An uploaded file is shared whole, its encrypted size stays visible, and Rado cannot detect a real document (D-060, D-061).
 ## Product Decisions
 
 - **D-001 — Use Rado as the product name.** Reason: the team confirmed it as the final name. Source: setup interview and post-setup confirmation.

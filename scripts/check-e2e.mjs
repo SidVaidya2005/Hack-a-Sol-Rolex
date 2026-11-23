@@ -21,20 +21,39 @@ import { fileURLToPath } from "node:url";
 import { x25519 } from "@noble/curves/ed25519.js";
 import { createHardhatRuntimeEnvironment } from "hardhat/hre";
 import { groth16 } from "snarkjs";
-import { createPublicClient, createWalletClient, http, parseAbi, parseEther } from "viem";
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseAbi,
+  parseEther,
+  parseEventLogs,
+} from "viem";
 import { generatePrivateKey, mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 import { hardhat } from "viem/chains";
 import hardhatConfig from "../contracts/hardhat.config.ts";
 import { contractsDir, deployRado, resolveVerifier } from "../contracts/scripts/deploy.ts";
 import {
   claimSettlementAbi,
+  decryptRecord,
   eddsaPublicKey,
+  encodeBundle,
+  hashBundleBytes,
   mockUsdAbi,
   PUBLIC_SIGNALS,
+  recordAccessAbi,
+  SAMPLE_EMERGENCY_SUMMARY,
   SAMPLE_POLICY,
+  SAMPLE_RECORD,
+  utf8Encode,
 } from "../packages/shared/src/index.ts";
 import { createClaimExchange } from "../app/lib/claim-exchange.ts";
-import { createRecordService, plainRecordError } from "../app/lib/record-service.ts";
+import { escrowReleaseTypedData } from "../app/lib/escrow-auth.ts";
+import {
+  createRecordService,
+  describeEmergencySummary,
+  plainRecordError,
+} from "../app/lib/record-service.ts";
 import { createSettlement, readChainLedger, toContractArgs } from "../app/lib/settlement.ts";
 
 const draft = process.argv.includes("--draft");
@@ -234,20 +253,25 @@ async function main() {
   );
 
   // Real app routes, pointed at this chain
-  start(
-    "app",
-    [
-      join(repoRoot, "node_modules", "next", "dist", "bin", "next"),
-      "dev",
-      "--hostname",
-      "127.0.0.1",
-      "--port",
-      String(APP_PORT),
-    ],
-    appDir,
-    { HARDHAT_RPC_URL: chainUrl, RADO_E2E_DIR: workDir },
-  );
-  await waitFor("The app", () => rpcOk(`${base}/api/rpc`));
+  const escrowKey = `0x${randomBytes(32).toString("hex")}`;
+  const startApp = async () => {
+    const child = start(
+      "app",
+      [
+        join(repoRoot, "node_modules", "next", "dist", "bin", "next"),
+        "dev",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        String(APP_PORT),
+      ],
+      appDir,
+      { HARDHAT_RPC_URL: chainUrl, RADO_E2E_DIR: workDir, ESCROW_PRIVATE_KEY: escrowKey },
+    );
+    await waitFor("The app", () => rpcOk(`${base}/api/rpc`));
+    return child;
+  };
+  let appChild = await startApp();
 
   const transport = http(`${base}/api/rpc`, { timeout: 120_000 });
   const publicClient = createPublicClient({ chain: hardhat, transport, pollingInterval: 100 });
@@ -258,6 +282,17 @@ async function main() {
       contracts.claimSettlement === addresses.claimSettlement &&
       contracts.mockUsd === addresses.mockUsd,
   );
+
+  // Writes straight to this run's cache, so the test never uploads to Pinata.
+  const recordsDir = join(workDir, "cache", "records");
+  const storeBundle = async (bundle) => {
+    const bytes = encodeBundle(bundle);
+    const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    const cid = `Qm${Array.from(randomBytes(44), (byte) => alphabet[byte % 58]).join("")}`;
+    mkdirSync(recordsDir, { recursive: true });
+    writeFileSync(join(recordsDir, `${cid}.json`), bytes);
+    return { bundleHash: hashBundleBytes(bytes), cid };
+  };
 
   async function newUser(account) {
     const eddsaSeed = randomBytes(32);
@@ -274,10 +309,14 @@ async function main() {
       walletClient,
       recordAccess: contracts.recordAccess,
       baseUrl: base,
+      storeBundle,
     };
-    await createRecordService(config).ensureRegistered(keys);
+    const service = createRecordService(config);
+    await service.ensureRegistered(keys);
     return {
       address: account.address,
+      keys,
+      service,
       walletClient,
       exchange: createClaimExchange({
         ...config,
@@ -465,6 +504,161 @@ async function main() {
     "A proof for an old hospital list is rejected with a plain reason",
     (await rejectionOf(() => hospital.settlement.submit(staleClaim))) ===
       "The approved hospital list changed. Generate a new proof.",
+  );
+
+  // W12 break-glass
+  const accessAbi = parseAbi(recordAccessAbi);
+  const responder = await newUser(await newAccount());
+  const outsider = await newUser(await newAccount());
+  const doctor = await newUser(await newAccount());
+  const responderTx = await insurerWallet.writeContract({
+    address: addresses.recordAccess,
+    abi: accessAbi,
+    functionName: "setResponder",
+    args: [responder.address, true],
+  });
+  await chainClient.waitForTransactionReceipt({ hash: responderTx });
+
+  const fullRecordId = await patient.service.addRecord(
+    patient.keys,
+    utf8Encode(JSON.stringify(SAMPLE_RECORD)),
+  );
+  const summaryId = await patient.service.addEmergencySummary(
+    patient.keys,
+    utf8Encode(JSON.stringify(SAMPLE_EMERGENCY_SUMMARY)),
+  );
+  const target = { patient: patient.address, recordId: summaryId };
+  const listed = await responder.service.listEmergencyPatients();
+  report(
+    "The responder finds only the patient's emergency summary",
+    listed.length === 1 && listed[0].recordId === summaryId,
+  );
+
+  const invoke = async (recordId) => {
+    const hash = await responder.walletClient.writeContract({
+      address: contracts.recordAccess,
+      abi: accessAbi,
+      functionName: "invokeBreakGlass",
+      args: [patient.address, recordId],
+    });
+    const invoked = await publicClient.waitForTransactionReceipt({ hash });
+    const [log] = parseEventLogs({
+      abi: accessAbi,
+      logs: invoked.logs,
+      eventName: "BreakGlassInvoked",
+    });
+    return { transactionHash: hash, logIndex: log.logIndex };
+  };
+  const requestRelease = async (user, recordId, event) => {
+    const expiresAt = Math.floor(Date.now() / 1000) + 120;
+    const signature = await user.walletClient.signTypedData({
+      account: user.walletClient.account,
+      ...escrowReleaseTypedData({
+        wallet: user.address,
+        recordId,
+        ...event,
+        expiresAt: BigInt(expiresAt),
+      }),
+    });
+    const response = await fetch(`${base}/api/escrow/release`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ wallet: user.address, recordId, ...event, expiresAt, signature }),
+    });
+    const body = await response.json().catch(() => ({}));
+    return { status: response.status, wrappedKey: body.wrappedKey };
+  };
+  const refused = (result, status) => result.status === status && !result.wrappedKey;
+
+  report(
+    "Release with a made-up transaction is refused",
+    refused(
+      await requestRelease(responder, summaryId, {
+        transactionHash: `0x${randomBytes(32).toString("hex")}`,
+        logIndex: 0,
+      }),
+      403,
+    ),
+  );
+  report(
+    "Release with a real transaction that is not break-glass is refused",
+    refused(
+      await requestRelease(responder, summaryId, { transactionHash: responderTx, logIndex: 0 }),
+      403,
+    ),
+  );
+  report(
+    "An unregistered wallet cannot invoke break-glass",
+    (await rejectionOf(() => outsider.service.openEmergencySummary(outsider.keys, target))) ===
+      "This wallet is not a registered emergency responder.",
+  );
+  const event = await invoke(summaryId);
+  report(
+    "An unregistered wallet cannot use a real break-glass event",
+    refused(await requestRelease(outsider, summaryId, event), 403),
+  );
+  report(
+    "Break-glass on a full record releases nothing",
+    refused(await requestRelease(responder, fullRecordId, await invoke(fullRecordId)), 403),
+  );
+
+  const released = await requestRelease(responder, summaryId, event);
+  const { bundle: summaryBundle } = await responder.service.loadBundle(summaryId);
+  const items =
+    released.status === 200
+      ? describeEmergencySummary(
+          await decryptRecord(
+            { ...summaryBundle, wrappedKeys: [released.wrappedKey] },
+            responder.address,
+            responder.keys.x25519SecretKey,
+          ),
+        )
+      : [];
+  report(
+    "A registered responder gets exactly the summary after the event",
+    items.map(({ value }) => value).join("|") ===
+      "Test Patient Alpha|Sample drug allergy|O positive",
+  );
+  report(
+    "A repeated release is refused",
+    refused(await requestRelease(responder, summaryId, event), 409),
+  );
+
+  stop(appChild);
+  await waitFor("The stopped app's port", () => portFree(APP_PORT));
+  appChild = await startApp();
+  report(
+    "A repeated release is still refused after a server restart",
+    refused(await requestRelease(responder, summaryId, event), 409),
+  );
+
+  const opened = await responder.service.openEmergencySummary(responder.keys, target);
+  report("The responder app flow opens a new event's summary", opened.length === 3);
+  const emergencyEntries = (await patient.service.timeline()).filter(
+    (entry) => entry.title === "Emergency access used",
+  );
+  report(
+    "The patient timeline shows each emergency access and the responder",
+    emergencyEntries.length === 3 &&
+      emergencyEntries.every(
+        (entry) => entry.actor?.toLowerCase() === responder.address.toLowerCase(),
+      ),
+  );
+
+  await patient.service.grant(patient.keys, summaryId, doctor.address, 1);
+  await patient.service.revoke(patient.keys, summaryId, doctor.address);
+  const afterRevoke = await responder.service.openEmergencySummary(responder.keys, target);
+  report(
+    "Revoking a doctor rotates the summary key and keeps emergency access working",
+    afterRevoke.length === 3 &&
+      (await rejectionOf(() => doctor.service.open(doctor.keys, summaryId))) !== null,
+  );
+  const storedRecords = readdirSync(recordsDir)
+    .map((name) => readFileSync(join(recordsDir, name), "utf8"))
+    .join("");
+  report(
+    "Stored bundles hold no readable summary or record text",
+    !/Test Patient Alpha|Sample drug allergy|O positive|resourceType/.test(storedRecords),
   );
   await globalThis.curve_bn128?.terminate?.();
 }

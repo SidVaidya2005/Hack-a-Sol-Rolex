@@ -124,7 +124,8 @@ Mention these clearly in both the pitch and the threat model.
 - The insurer can see which hospital was paid and can link claims made under one policy commitment.
 - A doctor can keep anything they already decrypted. Expiry is enforced by the contract and app until the patient rotates the key.
 - The app logs doctor views on-chain before decrypting, but a modified client could skip that step.
-- The escrow service on L4 is trusted for emergency summaries only.
+- The escrow service on L4 is trusted for emergency summaries only, and briefly holds a summary key in memory while re-wrapping it.
+- Anyone who can fetch an encrypted bundle can see that it has an escrow reader, so they can tell it is an emergency summary without being able to read it.
 - The L4 host cannot read inbox messages, but it can see who messaged whom and when.
 - Inbox request signatures do not cover the recipient, message ID, or acknowledged IDs, so L4 or someone altering traffic could misroute or delete messages, but could not read them (D-042).
 - The Groth16 trusted setup and all wallets are demo-grade.

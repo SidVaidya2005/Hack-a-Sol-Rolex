@@ -5,7 +5,17 @@ import path from "node:path";
 
 import { recordAccessAbi } from "@rado/shared";
 import type { Address, EddsaPublicKey, Hex32 } from "@rado/shared";
-import { createPublicClient, http, isAddress, parseAbi, zeroAddress } from "viem";
+import {
+  createPublicClient,
+  hexToBytes,
+  http,
+  isAddress,
+  isAddressEqual,
+  parseAbi,
+  parseEventLogs,
+  TransactionReceiptNotFoundError,
+  zeroAddress,
+} from "viem";
 
 import { HttpError } from "./http";
 
@@ -71,9 +81,45 @@ export async function registeredEddsaKey(wallet: Address): Promise<EddsaPublicKe
 
 export async function anchoredRecord(
   recordId: Hex32,
-): Promise<{ bundleHash: Hex32; cid: string } | null> {
+): Promise<{ patient: Address; bundleHash: Hex32; cid: string } | null> {
   const [patient, bundleHash, cid] = await readRecordAccess((client, address) =>
     client.readContract({ address, abi, functionName: "recordOf", args: [recordId] }),
   );
-  return patient === zeroAddress ? null : { bundleHash, cid };
+  return patient === zeroAddress ? null : { patient, bundleHash, cid };
+}
+
+export async function registeredX25519Key(wallet: Address): Promise<Uint8Array | null> {
+  const [, , x25519PublicKey, registered] = await readRecordAccess((client, address) =>
+    client.readContract({ address, abi, functionName: "keysOf", args: [wallet] }),
+  );
+  return registered ? hexToBytes(x25519PublicKey) : null;
+}
+
+export function isRegisteredResponder(wallet: Address): Promise<boolean> {
+  return readRecordAccess((client, address) =>
+    client.readContract({ address, abi, functionName: "isResponder", args: [wallet] }),
+  );
+}
+
+/** Reads one log from a successful transaction on the deployed RecordAccess contract. */
+export async function breakGlassEvent(
+  hash: Hex32,
+  logIndex: number,
+): Promise<{ recordId: Hex32; patient: Address; responder: Address } | null> {
+  const contract = await recordAccessAddress();
+  const client = createPublicClient({ transport: http(hardhatRpcUrl(), { retryCount: 0 }) });
+  let receipt;
+  try {
+    receipt = await client.getTransactionReceipt({ hash });
+  } catch (error) {
+    if (error instanceof TransactionReceiptNotFoundError) return null;
+    throw new HttpError(503, "The blockchain is not reachable.");
+  }
+  if (receipt.status !== "success") return null;
+  const log = receipt.logs.find(
+    (entry) => entry.logIndex === logIndex && isAddressEqual(entry.address, contract),
+  );
+  if (!log) return null;
+  const [event] = parseEventLogs({ abi, logs: [log], eventName: "BreakGlassInvoked" });
+  return event ? event.args : null;
 }

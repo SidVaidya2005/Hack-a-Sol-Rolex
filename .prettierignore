@@ -5,6 +5,7 @@ packages/shared/vectors/
 package-lock.json
 next-env.d.ts
 .next/
+.next-e2e/
 contracts/artifacts/
 contracts/cache/
 contracts/coverage/

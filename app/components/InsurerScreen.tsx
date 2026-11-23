@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatAmount, getInsurerSampleData } from "../data/insurer-sample-data";
 import { usePublicClaim } from "./ClaimSimulationProvider";
 import { Icon } from "./icons";
+import { InsurerPolicyPanel } from "./InsurerPolicyPanel";
 import { Badge, Band, MetricCard, PageHeading, Panel, SampleNotice } from "./ui";
 
 const sample = getInsurerSampleData();
@@ -95,6 +96,7 @@ export function InsurerScreen() {
           {message}
         </p>
       ) : null}
+      <InsurerPolicyPanel />
       <div className="mb-14 grid gap-x-8 gap-y-2 sm:grid-cols-3">
         <MetricCard
           label="Pool balance"

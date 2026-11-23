@@ -148,6 +148,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Build notes:** the setup is demo-only and each run creates different keys, so rerun it after any `claim.circom` change and commit every output together. Contribution entropy stays in memory and is never saved. The third-party calls were checked against locked source because Context7 was not signed in on the build laptop.
 
+- **D-039 — Accept the GitHub Actions Windows run as the W03 and W04 Windows check, and generate the committed proving files on LInep's Linux laptop.** Reason: the run passed the required checks on a clean Windows machine, and each setup creates different keys, so the team must commit the output of only one run. Accepted tradeoff: this does not prove the checks pass on a specific team laptop. Source: Windows run 45069101245, user-approved 2026-11-23.
+
 ### W05 Smart contracts and tests
 
 **Owner:** T2. Build `MockUSD`, `RecordAccess`, and `ClaimSettlement` with deployment and seed scripts.
@@ -237,6 +239,12 @@ An item can **start** before its dependencies are finished by building against a
 **Owner:** T1 and T3. Connect the full private claim exchange: insurer sends or resends policy terms, hospital sends a claim request, patient approves it, both parties provide their EdDSA signatures, and the hospital browser creates the proof in a web worker. Use the inbox for messages.
 
 **Verify:** L3 delivers policy terms to L1, L2 sends a claim request, and L2 generates a valid proof after L1 approves. Expected: a forged claim request is rejected on L1 before it is shown, a retried message creates no duplicate, L2 sends witness data only as inbox ciphertext, and L4's server logs contain no message contents.
+
+**Plan:** `app/lib/claim-exchange.ts` holds the flows, so the browser and `scripts/check-claim-exchange.mjs` run the same code. `app/lib/proof.worker.ts` proves in a web worker, refuses placeholder files, and checks each proving file against `manifest.json`. W10 stops at a verified proof, and W11 submits it. Decisions: D-049, D-050, D-051. Beyond the shared sender checks, the client rejects a request whose payout differs from its sender and an approval from a wallet other than the patient asked.
+
+**Built, not yet verified across laptops:** 2026-11-23. On Windows with Node 26, 32 scripted checks passed against deployed contracts and real routes, covering forged terms, requests, and approvals, retries, stored ciphertext, the real proof, and the deployed Solidity verifier. A headless Chrome run with test wallets in three isolated contexts passed the whole UI flow. Its browser requests held no readable claim fields, the server log held no message contents, and the worker proof took 6.0 seconds on the host. The 65 W07 and 36 W09 checks, all workspace tests, typecheck, lint, and the production build also passed. MetaMask, proof time on L2, and the separate-laptop Verify had not run at this point.
+
+**Result:** 2026-11-23 — Three laptops passed the W10 Verify flow through MetaMask over LAN HTTPS, as reported by the team: the Insurer on Laptop C delivered and resent policy terms, the Hospital on Laptop B sent a claim request, the Patient on Laptop A approved it, and Laptop B generated a valid proof in 0.9 seconds. An uncovered procedure was blocked on the Patient screen. The live chain confirmed all three wallets registered, one approved hospital, one registered policy, and no payout, and stored inbox data held no readable claim fields. Forged-message and retry rejections are covered by `scripts/check-claim-exchange.mjs`. Known gap at this point: a patient's decline updates only the Patient screen, so the Hospital keeps showing Awaiting patient. Decisions: D-049, D-050, D-051.
 
 ### W11 Settlement, insurer view, and end-to-end flow
 

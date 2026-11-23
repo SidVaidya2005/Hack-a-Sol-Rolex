@@ -22,8 +22,8 @@
 
 ## Current Status
 
-**Last completed:** W09 Patient records and permissions
-**Next:** W10 and W11 can start when an owner is free.
+**Last completed:** W10 Hospital claim and browser proving
+**Next:** W11 can start when an owner is free.
 
 **Left to do now:**
 
@@ -41,7 +41,7 @@
 - [x] W07 Server routes
 - [x] W08 Role screens with sample data
 - [x] W09 Patient records and permissions
-- [ ] W10 Hospital claim and browser proving
+- [x] W10 Hospital claim and browser proving
 - [ ] W11 Settlement, insurer view, and end-to-end flow
 - [ ] W12 Break-glass
 - [ ] W13 Threat model and architecture diagram
@@ -49,6 +49,9 @@
 
 ## Key Decisions
 
+- **D-051 — Test W10 with the Insurer in a separate Chrome profile on the host, but leave W10 unticked until a real third laptop runs it.** Reason: the team has two laptops now, and W10's Verify names separate Insurer, Patient, and Hospital laptops. Source: W10 plan, user-approved 2026-11-23.
+- **D-050 — Include minimal approve-hospital and register-policy actions on the Insurer screen in W10.** Reason: policy delivery cannot work until a hospital is approved and a policy is registered, and those actions are needed in the demo. Source: W10 plan, user-approved 2026-11-23.
+- **D-049 — Derive each policy salt from the Insurer's unlocked EdDSA seed and the patient wallet with keccak256 and the tag `rado/policy-salt/v1`.** Reason: private terms cannot be stored in readable form, and this lets the Insurer rebuild and resend them after a refresh. Accepted tradeoff: each patient has one demo policy per insurer key. Source: W10 plan, user-approved 2026-11-23.
 - **D-048 — Let patients choose a doctor from wallets registered on-chain.** Reason: this avoids copying addresses between laptops during the demo. Accepted tradeoff: the list shows short addresses without names, so the patient must confirm the right wallet. Source: W09 plan, user-approved 2026-11-23.
 - **D-047 — Give the browser contract addresses through a read-only `GET /api/contracts` route.** Reason: the addresses live in a git-ignored server file and are already public on-chain, and a route lets a fresh seed work without a rebuild. Source: W09 plan, user-approved 2026-11-23.
 - **D-046 — Display mock token amounts in INR at 1 token = ₹1, without changing contracts or shared token names.** Reason: the user asked for rupees, the token has no real value so no exchange rate is needed, and `MockUSD` and `mUSD` are shared interfaces owned by other work items. Accepted tradeoff: the UI says INR while code and contracts still say mUSD until the team chooses to rename them. Source: user request, W08, 2026-11-23.
@@ -56,9 +59,6 @@
 - **D-044 — Link W08 role screens through one labeled, in-memory claim simulation whose state holds no medical data.** Reason: judges can follow the whole claim across roles now, Insurer and Public Chain cannot read private fields from it, and W09 to W11 can replace its named actions with real logic. Accepted tradeoff: it syncs only inside one browser and must not stand in for the four-laptop demo (Invariant 24). Source: W08 interactive plan, user-approved 2026-11-23.
 - **D-043 — Authorize `/api/pin` with a MetaMask EIP-712 `RadoPinBundle` signature over the wallet, bundle hash, nonce, and expiry.** Reason: the docs require a registered wallet's signature without defining its format, and this needs no change to the shared inbox digest. Accepted tradeoff: one MetaMask prompt per pin. Source: W07 review, user-approved 2026-11-23.
 - **D-042 — Keep the documented inbox request digest, which does not sign `recipient`, `messageId`, or acknowledged IDs.** Reason: changing it would change a documented crypto rule, and AES-GCM AAD still stops an altered message from being read as genuine. Accepted tradeoff: a party able to alter a request in transit, including L4, could misroute a send or change which messages are deleted, but could not read them. Source: W06 plan, user-approved 2026-11-23.
-- **D-041 — Bind each wrapped record key with AAD `rado/wrap/v1 || recordId || reader`.** Reason: the docs did not specify this AAD, and binding it stops a wrapped key being moved to another record or reader without a shared type change. Source: W06 plan, user-approved 2026-11-23.
-- **D-040 — Restrict `mint`, `setResponder`, `registerPolicy`, and `updateHospitalRoot` to one insurer wallet set at deployment, using `NotInsurer(address caller)`.** Reason: `abi.ts` had no authorization rule, and open calls would let anyone approve a fake hospital and drain the pool. Source: W05 plan, user-approved 2026-11-23.
-- **D-039 — Accept the GitHub Actions Windows run as the W03 and W04 Windows check, and generate the committed proving files on LInep's Linux laptop.** Reason: the run passed the required checks on a clean Windows machine, and each setup creates different keys, so the team must commit the output of only one run. Accepted tradeoff: this does not prove the checks pass on a specific team laptop. Source: Windows run 45069101245, user-approved 2026-11-23.
 
 ## Open Questions
 

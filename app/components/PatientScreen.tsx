@@ -7,6 +7,7 @@ import { hasReached, type ClaimStage } from "../data/claim-simulation";
 import { formatAmount } from "../data/insurer-sample-data";
 import { getPatientSampleData } from "../data/patient-sample-data";
 import { useClaimActions, useClaimState, usePrivateClaimDraft } from "./ClaimSimulationProvider";
+import { PatientClaimPanel } from "./PatientClaimPanel";
 import { AuditTimeline, PatientRecordsPanel } from "./PatientRecordsPanel";
 import { PrivacyLens } from "./PrivacyLens";
 import { Badge, Band, PageHeading, Panel, SampleNotice } from "./ui";
@@ -51,9 +52,10 @@ export function PatientScreen() {
           <PatientRecordsPanel />
         </div>
         <div className="order-1 grid min-w-0 gap-10 xl:order-2">
+          <PatientClaimPanel />
           <Band
-            eyebrow="Your approval"
-            title="Claim request"
+            eyebrow="Simulation"
+            title="Sample claim request"
             description={
               claimRequested
                 ? "Review the details before approving this sample request."

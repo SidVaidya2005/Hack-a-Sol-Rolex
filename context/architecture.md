@@ -122,7 +122,7 @@ patient EdDSA signature over claimHash is valid
 - `claimAmount` and `perClaimLimit` are mUSD base units with 6 decimals, range-checked to 64 bits.
 - circomlib comparators are unsafe without these range checks, so apply `Num2Bits` before every comparison.
 - Use `EdDSAPoseidonVerifier` with `enabled` set to `1`.
-- `encounterId` and `policySalt` are random field elements, so a nullifier cannot be guessed or linked to a visit.
+- `encounterId` is a random field element and `policySalt` is derived from the Insurer's secret key (D-049), so a nullifier cannot be guessed or linked to a visit.
 - The insurer issues the policy terms to the patient. When approving a claim, the patient shares those private terms with the hospital through the Private Message Inbox.
 
 ## Smart Contracts
@@ -149,7 +149,7 @@ All routes run on L4 and share the app's HTTPS origin.
 | Route | Purpose | Required guard |
 | ----- | ------- | -------------- |
 | `POST /api/rpc` | Same-origin proxy to Hardhat on `127.0.0.1:8545` | Allow only read methods and `eth_sendRawTransaction` |
-| `GET /api/contracts` | Return the public deployed contract addresses (D-047) | Same origin, read-only |
+| `GET /api/contracts` | Return the public RecordAccess and ClaimSettlement addresses (D-047) | Same origin, read-only |
 | `POST /api/pin` | Pin an encrypted bundle and cache it | Valid `RadoPinBundle` signature from a registered wallet (D-043), bundle format and size check |
 | `GET /api/records/[cid]` | Return a bundle from Pinata or the cache | Hash must match the on-chain record |
 | `POST /api/escrow/release` | Re-wrap an emergency summary key for a responder | Matching on-chain event, registered responder signature, single use |
@@ -256,6 +256,8 @@ Ongoing rules move here from Key Decisions using the format `- **D-NNN — Rule.
 - **D-035 — Use ESLint `^9.39.5` instead of `^10.15.0`.** Reason: `eslint-config-next` installs React, import, and accessibility plugins that declare support only up to ESLint 9. Version 9 installs without peer conflicts and caught the same planted problems. Source: W02 plan, user-approved.
 - **D-036 — Use Node 26 on all four laptops.** Reason: the team needs one major version, and the app build, Hardhat compile, lint, clean install, and claim vector all passed on it. `engine-strict` makes another version fail at install. Source: W02 plan, user-approved.
 - **D-037 — Use one branch per work item and let items start on stand-ins, ticking them only after their checks pass on real dependencies.** Reason: sequential track branches made later items wait, while the tick rule and placeholder guards keep unproven work out of the demo. Source: team workflow discussion, user-approved 2026-11-22.
+- **D-040 — Restrict `mint`, `setResponder`, `registerPolicy`, and `updateHospitalRoot` to one insurer wallet set at deployment, using `NotInsurer(address caller)`.** Reason: `abi.ts` had no authorization rule, and open calls would let anyone approve a fake hospital and drain the pool. Source: W05 plan, user-approved 2026-11-23.
+- **D-041 — Bind each wrapped record key with AAD `rado/wrap/v1 || recordId || reader`.** Reason: the docs did not specify this AAD, and binding it stops a wrapped key being moved to another record or reader without a shared type change. Source: W06 plan, user-approved 2026-11-23.
 
 ## Code Standards
 

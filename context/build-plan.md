@@ -287,6 +287,8 @@ An item can **start** before its dependencies are finished by building against a
 
 **Security fixes found during W13:** 2026-11-23. Checking the code for the threat model found three ways around the emergency-access rules. Escrow now requires the bundle to belong to the event's record and its first pin signer to be the on-chain patient (D-057), which stops a responder from reading a summary with no event against its patient. Responder approval moved from the insurer to a separate wallet whose seed key is never saved (D-056), because an insurer could otherwise appoint itself. The E2E covers each attack and the contract tests cover the new guards. The updated flow still needs a reseed and one MetaMask break-glass run.
 
+**Result:** 2026-11-23 — `docs/threat-model.drawio` and `docs/threat-model.md` merged through PR #32. A comparison with `context/architecture.md` found every data location, route, contract, role, and listed limitation in the diagram and document. All four owners are checked off on the PR's review list, and no formal GitHub approvals were recorded. The diagram file parses with two pages, but this record has no confirmation of how it looks when rendered. Limitations 13 to 17 stay in the threat model until the team decides whether they join Known Limitations. The fixes from PRs #29 and #31 passed the automated checks on Windows with Node 26, and have not run through MetaMask, a real Pinata upload, `scripts/check-server-routes.mjs`, or the E2E on macOS. Decisions: D-056, D-057.
+
 ### W14 Rehearsal, backup video, and pitch
 
 **Owner:** all. Run the four-laptop setup on venue Wi-Fi, test the hotspot fallback, record a full backup run, and prepare the pitch.

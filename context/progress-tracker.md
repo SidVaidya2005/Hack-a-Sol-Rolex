@@ -22,13 +22,13 @@
 
 ## Current Status
 
-**Last completed:** W12 Break-glass
-**Next:** W13 Threat model and architecture diagram
+**Last completed:** W13 Threat model and architecture diagram
+**Next:** W14 Rehearsal, backup video, and pitch
 
 **Left to do now:**
 
 - **Host setup:** after a fresh clone, run `node scripts/generate-escrow-key.mjs` once on the host, then restart the app.
-- **After the W13 fixes merge:** restart the Hardhat node, run the seed, register keys again, approve the hospital, register the policy, add the emergency summary again, and run break-glass once through MetaMask. The old deployment still lets the insurer appoint responders.
+- **Before the first W14 rehearsal:** restart the Hardhat node, run the seed, register keys again, approve the hospital, register the policy, add the emergency summary again, and run break-glass once through MetaMask with real Pinata. A chain deployed before PR #31 still lets the insurer appoint responders.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.
 
 ## Progress
@@ -45,7 +45,7 @@
 - [x] W10 Hospital claim and browser proving
 - [x] W11 Settlement, insurer view, and end-to-end flow
 - [x] W12 Break-glass
-- [ ] W13 Threat model and architecture diagram
+- [x] W13 Threat model and architecture diagram
 - [ ] W14 Rehearsal, backup video, and pitch
 
 ## Key Decisions
@@ -64,3 +64,4 @@
 
 - Library checks that need a real install or the venue network are listed as `TODO:` entries in `context/library-docs.md`.
 - Should wagmi keep its default `wagmi.store` entry in `localStorage`? It holds wallet connection state and enables reconnects, but contains no claim or medical data.
+- Should threat-model limitations 13 to 17 join Known Limitations in `context/project-overview.md`?

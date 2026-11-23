@@ -27,7 +27,7 @@
 
 **Left to do now:**
 
-- **Shreyansh, W07:** routes, cache, and LAN HTTPS are built and pass `scripts/check-server-routes.mjs` on L4 against deployed contracts, with Pinata stubbed. Still unticked until these run: the same script from a real second laptop, `crypto.subtle` in that laptop's browser, a real Pinata upload and gateway read, and a real internet-off record load.
+- **Shreyansh, W07:** routes, cache, and LAN HTTPS are built and pass `scripts/check-server-routes.mjs` on L4 against deployed contracts, with Pinata stubbed, including on Windows with Node 26 (2026-11-23). No second laptop is available yet, so W07 stays unticked. Still to run: the same script from a real second laptop, `crypto.subtle` in that laptop's browser, a real Pinata upload and gateway read, and a real internet-off record load.
 - **Siddarth, W08:** the latest `main` is merged into `w08/role-screens`. Test a real MetaMask connection, including adding the Rado network and a call through `/api/rpc`, rerun the browser flows, then add the W08 Result and tick it.
 - **W10 and W11 owners:** switch to the real proving files once W04 merges. The E2E script must refuse placeholders unless run with `--draft`.
 - **Everyone:** never use the placeholder in a rehearsal or the demo, and never rerun the real setup unless `claim.circom` changes, because each run creates different keys.

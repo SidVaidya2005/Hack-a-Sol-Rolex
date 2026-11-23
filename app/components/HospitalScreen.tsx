@@ -8,6 +8,7 @@ import { getHospitalSampleData } from "../data/hospital-sample-data";
 import { formatAmount, getInsurerSampleData } from "../data/insurer-sample-data";
 import { AttackSimulator } from "./AttackSimulator";
 import { useClaimActions, useClaimState, usePrivateClaimDraft } from "./ClaimSimulationProvider";
+import { DoctorRecordsPanel } from "./DoctorRecordsPanel";
 import { Icon } from "./icons";
 import { PrivacyLens } from "./PrivacyLens";
 import { ProofConsole } from "./ProofConsole";
@@ -299,6 +300,7 @@ export function HospitalScreen() {
           </p>
         </Band>
       </div>
+      <DoctorRecordsPanel />
       <PrivacyLens
         procedure={procedureLabel(draft.procedureCode)}
         visit={sample.encounter}

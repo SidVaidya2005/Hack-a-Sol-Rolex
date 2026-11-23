@@ -214,11 +214,19 @@ An item can **start** before its dependencies are finished by building against a
 
 **Result:** 2026-11-23 — On Windows with Node 26 against a seeded local chain, MetaMask connected with an imported demo Patient wallet, added Rado Local through `http://127.0.0.1:3000/api/rpc`, showed the connected state, and read the wallet's 100 ETH balance. Chrome connected to the app and not directly to Hardhat, and the app log showed no RPC or route failures. Typecheck, production build, and lint passed with the existing PostCSS warning. A manual desktop click-through passed record, access, claim, replay, seven attacks, Responder, Insurer, and Public Chain flows, with no medical data on the Insurer or Public Chain screens. Phone and tablet widths were not rerun in this pass. Real proofs, payments, and cross-laptop behavior belong to W09 to W11.
 
+- **D-038 — Apply `context/DESIGN.md` to role screens with a top nav, one dark focal band per screen, a fully dark Public Chain View, repo-owned SVG icons, and self-hosted Space Grotesk, Inter, and IBM Plex Mono.** Reason: this follows the agreed design while giving each screen one clear focus and making the outsider's view visibly distinct, with no new dependency or browser font requests. Accepted tradeoff: the first build needs internet to download fonts. Source: W08 design plan, user-approved 2026-11-23.
+
 ### W09 Patient records and permissions
 
 **Owner:** T3 and T4. Connect add record, grant, time-limited access, revoke with rotation, doctor view, and audit timeline.
 
 **Verify:** across L1 and L2, a granted doctor reads a record. Expected: after revoke, the doctor cannot open the current version and the timeline shows each action.
+
+**Plan:** `app/lib/record-service.ts` holds the flows, so the browser and `scripts/check-patient-records.mjs` run the same code. Decisions: D-047, D-048. The doctor view stays on the Hospital screen, as the project overview describes. When re-wrapping keys, the later of chain and laptop time decides whether a grant has ended, so an expired reader is dropped even if the local chain has not mined recently. The contract still enforces expiry when a view is logged.
+
+**Built, not yet verified across laptops:** 2026-11-23. On Windows with Node 26, 36 scripted checks passed against deployed contracts and the real routes with Pinata stubbed, covering grant, view logging, cancelled revoke, rotation, old-key failure, expiry, renewal, and the timeline. Typecheck, lint, tests, and build passed, and the page loaded in headless Chrome. MetaMask browser flows and the L1 and L2 Verify check had not run at this point.
+
+**One-laptop MetaMask pass:** 2026-11-23. With separate Patient and Doctor demo wallets in one browser and real Pinata, a manual run passed unlock, add record, patient open, grant, logged doctor view, revoke with rotation, and the refused doctor state. The chain then showed key version 2, no doctor access, one logged doctor view, and each expected audit event. The current bundle had no doctor key and no readable medical terms. All 3 pins succeeded, and the app log showed no route failures, medical text, or wallet addresses. Expiry was covered by the scripted check, not this manual run. The L1 and L2 Verify check has not run, so W09 is unticked.
 
 ### W10 Hospital claim and browser proving
 

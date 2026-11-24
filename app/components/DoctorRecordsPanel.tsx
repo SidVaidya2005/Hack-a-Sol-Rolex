@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { plainRecordError, type OpenedRecord, type SharedRecord } from "../lib/record-service";
 import { DocumentViewer } from "./DocumentViewer";
+import { KeySeal } from "./dossier";
 import { ProfileDetails } from "./PatientProfilePanel";
 import {
   formatExpiry,
@@ -90,17 +91,21 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
           <WalletPromptNotice text={walletPrompt} />
           <StatusMessage message={message} />
           {records.length ? (
-            <div className="divide-y divide-rado-line">
+            <div className="grid gap-4">
               {records.map(({ recordId, patient, expiresAt, status }) => {
                 const isOpen = opened?.recordId === recordId && status === "Active";
                 return (
-                  <div className="py-4 first:pt-0 last:pb-0" key={recordId}>
+                  <article className="sealed-sheet" key={recordId}>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-base text-rado-ink">
-                          Encrypted record {shortId(recordId)}
+                      <KeySeal broken={status !== "Active"} label="SEAL" />
+                      <div className="min-w-0 flex-1 basis-40">
+                        <p className="cipher-line" title={recordId}>
+                          REC {shortId(recordId)}
                         </p>
-                        <p className="mt-0.5 text-xs text-rado-slate">
+                        <p className="page-title mt-0.5 text-[17px] leading-[1.15] text-rado-ink">
+                          Sealed record
+                        </p>
+                        <p className="mt-1 text-xs text-rado-slate">
                           {patientNames.has(patient.toLowerCase())
                             ? `${patientNames.get(patient.toLowerCase())} - ${shortId(patient)}`
                             : `Patient ${shortId(patient)}`}
@@ -119,9 +124,9 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
                         {busy === recordId
                           ? "Check your wallet…"
                           : isOpen
-                            ? "Close"
+                            ? "Reseal"
                             : status === "Active"
-                              ? "Log view and open"
+                              ? "Log view and break seal"
                               : "No access"}
                       </button>
                     </div>
@@ -138,7 +143,7 @@ function DoctorRecordsContent({ text }: { text: PanelText }) {
                         onClose={() => setOpened(null)}
                       />
                     ) : null}
-                  </div>
+                  </article>
                 );
               })}
             </div>

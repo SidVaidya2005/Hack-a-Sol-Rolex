@@ -81,10 +81,13 @@ export function PatientClaimPanel() {
                 return (
                   <div className="py-4 first:pt-0" key={body.encounterId}>
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-rado-ink">
+                      <p className="page-title text-[17px] leading-tight text-rado-ink">
                         {procedureLabel(BigInt(body.procedureCode).toString())}
                       </p>
                       <Badge
+                        key={status}
+                        large={status === "approved"}
+                        thud={status === "approved"}
                         tone={
                           status === "approved"
                             ? "success"
@@ -100,7 +103,7 @@ export function PatientClaimPanel() {
                             : "Needs review"}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-xs text-rado-slate">
+                    <p className="mt-1 font-mono text-[11px] text-rado-slate">
                       {formatAmount(BigInt(body.claimAmount))} · Hospital {shortId(hospital)}
                     </p>
                     {status === "pending" && !terms ? (

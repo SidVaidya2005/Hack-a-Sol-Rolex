@@ -144,7 +144,7 @@ export function PublicChainScreen() {
               aria-live="polite"
               className="flex items-center gap-2 whitespace-nowrap font-mono text-xs text-rado-muted"
             >
-              <span className="motion-pulse size-1.5 rounded-full bg-rado-green" />
+              <span className="motion-pulse size-1.5 rounded-full bg-rado-coral" />
               {events.length} events
             </span>
           }
@@ -187,7 +187,7 @@ export function PublicChainScreen() {
                       type="button"
                     >
                       <span
-                        className={`text-rado-blue transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+                        className={`text-rado-coral transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
                       >
                         <Icon name="arrow" className="size-4" />
                       </span>

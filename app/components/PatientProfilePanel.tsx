@@ -5,8 +5,9 @@ import type { BloodGroup, PatientProfile } from "@rado/shared";
 import { useEffect, useState } from "react";
 
 import { plainRecordError } from "../lib/record-service";
+import { DecryptText, InsurerBlackout, Peel } from "./dossier";
 import { StatusMessage, useRecordSession, WalletPromptNotice } from "./RecordSession";
-import { Badge, Panel } from "./ui";
+import { Panel } from "./ui";
 
 const EMPTY_PROFILE: PatientProfile = {
   fullName: "",
@@ -25,11 +26,17 @@ export function ProfileDetails({ profile }: { profile: PatientProfile }) {
     ["Emergency contact", profile.emergencyContact || "None listed"],
   ];
   return (
-    <dl className="motion-reveal mt-3 divide-y divide-rado-line rounded-lg border border-rado-line px-4">
-      {rows.map(([label, value]) => (
-        <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-3" key={label}>
-          <dt className="text-sm text-rado-slate">{label}</dt>
-          <dd className="min-w-0 break-words text-right text-sm text-rado-ink">{value}</dd>
+    <dl className="mt-3 divide-y divide-rado-line rounded-[10px] border border-rado-line px-3.5">
+      {rows.map(([label, value], index) => (
+        <div className="grid grid-cols-[8.5rem_1fr] items-baseline gap-x-3 py-2.5" key={label}>
+          <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-rado-muted">
+            {label}
+          </dt>
+          <dd className="m-0 min-w-0 break-words text-sm text-rado-ink">
+            <Peel index={index}>
+              <DecryptText text={value ?? ""} />
+            </Peel>
+          </dd>
         </div>
       ))}
     </dl>
@@ -231,7 +238,7 @@ function ShareNameNotice() {
       <WalletPromptNotice text={walletPrompt} />
       <StatusMessage message={message} />
       {gap > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-rado-stone-wash px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] bg-rado-stone-wash px-3.5 py-3">
           <p className="min-w-48 flex-1 text-xs leading-5 text-rado-slate">
             {gap === 1 ? "1 care wallet" : `${gap} care wallets`} cannot see your name yet. Only
             your name is shared, never with insurers, labs, or pharmacies.
@@ -256,8 +263,8 @@ export function PatientProfilePanel() {
     <Panel
       title="Your profile"
       description="Encrypted in this browser. Share it with a hospital or doctor from Your records. The emergency responder can open it only through a logged break-glass."
-      action={<Badge tone="success">Hidden from insurer</Badge>}
     >
+      <InsurerBlackout />
       {failed ? (
         <p className="text-sm text-rado-error">Could not load your profile.</p>
       ) : !loaded ? (

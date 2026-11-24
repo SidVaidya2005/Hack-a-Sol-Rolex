@@ -9,6 +9,7 @@ import {
   type EmergencySummaryItem,
   type EmergencySummaryRecord,
 } from "../lib/record-service";
+import { DecryptText, Peel, RedactionBar } from "./dossier";
 import { Icon } from "./icons";
 import {
   shortId,
@@ -17,7 +18,7 @@ import {
   useRecordSession,
   WalletPromptNotice,
 } from "./RecordSession";
-import { Badge, Band, EmptyState, PageHeading, Panel } from "./ui";
+import { Badge, Band, PageHeading, Panel } from "./ui";
 
 /** Keyed by wallet, so a released summary is cleared when the wallet changes. */
 export function ResponderScreen() {
@@ -230,16 +231,36 @@ function ResponderContent() {
                     key={item.id}
                   >
                     <span className="text-sm text-rado-slate">{item.label}</span>
-                    <span className="text-right text-base text-rado-ink">{item.value}</span>
+                    <span className="text-right text-base text-rado-ink">
+                      <Peel index={summary.indexOf(item)}>
+                        <DecryptText text={item.value} />
+                      </Peel>
+                    </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <EmptyState
-                icon="lock"
-                title="Profile is locked"
-                description="Give a reason and invoke break-glass to log the access and open this profile."
-              />
+              <div>
+                <dl className="grid gap-3 rounded-[10px] bg-rado-stone-wash p-4">
+                  {[
+                    ["Patient", "62%"],
+                    ["Date of birth", "34%"],
+                    ["Blood group", "20%"],
+                    ["Allergies", "78%"],
+                    ["Emergency contact", "54%"],
+                  ].map(([label, width]) => (
+                    <div className="grid grid-cols-[9rem_1fr] items-center gap-3" key={label}>
+                      <dt className="text-sm text-rado-slate">{label}</dt>
+                      <dd className="m-0 leading-none">
+                        <RedactionBar label={`${label} locked`} width={width} />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-3 text-sm leading-6 text-rado-slate">
+                  Give a reason and invoke break-glass to log the access and open this profile.
+                </p>
+              </div>
             )}
           </Panel>
         </div>

@@ -19,8 +19,8 @@ import {
   type WalletPromptHandler,
 } from "../lib/record-service";
 import { AddRecordForm } from "./AddRecordForm";
+import { KeySeal, SharePreview } from "./dossier";
 import { DocumentViewer, formatDocumentSize } from "./DocumentViewer";
-import { Icon } from "./icons";
 import { ProfileDetails } from "./PatientProfilePanel";
 import {
   formatExpiry,
@@ -92,13 +92,14 @@ function RecordRow({
   const locked = Boolean(busy) || !session;
 
   return (
-    <div className="py-5 first:pt-0 last:pb-0">
+    <article className="sealed-sheet">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-rado-muted">
-          <Icon name="file" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-base text-rado-ink">
+        <KeySeal version={keyVersion.toString()} />
+        <div className="min-w-0 flex-1 basis-40">
+          <p className="cipher-line" title={recordId}>
+            REC {shortId(recordId)}
+          </p>
+          <p className="page-title mt-0.5 break-words text-[17px] leading-[1.15] text-rado-ink">
             {documentInfo
               ? documentInfo.name
               : isProfile
@@ -109,11 +110,11 @@ function RecordRow({
                     ? `${SHARE_PROFILES[sliceProfile].label} copy`
                     : (info?.title ?? "Health record")}
           </p>
-          <p className="mt-0.5 font-mono text-xs text-rado-slate">
+          <p className="mt-1 font-mono text-[11px] text-rado-muted">
             {documentInfo
               ? `${DOCUMENT_CATEGORIES[documentInfo.category].label} · ${formatDocumentSize(documentInfo.size)} · `
               : ""}
-            Key version {keyVersion.toString()}
+            Sealed · key v{keyVersion.toString()}
           </p>
         </div>
         {emergency ? <Badge tone="warning">Emergency access enabled</Badge> : null}
@@ -131,7 +132,7 @@ function RecordRow({
           }
           type="button"
         >
-          {busy === `open-${recordId}` ? "Opening…" : opened ? "Close" : "Open"}
+          {busy === `open-${recordId}` ? "Breaking seal…" : opened ? "Reseal" : "Break seal"}
         </button>
       </div>
       {opened?.kind === "record" ? <RecordItems items={opened.items} /> : null}
@@ -140,7 +141,7 @@ function RecordRow({
         <DocumentViewer canDownload document={opened.document} onClose={() => setOpened(null)} />
       ) : null}
 
-      <div className="mt-4 divide-y divide-rado-line">
+      <div className="mt-3 divide-y divide-rado-line">
         {grants.map(({ reader, expiresAt, status }) => (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3" key={reader}>
             <div className="min-w-0 flex-1">
@@ -174,7 +175,7 @@ function RecordRow({
         ))}
       </div>
 
-      <div className="mt-2 grid gap-3 border-t border-rado-line pt-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+      <div className="mt-3 grid gap-3 border-t border-rado-line pt-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <div>
           <label
             className="mb-1.5 block text-xs text-rado-slate"
@@ -261,56 +262,26 @@ function RecordRow({
         </button>
       </div>
       {target && documentInfo ? (
-        <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
-          <div>
-            <p className="text-rado-ink">Will be shared</p>
-            <p className="mt-1 text-rado-slate">
-              The whole document. A file cannot be partly shared, so check that it holds only what
-              this provider needs.
-            </p>
-          </div>
-          <div>
-            <p className="text-rado-ink">Stays private</p>
-            <p className="mt-1 text-rado-slate">Your other records and documents</p>
-          </div>
-        </div>
+        <SharePreview
+          note="A file cannot be partly shared, so check that it holds only what this provider needs."
+          shared={["The whole document"]}
+          withheld={["Your other records", "Your other documents"]}
+        />
       ) : null}
       {target && isProfile ? (
-        <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
-          <div>
-            <p className="text-rado-ink">Will be shared</p>
-            <p className="mt-1 text-rado-slate">
-              Name, date of birth, blood group, allergies, and emergency contact
-            </p>
-          </div>
-          <div>
-            <p className="text-rado-ink">Stays private</p>
-            <p className="mt-1 text-rado-slate">
-              Your other records. Insurers, labs, and pharmacies cannot be given this profile.
-            </p>
-          </div>
-        </div>
+        <SharePreview
+          note="Insurers, labs, and pharmacies cannot be given this profile."
+          shared={["Name", "Date of birth", "Blood group", "Allergies", "Emergency contact"]}
+          withheld={["Your other records"]}
+        />
       ) : null}
       {target && !sharedWhole && sliceProfile !== undefined ? (
-        <div className="mt-3 grid gap-3 rounded-lg bg-rado-stone-wash px-4 py-3 text-xs sm:grid-cols-2">
-          <div>
-            <p className="text-rado-ink">Will be shared</p>
-            <p className="mt-1 text-rado-slate">
-              {sliceProfile
-                ? SHARE_PROFILES[sliceProfile].shares.join(", ")
-                : SHARE_PROFILES[profile].shares.join(", ")}
-            </p>
-          </div>
-          <div>
-            <p className="text-rado-ink">Stays private</p>
-            <p className="mt-1 text-rado-slate">
-              {SHARE_PROFILES[sliceProfile ?? profile].withholds.join(", ") ||
-                "Nothing. This wallet can read the whole record."}
-            </p>
-          </div>
-        </div>
+        <SharePreview
+          shared={SHARE_PROFILES[sliceProfile ?? profile].shares}
+          withheld={SHARE_PROFILES[sliceProfile ?? profile].withholds}
+        />
       ) : null}
-    </div>
+    </article>
   );
 }
 
@@ -402,7 +373,7 @@ function PatientRecordsContent() {
           <StatusMessage message={message} />
           <AddRecordForm busy={busy} onRun={run} />
           {visibleRecords.length ? (
-            <div className="divide-y divide-rado-line">
+            <div className="grid gap-4">
               {visibleRecords.map((record) => (
                 <RecordRow
                   busy={busy}
@@ -472,7 +443,7 @@ function AuditTimelineContent() {
           {entries.map((entry, index) => (
             <li className="flex gap-3" key={entry.id}>
               <span
-                className={`mt-1.5 size-2 shrink-0 rounded-full ${index === 0 ? "bg-rado-green" : "bg-rado-line"}`}
+                className={`mt-1.5 size-2 shrink-0 rounded-full ${index === 0 ? "bg-rado-coral" : "bg-rado-line"}`}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap justify-between gap-x-3">

@@ -4,7 +4,7 @@ import { Icon, type IconName } from "./icons";
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">{children}</p>
+    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-rado-muted">{children}</p>
   );
 }
 
@@ -21,12 +21,9 @@ const DATA_MODE_LABELS: Record<DataMode, string> = {
 export function DataStatus({ mode }: { mode: DataMode }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 font-mono text-xs ${mode === "live" ? "text-rado-green" : "text-rado-coral-ink"}`}
+      className={`inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] ${mode === "live" ? "text-rado-ink" : "text-rado-coral-ink"}`}
     >
-      <span
-        aria-hidden="true"
-        className={`size-1.5 rounded-full ${mode === "live" ? "bg-rado-green" : "bg-rado-coral"}`}
-      />
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-rado-coral" />
       {DATA_MODE_LABELS[mode]}
     </span>
   );
@@ -48,14 +45,14 @@ export function PageHeading({
   return (
     <div className="mb-8 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
           <Eyebrow>{eyebrow}</Eyebrow>
           <DataStatus mode={status} />
         </div>
-        <h1 className="page-title mt-2 text-[32px] leading-[1.1] tracking-[-0.02em] text-rado-ink sm:text-[40px]">
+        <h1 className="page-title mt-3 text-[30px] leading-[1.1] text-rado-ink sm:text-[38px]">
           {title}
         </h1>
-        <p className="mt-2 max-w-2xl text-base leading-normal text-rado-slate">{description}</p>
+        <p className="mt-3 max-w-2xl text-[15px] leading-normal text-rado-slate">{description}</p>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -76,12 +73,12 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`panel-surface py-6 ${className}`}>
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <section className={`panel-surface pb-6 pt-4 ${className}`}>
+      <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl leading-[1.3] text-rado-ink">{title}</h2>
+          <h2 className="page-title text-[20px] leading-[1.2] text-rado-ink">{title}</h2>
           {description ? (
-            <p className="mt-1 text-sm leading-[1.4] text-rado-slate">{description}</p>
+            <p className="mt-1.5 text-[13px] leading-[1.45] text-rado-slate">{description}</p>
           ) : null}
         </div>
         {action}
@@ -109,15 +106,13 @@ export function Band({
   className?: string;
 }) {
   return (
-    <section className={`surface-dark band-${tone} rounded-[22px] p-6 sm:p-8 ${className}`}>
+    <section className={`surface-dark band-${tone} rounded-[18px] p-6 sm:p-8 ${className}`}>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <Eyebrow>{eyebrow}</Eyebrow>
-          <h2 className="mt-3 text-[32px] leading-[1.2] tracking-[-0.01em] text-rado-ink">
-            {title}
-          </h2>
+          <h2 className="page-title mt-2 text-[26px] leading-[1.15] text-rado-ink">{title}</h2>
           {description ? (
-            <p className="mt-2 text-sm leading-[1.4] text-rado-slate">{description}</p>
+            <p className="mt-2 text-[13px] leading-[1.45] text-rado-slate">{description}</p>
           ) : null}
         </div>
         {action}
@@ -139,35 +134,32 @@ export function MetricCard({
   icon: IconName;
 }) {
   return (
-    <div className="panel-surface min-w-0 py-4">
+    <div className="panel-surface min-w-0 py-3">
       <div className="flex items-center justify-between gap-3 text-rado-muted">
-        <p className="font-mono text-xs uppercase tracking-[0.08em]">{label}</p>
-        <Icon name={icon} />
+        <p className="font-mono text-[11px] uppercase tracking-[0.12em]">{label}</p>
+        <Icon name={icon} className="size-4" />
       </div>
-      <p className="page-title mt-5 break-words text-[32px] leading-[1.1] tracking-[-0.01em] text-rado-ink">
-        {value}
-      </p>
+      <p className="mt-5 break-words page-title text-[26px] leading-[1.1] text-rado-ink">{value}</p>
       <p className="mt-2 text-xs text-rado-slate">{detail}</p>
     </div>
   );
 }
 
+/** A rubber stamp. Ink weight carries the status, so no screen needs a tinted pill. */
 export function Badge({
   children,
   tone = "neutral",
+  large = false,
+  thud = false,
 }: {
   children: ReactNode;
   tone?: "neutral" | "success" | "warning" | "info";
+  large?: boolean;
+  thud?: boolean;
 }) {
-  const tones = {
-    neutral: "bg-rado-stone-wash text-rado-slate",
-    success: "bg-rado-pale-green text-rado-green",
-    warning: "bg-rado-coral-wash text-rado-coral-ink",
-    info: "bg-rado-pale-blue text-rado-blue",
-  };
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${tones[tone]}`}
+      className={`stamp stamp-${tone} ${large ? "stamp-large" : ""} ${thud ? "stamp-thud" : ""}`}
     >
       {children}
     </span>
@@ -184,12 +176,12 @@ export function EmptyState({
   description: string;
 }) {
   return (
-    <div className="grid min-h-56 place-items-center rounded-lg border border-dashed border-rado-line px-5 py-9 text-center">
+    <div className="grid min-h-56 place-items-center rounded-[14px] border border-dashed border-rado-line px-5 py-9 text-center">
       <div className="grid justify-items-center">
         <span className="text-rado-muted">
-          <Icon name={icon} className="size-7" />
+          <Icon name={icon} className="size-6" />
         </span>
-        <p className="mt-3 text-sm font-medium text-rado-ink">{title}</p>
+        <p className="page-title mt-3 text-base text-rado-ink">{title}</p>
         <p className="mt-1 max-w-xs text-sm leading-6 text-rado-slate">{description}</p>
       </div>
     </div>

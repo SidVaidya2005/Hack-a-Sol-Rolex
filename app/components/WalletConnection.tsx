@@ -90,7 +90,7 @@ export function WalletConnection() {
   return (
     <div className="flex flex-col items-end gap-1">
       <button
-        className="button-primary !px-4 !py-1.5"
+        className="button-primary whitespace-nowrap !px-3.5 !py-1.5"
         disabled={!hasConnector || connecting}
         onClick={connectWallet}
         type="button"

@@ -72,8 +72,8 @@ export function AddRecordForm({
   }
 
   return (
-    <div className="mb-6 rounded-lg border border-rado-line p-4">
-      <p className="text-base text-rado-ink">Add a record</p>
+    <div className="mb-6 rounded-[14px] bg-rado-stone-wash p-4">
+      <p className="page-title text-[17px] leading-tight text-rado-ink">Add a record</p>
       <p className="mt-1 text-xs leading-5 text-rado-slate">
         Enter the details, attach a PDF, PNG, or JPG up to 5 MB, or do both.
       </p>

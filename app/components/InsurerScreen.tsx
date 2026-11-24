@@ -6,6 +6,7 @@ import { formatAmount } from "../data/insurer-sample-data";
 import { formatClaimDay } from "../data/public-signal-labels";
 import type { SettledClaim } from "../lib/settlement";
 import { useChainLedger } from "../lib/use-chain-ledger";
+import { RedactionBar } from "./dossier";
 import { Icon } from "./icons";
 import { InsurerPolicyPanel } from "./InsurerPolicyPanel";
 import { shortId } from "./RecordSession";
@@ -148,11 +149,12 @@ export function InsurerScreen() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse text-left">
+            <table className="w-full min-w-[680px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-rado-line font-mono text-xs uppercase tracking-[0.08em] text-rado-muted">
                   <th className="pb-3 font-normal">Claim</th>
                   <th className="pb-3 font-normal">Policy</th>
+                  <th className="pb-3 font-normal">Medical details</th>
                   <th className="pb-3 font-normal">Date</th>
                   <th className="pb-3 font-normal">Payout</th>
                   <th className="pb-3 font-normal">Status</th>
@@ -177,8 +179,13 @@ export function InsurerScreen() {
                     <td className="py-4 font-mono text-xs text-rado-slate">
                       {hexId(row.policyCommitment)}
                     </td>
+                    <td className="py-4 pr-4">
+                      <RedactionBar label="Medical details hidden" width="6.5rem" />
+                    </td>
                     <td className="py-4 text-xs text-rado-slate">{formatClaimDay(row.claimDay)}</td>
-                    <td className="py-4 text-sm text-rado-ink">{formatAmount(row.claimAmount)}</td>
+                    <td className="py-4 font-mono text-sm text-rado-ink">
+                      {formatAmount(row.claimAmount)}
+                    </td>
                     <td className="py-4">
                       <Badge tone="success">Verified · paid</Badge>
                     </td>
@@ -186,7 +193,7 @@ export function InsurerScreen() {
                 ))}
                 {visibleClaims.length ? null : (
                   <tr>
-                    <td className="py-6 text-center text-sm text-rado-slate" colSpan={5}>
+                    <td className="py-6 text-center text-sm text-rado-slate" colSpan={6}>
                       {claims.length ? "No claims match that filter." : "No claims settled yet."}
                     </td>
                   </tr>
@@ -201,9 +208,9 @@ export function InsurerScreen() {
           title={formatAmount(totalCap)}
           description="Total cap across registered policies"
         >
-          <div className="h-1.5 overflow-hidden rounded-full bg-rado-card-border">
+          <div className="h-2 overflow-hidden rounded-full bg-rado-card-border">
             <div
-              className="h-full rounded-full bg-rado-green transition-[width] duration-500"
+              className="h-full rounded-full bg-rado-coral transition-[width] duration-500"
               style={{ width: `${utilization}%` }}
             />
           </div>
@@ -271,6 +278,11 @@ export function InsurerScreen() {
               <Icon name="lock" className="mt-1 size-4" />
               Private health details are not part of this claim view.
             </p>
+            <div className="mt-3 grid gap-2">
+              <RedactionBar label="Diagnosis hidden" width="82%" />
+              <RedactionBar label="Procedure hidden" width="58%" />
+              <RedactionBar label="Prescription hidden" width="70%" />
+            </div>
             <p className="mt-auto pt-6 text-xs text-rado-muted">Settled on the Rado network.</p>
           </div>
         ) : null}

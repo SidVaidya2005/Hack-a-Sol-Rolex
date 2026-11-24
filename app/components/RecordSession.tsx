@@ -16,7 +16,9 @@ import {
   type RecordService,
 } from "../lib/record-service";
 import { createSettlement, type Settlement } from "../lib/settlement";
+import { DecryptText } from "./dossier";
 import { Icon } from "./icons";
+import { Badge } from "./ui";
 import { useWalletActions } from "./WalletConnection";
 
 /** Keys live only in this React state, so a reload or wallet change locks them (Invariant 5). */
@@ -190,7 +192,7 @@ export function UnlockGate({ purpose }: { purpose: string }) {
           : "";
 
   return (
-    <div className="rounded-lg border border-rado-line px-5">
+    <div className="entry-steps">
       <ol className="divide-y divide-rado-line">
         {steps.map((step, index) => {
           const done = index < current;
@@ -202,7 +204,7 @@ export function UnlockGate({ purpose }: { purpose: string }) {
               key={step.title}
             >
               <span
-                className={`grid size-7 shrink-0 place-items-center rounded-full font-mono text-xs ${done ? "bg-rado-pale-green text-rado-green" : active ? "bg-rado-ink text-rado-on-ink" : "bg-rado-stone-wash text-rado-muted"}`}
+                className={`grid size-7 shrink-0 place-items-center rounded-full border font-mono text-[11px] ${done ? "border-rado-pale-green bg-rado-pale-green text-rado-green" : active ? "border-rado-primary bg-rado-primary text-white" : "border-rado-line text-rado-muted"}`}
               >
                 {done ? <Icon name="check" className="size-4" /> : index + 1}
               </span>
@@ -265,12 +267,15 @@ export function RecordItems({
   items: { id: string; kind: string; description: string }[];
 }) {
   return (
-    <ul className="motion-reveal mt-3 divide-y divide-rado-line rounded-lg border border-rado-line px-4">
+    <ul className="mt-4 divide-y divide-rado-line rounded-[10px] border border-rado-line bg-white px-3.5">
       {items.map((item) => (
-        <li className="py-3" key={item.id}>
-          <p className="text-sm text-rado-ink">{item.description}</p>
-          <p className="mt-0.5 text-xs text-rado-slate">
-            {ITEM_KINDS[item.kind] ?? "Health record"} · Patient-reported
+        <li className="grid gap-x-4 gap-y-0.5 py-2.5 sm:grid-cols-[9rem_1fr]" key={item.id}>
+          <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-rado-muted sm:pt-1">
+            {ITEM_KINDS[item.kind] ?? "Health record"}
+          </p>
+          <p className="text-sm text-rado-ink">
+            <DecryptText text={item.description} />
+            <span className="ml-2 text-xs text-rado-muted">Patient-reported</span>
           </p>
         </li>
       ))}
@@ -281,12 +286,8 @@ export function RecordItems({
 export function WalletPromptNotice({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <p
-      aria-live="polite"
-      className="motion-reveal mb-6 flex items-center gap-2 rounded-lg bg-rado-pale-blue px-4 py-3 text-sm text-rado-blue"
-      role="status"
-    >
-      <Icon name="wallet" className="size-4" />
+    <p aria-live="polite" className="wallet-slip motion-reveal mb-5" role="status">
+      <span className="wallet-slip-label">Awaiting signature</span>
       {text}
     </p>
   );
@@ -297,10 +298,11 @@ export function StatusMessage({ message }: { message: { ok: boolean; text: strin
   return (
     <p
       aria-live="polite"
-      className={`${message.ok ? "status-success" : "status-error"} motion-reveal mb-6 rounded-lg border px-4 py-3 text-sm`}
+      className={`${message.ok ? "status-success" : "status-error"} motion-reveal mb-5 flex items-center gap-3 border py-2.5 text-sm`}
       role="status"
     >
-      {message.text}
+      <Badge tone={message.ok ? "info" : "warning"}>{message.ok ? "Filed" : "Refused"}</Badge>
+      <span>{message.text}</span>
     </p>
   );
 }
